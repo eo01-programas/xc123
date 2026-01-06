@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Stock - Gráfica BLOQUEO vs PDS GIRADAS</title>
+    <style>
+        body{font-family:Calibri,Inter,sans-serif;margin:18px;color:#1f2937}
+        h1{font-size:18px;margin:0 0 12px}
+        #loader{display:flex;align-items:center;gap:10px}
+        .spinner{width:18px;height:18px;border:3px solid #e5e7eb;border-top-color:#2563eb;border-radius:50%;animation:spin 1s linear infinite}
+        @keyframes spin{to{transform:rotate(360deg)}}
+        #chart-wrap{margin-top:18px;max-width:900px}
+        .bars{display:flex;align-items:flex-end;gap:18px;padding:18px;border:1px solid #e6e7ec;background:#fff;border-radius:8px;flex-wrap:nowrap;overflow-x:auto}
+        .bar-item{display:flex;flex-direction:column;align-items:center;flex:0 0 110px;min-width:90px}
+        .bar{width:100%;background:transparent;border-radius:6px 6px 0 0;display:flex;flex-direction:column;justify-content:flex-end;color:#fff;font-weight:700;overflow:hidden}
+        .segment{width:100%;display:flex;align-items:flex-end;justify-content:center;color:#fff;font-weight:700}
+        .seg-prog{background:#2563eb}
+        .seg-xprog{background:#fb923c}
+        .label{margin-top:8px;font-size:12px;text-align:center;color:#374151}
+        .value{font-size:12px;color:#0f172a;margin-bottom:6px}
+        #no-data{color:#6b7280}
+        .controls{display:flex;gap:8px;align-items:center}
+        .legend{display:flex;gap:12px;align-items:center;margin-left:12px}
+        .legend-item{display:inline-flex;gap:8px;align-items:center;font-size:13px;color:#374151}
+        .legend-swatch{width:14px;height:14px;border-radius:3px;display:inline-block}
+        .sw-prog{background:#2563eb}
+        .sw-xprog{background:#fb923c}
+        /* simple switch */
+        .switch{display:inline-flex;align-items:center;gap:8px;margin-left:8px}
+        .switch input[type="checkbox"]{width:40px;height:22px;appearance:none;background:#e5e7eb;border-radius:999px;position:relative;outline:none;cursor:pointer}
+        .switch input[type="checkbox"]:before{content:'';position:absolute;width:16px;height:16px;background:white;border-radius:50%;top:3px;left:4px;transition:transform 0.15s}
+        .switch input[type="checkbox"]:checked{background:#2563eb}
+        .switch input[type="checkbox"]:checked:before{transform:translateX(18px)}
+        .switch label{font-weight:600;color:#374151}
+        button{background:#2563eb;color:#fff;border:none;padding:8px 12px;border-radius:6px;cursor:pointer}
+        button:disabled{opacity:0.6;cursor:not-allowed}
+    </style>
+</head>
+<body>
+    <div class="header-row" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+        <h1>STOCK</h1>
+        <a href="index.html" aria-label="volver a inicio"><button id="btn-volver" type="button">volver</button></a>
+    </div>
+    <div class="controls">
+        <div id="loader"><div class="spinner"></div><div>Cargando datos desde Google Sheets...</div></div>
+        <button id="btn-refresh" onclick="reloadData()" style="display:none">Refrescar</button>
+        <div class="switch" title="Ver KG en vez de PDS">
+            <input id="chk-kg" type="checkbox" onchange="toggleKg(this)">
+            <label for="chk-kg">kg</label>
+        </div>
+        <div class="legend" id="legend">
+            <div class="legend-item"><span class="legend-swatch sw-prog" aria-hidden="true"></span><span>PROG</span></div>
+            <div class="legend-item"><span class="legend-swatch sw-xprog" aria-hidden="true"></span><span>X PROG</span></div>
+        </div>
+    </div>
+
+    <div id="chart-wrap">
+        <div id="no-data" style="display:none">No hay datos que cumplan el filtro.</div>
+        <div id="chart" class="bars" aria-live="polite"></div>
+    </div>
+
+<script>
+// Copiamos la configuración del proyecto (usar la misma web app y sheet id que en index.html)
+const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwUgkycse31yIQiVHvoEdxQiCDtiVQ5n_atqB9Ls5XxszAN2NrVO1_I-1544vesUtoMaQ/exec";
+const SHEET_ID = "18cQuwqerdMggAeJ8TCUKA7-gujXsA91-CRMUTNpr8aQ";
+
+let rawData = [];
+let useKg = false; // false => use PDS GIRADAS, true => use KG GIRADOS
+
+function reloadData(){
+    document.getElementById('btn-refresh').style.display='none';
+    document.getElementById('loader').style.display='flex';
+    document.getElementById('chart').innerHTML='';
+    document.getElementById('no-data').style.display='none';
+    // Insert gviz script
+    const scr = document.createElement('script');
+    scr.src = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=responseHandler:loadStockData&gid=0`;
+    scr.onerror = () => showError('Error cargando Google Sheets');
+    document.body.appendChild(scr);
+}
+
+window.loadStockData = function(jsonResponse){
+    try{
+        if(!jsonResponse || !jsonResponse.table) throw new Error('Respuesta inválida');
+        const rowsRaw = jsonResponse.table.rows.map(r => r.c.map(cell => (cell && cell.v !== null) ? cell.v : ""));
+        const gvizHeaders = jsonResponse.table.cols.map(col => col.label || col.id);
+
+        // Si el gvizHeaders contiene el nombre de la cabecera principal la usamos, sino buscamos fila con encabezados
+        if (gvizHeaders.includes("PDS GIRADAS")) {
+            rawData = [gvizHeaders, ...rowsRaw];
+        } else {
+            // buscar fila que tenga PDS GIRADAS
+            let headerRowIndex = -1;
+            for(let i=0;i<rowsRaw.length;i++){
+                if (rowsRaw[i].some(c => String(c).toUpperCase().trim() === 'PDS GIRADAS')){ headerRowIndex = i; break; }
+            }
+            if (headerRowIndex !== -1) rawData = rowsRaw.slice(headerRowIndex);
+            else rawData = [gvizHeaders, ...rowsRaw];
+        }
+
+        // normalize headers
+        if(rawData.length>0) rawData[0] = rawData[0].map(h=> h ? String(h).trim() : '');
+
+        processAndRender();
+    }catch(err){
+        showError(err.message || err);
+    }
+};
+
+function showError(msg){
+    document.getElementById('loader').style.display='none';
+    document.getElementById('btn-refresh').style.display='inline-block';
+    document.getElementById('no-data').style.display='block';
+    document.getElementById('no-data').innerText = 'Error: ' + msg;
+}
+
+function getColIndexFlexible(names){
+    if(!rawData || rawData.length===0) return -1;
+    const headers = rawData[0];
+    for(const name of names){
+        const target = name.toLowerCase().trim();
+        const idx = headers.findIndex(h=> String(h || '').toLowerCase().trim() === target);
+        if(idx !== -1) return idx;
+    }
+    return -1;
+}
+
+function getVal(row, idx){
+    if(!row) return '';
+    if(idx<0 || idx>=row.length) return '';
+    return row[idx];
+}
+
+function processAndRender(){
+    // columnas de interés (variantes posibles)
+    const idxRuta = getColIndexFlexible(['RUTA TELA','RUTA','RUTA_TELA','RUTA TELA ']);
+    const idxEstadoBloq = getColIndexFlexible(['estado_bloqueo','ESTADO_BLOQUEO','BLOQUEO','BLOQUEO_ESTADO','ESTADO BLOQUEO']);
+    const idxPds = getColIndexFlexible(['PDS GIRADAS','PDS_GIRADAS','PDS','PDS GIRADAS ']);
+    const idxKg = getColIndexFlexible(['KG GIRADOS','KG_GIRADOS','KG GIRADOS ']);
+
+    const idxValue = useKg ? idxKg : idxPds;
+
+    if(idxValue === -1){
+        showError(useKg ? 'No se encontró la columna "KG GIRADOS"' : 'No se encontró la columna "PDS GIRADAS"');
+        return;
+    }
+    if(idxRuta === -1){ showError('No se encontró la columna "RUTA TELA"'); return; }
+    if(idxEstadoBloq === -1){ showError('No se encontró la columna "estado_bloqueo / BLOQUEO"'); return; }
+
+    // Calculamos dos series para BLOQUEO: PROG (estado que contiene 'PROG') y X PROG (filas sin valor -> X PROG)
+    let sumPROG = 0;
+    let sumXPROG = 0;
+
+    // Además calculamos LAVANDERIA: filas con estado_bloqueo = 'OK' y estado_lavada != 'OK'
+    let sumLavPROG = 0;
+
+    // Calculamos CORTE PZAS: filas con RUTA = ACABADA OR (LAVADA y estado_lavada = OK)
+    // y las clasificamos por estado_corte en PROG (PROG 1T/2T/3T) o X PROG (no OK ni PROGs)
+    let sumCortePROG = 0;
+    let sumCorteXPROG = 0;
+    
+    // Calculamos CORTE BLOQ: estado_corte = OK AND estado_bloques = 'Ok corte' AND estado_corte_bloques != OK
+    // Clasificamos PROG cuando estado_corte_bloques == 'PROG', X PROG otherwise
+    let sumCorteBloqPROG = 0;
+    let sumCorteBloqXPROG = 0;
+
+        // ENUMERADO: suma de filas con estado_corte = 'OK' y estado_enumerado != 'OK ENM' y != 'OK PAQUETO'
+        let sumEnumeradoPROG = 0;
+
+    // TRANSFER: suma de filas con tipo-transfer = 'En pieza'|'En prenda' y estado_enumerado = 'OK ENM'|'OK Paqueteo'
+    // Se separa en PROG (estado_transfer = 'PROG') y X PROG (estado_transfer != 'PROG')
+    let sumTransferPROG = 0;
+    let sumTransferXPROG = 0;
+
+    // índices auxiliares
+    const idxEstadoLav = getColIndexFlexible(['estado_lavada','ESTADO_LAVADA','estado_lavado','ESTADO_LAVADO']);
+    const idxEstadoCorte = getColIndexFlexible(['estado_corte','STATUS_CORTE','STATUS','ESTADO CORTE','ESTADO_CORTE','estado corte']);
+    const idxEstadoBloques = getColIndexFlexible(['estado_bloques','ESTADO_BLOQUES','ESTADO BLOQUES','ESTADO_BLOQUES']);
+    const idxEstadoCorteBloques = getColIndexFlexible(['estado_corte_bloques','ESTADO_CORTE_BLOQUES','estado_corte_bloques','estado corte bloques']);
+    const idxEstadoEnumerado = getColIndexFlexible(['estado_enumerado','ESTADO_ENUMERADO','estado enumerado']);
+    const idxTipoTransfer = getColIndexFlexible(['tipo-transfer','TIPO-TRANSFER','TIPO_TRANSFER','tipo transfer','TIPO TRANSFER']);
+    const idxEstadoTransfer = getColIndexFlexible(['estado_transfer','estado-transfer','ESTADO_TRANSFER','ESTADO-TRANSFER','estado transfer']);
+
+    for(let i=1;i<rawData.length;i++){
+        const row = rawData[i];
+        const rutaVal = String(getVal(row, idxRuta) || '').toUpperCase().trim();
+
+        // valor según el switch (PDS o KG)
+        let valRaw = getVal(row, idxValue);
+        let val = 0;
+        if (valRaw === null || valRaw === undefined || String(valRaw).trim() === '') val = 0;
+        else val = Number(String(valRaw).toString().replace(/,/g, '')) || 0;
+
+        // BLOQUEO: requiere RUTA = LAVADA y estado_bloqueo != OK
+        if(rutaVal === 'LAVADA'){
+            let estadoBloqVal = (getVal(row, idxEstadoBloq) || '').toString().trim();
+            const estadoBloqUpper = String(estadoBloqVal).toUpperCase().trim();
+            if(estadoBloqUpper !== 'OK'){
+                if(estadoBloqUpper.indexOf('PROG') !== -1) {
+                    sumPROG += val;
+                } else if(estadoBloqVal === '' ) {
+                    // filas sin valor -> considerarlas X PROG
+                    sumXPROG += val;
+                } else {
+                    // otras etiquetas (no PROG ni vacío) las sumamos a PROG
+                    sumPROG += val;
+                }
+            }
+        }
+
+        // LAVANDERIA: estado_bloqueo == OK y estado_lavada != OK
+        let estadoBloqVal2 = (getVal(row, idxEstadoBloq) || '').toString().trim();
+        const estadoBloqUpper2 = String(estadoBloqVal2).toUpperCase().trim();
+        const estadoLavVal = (idxEstadoLav !== -1) ? String(getVal(row, idxEstadoLav) || '').toUpperCase().trim() : '';
+        if(estadoBloqUpper2 === 'OK' && estadoLavVal !== 'OK'){
+            // según requerimiento, esta suma entra en la misma categoría PROG
+            sumLavPROG += val;
+        }
+
+        // CORTE PZAS: RUTA = ACABADA OR (LAVADA y estado_lavada = OK)
+        const includeCorte = (rutaVal === 'ACABADA') || (rutaVal === 'LAVADA' && estadoLavVal === 'OK');
+        if(includeCorte){
+            const estadoCorteVal = (idxEstadoCorte !== -1) ? String(getVal(row, idxEstadoCorte) || '').toUpperCase().trim() : '';
+            // PROG: exact matches 'PROG 1T','PROG 2T','PROG 3T'
+            if(estadoCorteVal === 'PROG 1T' || estadoCorteVal === 'PROG 2T' || estadoCorteVal === 'PROG 3T'){
+                sumCortePROG += val;
+            } else if(estadoCorteVal !== 'OK'){
+                // X PROG: diferente a OK y a los PROG definidos
+                sumCorteXPROG += val;
+            }
+        }
+
+        // CORTE BLOQ: filas con estado_corte = 'OK' and estado_bloques = 'Ok corte' and estado_corte_bloques != 'OK'
+        const estadoCorteRow = (idxEstadoCorte !== -1) ? String(getVal(row, idxEstadoCorte) || '').toUpperCase().trim() : '';
+        const estadoBloquesRow = (idxEstadoBloques !== -1) ? String(getVal(row, idxEstadoBloques) || '').toUpperCase().trim() : '';
+        const estadoCorteBloquesRow = (idxEstadoCorteBloques !== -1) ? String(getVal(row, idxEstadoCorteBloques) || '').toUpperCase().trim() : '';
+
+            // Enumerado: filas con estado_corte = 'OK' y estado_enumerado distinto de 'OK ENM' y 'OK PAQUETO'
+            const estadoEnumeradoRow = (idxEstadoEnumerado !== -1) ? String(getVal(row, idxEstadoEnumerado) || '').toUpperCase().trim() : '';
+            if(estadoCorteRow === 'OK' && estadoEnumeradoRow !== 'OK ENM' && estadoEnumeradoRow !== 'OK PAQUETO'){
+                sumEnumeradoPROG += val;
+            }
+
+            // TRANSFER: tipo-transfer = EN PIEZA | EN PRENDA  AND estado_enumerado = OK ENM | OK PAQUETEO
+            const tipoTransferRow = (idxTipoTransfer !== -1) ? String(getVal(row, idxTipoTransfer) || '').toUpperCase().trim() : '';
+            if((tipoTransferRow === 'EN PIEZA' || tipoTransferRow === 'EN PRENDA') && (estadoEnumeradoRow === 'OK ENM' || estadoEnumeradoRow === 'OK PAQUETEO' || estadoEnumeradoRow === 'OK PAQUETO')){
+                const estadoTransferRow = (idxEstadoTransfer !== -1) ? String(getVal(row, idxEstadoTransfer) || '').toUpperCase().trim() : '';
+                if(estadoTransferRow === 'PROG') sumTransferPROG += val;
+                else sumTransferXPROG += val;
+            }
+
+        if(estadoCorteRow === 'OK' && estadoBloquesRow === 'OK CORTE' && estadoCorteBloquesRow !== 'OK'){
+            if(estadoCorteBloquesRow === 'PROG') sumCorteBloqPROG += val;
+            else sumCorteBloqXPROG += val;
+        }
+    }
+
+    // Renderizar varias barras: BLOQUEO, LAVANDERIA y CORTE PZAS
+    renderMultipleBars([
+        { label: 'BLOQUEO', prog: sumPROG, xprog: sumXPROG },
+        { label: 'LAVANDERIA', prog: sumLavPROG, xprog: 0 },
+        { label: 'CORTE PZAS', prog: sumCortePROG, xprog: sumCorteXPROG },
+        { label: 'CORTE BLOQ', prog: sumCorteBloqPROG, xprog: sumCorteBloqXPROG },
+        { label: 'ENUMERADO', prog: sumEnumeradoPROG, xprog: 0 },
+        { label: 'TRANSFER', prog: sumTransferPROG, xprog: sumTransferXPROG }
+    ]);
+}
+
+function renderChartFromAgg(agg){
+    document.getElementById('loader').style.display='none';
+    document.getElementById('btn-refresh').style.display='inline-block';
+    const chart = document.getElementById('chart');
+    chart.innerHTML = '';
+
+    const entries = Object.entries(agg).filter(([_k,v])=> v>0);
+    if(entries.length === 0){
+        document.getElementById('no-data').style.display='block';
+        document.getElementById('no-data').innerText = 'No hay filas con RUTA TELA = "LAVADA" y estado_bloqueo distinto de "OK".';
+        return;
+    }
+
+    // ordenar por valor descendente
+    entries.sort((a,b)=> b[1] - a[1]);
+    const max = entries[0][1];
+
+    // crear barras
+    for(const [key, value] of entries){
+        const item = document.createElement('div');
+        item.className = 'bar-item';
+
+        const valEl = document.createElement('div');
+        valEl.className = 'value';
+        valEl.innerText = formatNumber(value);
+
+        const bar = document.createElement('div');
+        bar.className = 'bar';
+        // altura relativa (máx 240px)
+        const height = Math.round((value / max) * 220) || 2;
+        bar.style.height = height + 'px';
+        bar.title = key + ': ' + value;
+        bar.innerText = value >= (max*0.12) ? formatNumber(value) : '';
+
+        const label = document.createElement('div');
+        label.className = 'label';
+        label.innerText = key;
+
+        item.appendChild(valEl);
+        item.appendChild(bar);
+        item.appendChild(label);
+        chart.appendChild(item);
+    }
+}
+
+function renderMultipleBars(bars){
+    document.getElementById('loader').style.display='none';
+    document.getElementById('btn-refresh').style.display='inline-block';
+    const chart = document.getElementById('chart');
+    chart.innerHTML = '';
+
+    // calcular totales y max para escalar alturas
+    const totals = bars.map(b => (b.prog || 0) + (b.xprog || 0));
+    const maxTotal = Math.max(...totals, 0);
+    if(maxTotal === 0){
+        document.getElementById('no-data').style.display='block';
+        document.getElementById('no-data').innerText = 'No hay datos para mostrar.';
+        return;
+    }
+
+    const maxHeight = 220;
+
+    bars.forEach((b, idx) => {
+        const total = (b.prog || 0) + (b.xprog || 0);
+        const item = document.createElement('div');
+        item.className = 'bar-item';
+
+        const valEl = document.createElement('div');
+        valEl.className = 'value';
+        valEl.innerText = formatNumber(total);
+
+        const bar = document.createElement('div');
+        bar.className = 'bar';
+        const height = Math.max(2, Math.round((total / maxTotal) * maxHeight));
+        bar.style.height = height + 'px';
+        bar.title = `${b.label} — PROG: ${b.prog || 0} | X PROG: ${b.xprog || 0}`;
+
+        // X PROG on top
+        if(b.xprog && b.xprog > 0){
+            const h = Math.max(2, Math.round((b.xprog / total) * height));
+            const segTop = document.createElement('div');
+            segTop.className = 'segment seg-xprog';
+            segTop.style.height = h + 'px';
+            segTop.innerText = (b.xprog >= (maxTotal*0.03)) ? formatNumber(b.xprog) : '';
+            bar.appendChild(segTop);
+        }
+
+        if(b.prog && b.prog > 0){
+            const hProg = Math.max(2, Math.round((b.prog / total) * height));
+            const segBot = document.createElement('div');
+            segBot.className = 'segment seg-prog';
+            segBot.style.height = hProg + 'px';
+            segBot.innerText = formatNumber(b.prog);
+            bar.appendChild(segBot);
+        }
+
+        const label = document.createElement('div');
+        label.className = 'label';
+        label.innerText = b.label;
+
+        item.appendChild(valEl);
+        item.appendChild(bar);
+        item.appendChild(label);
+        chart.appendChild(item);
+    });
+}
+
+function toggleKg(checkbox){
+    useKg = !!checkbox.checked;
+    // si ya cargamos datos, re-renderizamos inmediatamente
+    if(rawData && rawData.length>1){
+        // ocultar mensaje de no-data antes
+        document.getElementById('no-data').style.display='none';
+        processAndRender();
+    } else {
+        // aún no hay datos; al toggle cambiará la próxima carga
+        document.getElementById('btn-refresh').style.display='inline-block';
+    }
+}
+
+function formatNumber(n){
+    // entero si es entero, sino con 2 dec
+    if(Number.isInteger(n)) return n.toString();
+    return n.toFixed(2);
+}
+
+// Inicializar carga
+reloadData();
+</script>
+</body>
+</html>
