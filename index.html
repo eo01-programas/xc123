@@ -508,6 +508,25 @@
             background: var(--primary);
             color: white;
         }
+        /* Botón pequeño de lavadora (icono) junto a OP-PTDA */
+        .btn-washer {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 18px;
+            height: 18px;
+            background: #eef2ff;
+            color: #4338ca;
+            border: 1px solid rgba(67,56,202,0.18);
+            border-radius: 3px;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            margin-right: 6px;
+            transition: all 0.12s;
+            line-height: 1;
+        }
+        .btn-washer:hover { background: #4338ca; color: white; }
     </style>
     <style>
         /* Estilos para botón flotante del embudo */
@@ -538,7 +557,7 @@
             gap: 4px; /* reducido para acercar label/bar/valor */
             align-items: center;
             padding: 1px 2px; /* menos padding vertical/horizontal */
-            border-radius: 6px;si
+            border-radius: 6px;
             background: transparent;
             box-shadow: 0 4px 12px rgba(2,6,23,0.04);
         }
@@ -603,17 +622,32 @@
         }
     </style>
     <style>
-        /* Vista Habilitado: hacer que la tabla ocupe todo el ancho disponible */
+        /* Vista Habilitado: hacer que la tabla ocupe todo el ancho disponible (full-bleed) */
         #view-habilitado .table-container {
-            width: calc(100% + 40px); /* compensar el padding del contenedor principal */
-            margin-left: -20px;
-            margin-right: -20px;
+            position: relative;
+            left: 50%;
+            right: 50%;
+            margin-left: -50vw; /* empuja hasta el borde izquierdo de la ventana */
+            margin-right: -50vw; /* empuja hasta el borde derecho de la ventana */
+            width: 100vw;        /* ocupa todo el ancho de la ventana */
+            box-sizing: border-box;
+            padding: 0;          /* quitar padding para evitar huecos a la derecha */
             max-width: none;
             border-radius: 10px;
+            background: transparent;
+            overflow: auto;
         }
         #view-habilitado .table-container table {
             min-width: 0 !important;
             width: 100%;
+            table-layout: auto; /* permite que las columnas se expandan y ocupen el espacio disponible */
+        }
+        /* Permitir que los encabezados sean flexibles y que la última columna tome el espacio restante */
+        #view-habilitado .table-container thead th {
+            width: auto !important;
+        }
+        #view-habilitado .table-container thead th:last-child {
+            width: 100% !important;
         }
     </style>
 </head>
@@ -735,9 +769,108 @@
         </div>
     </div>
 
+    <!-- MODAL CONFIRMACIÓN BLOQUEO -->
+    <div id="modal-confirm-bloqueo" class="modal-overlay" onclick="if(event.target === this) cerrarModalConfirmBloq()">
+        <div class="modal-content" style="max-width:380px; width:44%;">
+            <div class="modal-header">
+                <div>
+                    <div class="modal-title">¿Está seguro?</div>
+                    <div class="modal-subtitle">Confirma cambiar Bloqueo a OK</div>
+                </div>
+                <button class="modal-close" onclick="cerrarModalConfirmBloq()">&times;</button>
+            </div>
+            <div style="padding:12px 4px 18px 4px; text-align:center; font-size:13px; color:var(--gray-700);">Esta acción marcará la fila como <strong>OK</strong>.</div>
+            <div style="display:flex; justify-content:center; gap:12px; padding-top:6px;">
+                <button id="confirm-bloq-no" class="btn-modal btn-limpiar" onclick="handleConfirmBloq(false)">No</button>
+                <button id="confirm-bloq-yes" class="btn-modal btn-guardar" onclick="handleConfirmBloq(true)">Si</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL CONFIRMACIÓN CORTE -->
+    <div id="modal-confirm-corte" class="modal-overlay" onclick="if(event.target === this) cerrarModalConfirmCorte()">
+        <div class="modal-content" style="max-width:420px; width:46%;">
+            <div class="modal-header">
+                <div>
+                    <div class="modal-title">¿Está seguro?</div>
+                    <div class="modal-subtitle">Confirma marcar STATUS_CORTE como <strong>OK</strong>?</div>
+                </div>
+                <button class="modal-close" onclick="cerrarModalConfirmCorte()">&times;</button>
+            </div>
+            <div style="padding:12px 8px; text-align:center; font-size:13px; color:var(--gray-700);">Al confirmar se aplicará la lógica habitual para cambios a OK en Corte.</div>
+            <div style="display:flex; justify-content:center; gap:12px; padding-top:6px;">
+                <button id="confirm-corte-no" class="btn-modal btn-limpiar" onclick="handleConfirmCorte(false)">No</button>
+                <button id="confirm-corte-yes" class="btn-modal btn-guardar" onclick="handleConfirmCorte(true)">Si</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL CONFIRMACIÓN ENUMERADO -->
+    <div id="modal-confirm-enumerado" class="modal-overlay" onclick="if(event.target === this) cerrarModalConfirmEnumerado()">
+        <div class="modal-content" style="max-width:380px; width:44%;">
+            <div class="modal-header">
+                <div>
+                    <div class="modal-title">¿Está seguro?</div>
+                    <div class="modal-subtitle">Confirma cambiar estado de Enumerado a OK ENM / OK Paqueteo</div>
+                </div>
+                <button class="modal-close" onclick="cerrarModalConfirmEnumerado()">&times;</button>
+            </div>
+            <div style="padding:12px 6px; text-align:center; font-size:13px; color:var(--gray-700);">Esta acción aplicará la lógica habitual para `estado_enumerado`.</div>
+            <div style="display:flex; justify-content:center; gap:12px; padding-top:6px;">
+                <button id="confirm-enm-no" class="btn-modal btn-limpiar" onclick="handleConfirmEnumerado(false)">No</button>
+                <button id="confirm-enm-yes" class="btn-modal btn-guardar" onclick="handleConfirmEnumerado(true)">Si</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL LAVADORA (Abrir desde Corte PROG 1T/2T/3T) -->
+    <div id="modal-lavadora" class="modal-overlay" onclick="if(event.target === this) cerrarModalLavado()">
+        <div class="modal-content" style="max-width:420px; width:46%;">
+            <div class="modal-header">
+                <div>
+                    <div class="modal-title" id="modal-lavadora-title">Lavado</div>
+                    <div class="modal-subtitle" id="modal-lavadora-sub">Estado actual: -</div>
+                </div>
+                <button class="modal-close" onclick="cerrarModalLavado()">&times;</button>
+            </div>
+            <div style="padding:8px 6px; font-size:13px; color:var(--gray-700);">
+                <div style="margin-bottom:10px;"><strong>RUTA TELA:</strong> <span id="modal-lavadora-ruta">-</span></div>
+                <div style="margin-bottom:12px;">Seleccione acción:</div>
+                <div style="display:flex; gap:10px; align-items:center;">
+                    <select id="modal-lavadora-select" class="table-select">
+                        <option value="">-- Seleccione --</option>
+                        <option value="EN LAV">EN LAV (devolución)</option>
+                    </select>
+                </div>
+            </div>
+            <div style="display:flex; justify-content:flex-end; gap:8px; padding-top:8px;">
+                <button class="btn-modal btn-limpiar" onclick="cerrarModalLavado()">Cancelar</button>
+                <button class="btn-modal btn-guardar" onclick="onModalLavadoraApply()">Aplicar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL CONFIRMACIÓN LAVADORA -->
+    <div id="modal-confirm-washer" class="modal-overlay" onclick="if(event.target === this) cerrarModalConfirmWasher()">
+        <div class="modal-content" style="max-width:360px; width:40%;">
+            <div class="modal-header">
+                <div>
+                    <div class="modal-title">¿Está seguro?</div>
+                    <div class="modal-subtitle">Confirma marcar estado_lavada como <strong>EN LAV</strong>?</div>
+                </div>
+                <button class="modal-close" onclick="cerrarModalConfirmWasher()">&times;</button>
+            </div>
+            <div style="padding:12px 6px; text-align:center; font-size:13px; color:var(--gray-700);">Al confirmar se escribirá el valor en la columna <strong>estado_lavada</strong>.</div>
+            <div style="display:flex; justify-content:center; gap:12px; padding-top:6px;">
+                <button id="confirm-wash-no" class="btn-modal btn-limpiar" onclick="handleConfirmWasher(false)">No</button>
+                <button id="confirm-wash-yes" class="btn-modal btn-guardar" onclick="handleConfirmWasher(true)">Si</button>
+            </div>
+        </div>
+    </div>
+
     <!-- HEADER -->
     <header>
-        <div class="brand"><span class="icon-link disabled" title="Cargar giros" style="color:inherit;text-decoration:none;display:inline-flex;align-items:center;" aria-disabled="true"><i class="ph ph-table"></i></span> Prog Corte/Habilitado <span id="auto-reload-timer" class="reload-timer" title="Auto-reload cada 30s">--</span></div>
+        <div class="brand"><span class="icon-link disabled" title="Cargar giros" style="color:inherit;text-decoration:none;display:inline-flex;align-items:center;" aria-disabled="true"><i class="ph ph-table"></i></span> Prog Corte/Habilitado <span id="auto-reload-timer" class="reload-timer" title="Auto-reload cada 60s">--</span></div>
         <nav class="nav-tabs">
             <button class="nav-tab active" onclick="switchView('bloqueo', this)">
                 <i class="ph ph-lock-key"></i> Bloqueo <span class="badge" id="count-bloqueo">0</span>
@@ -3273,6 +3406,10 @@
                     ? `<button class="btn-tendido" onclick="abrirModalTendido(${rowIndex}, '${op}', '${corte}', '${String(color).replace(/'/g, "\\'")}', ${pdsRaw})" title="Dividir en tendidos">+</button>` 
                     : '';
 
+                // Determinar si se muestra el botón lavadora junto al OP-PTDA
+                const showWasherBtn = (currentCorteFilter === 'PROG 1T' || currentCorteFilter === 'PROG 2T' || currentCorteFilter === 'PROG 3T') && (String(rutaVal || '').toUpperCase().trim() !== 'ACABADA');
+                const washerHtml = showWasherBtn ? `<button class="btn-washer" title="Marcar EN LAV" onclick="abrirModalLavado(${rowIndex})"><i class="ph ph-washing-machine" style="font-size:12px;"></i></button>` : '';
+
                 // Usar la función helper para renderizar el badge de RUTA
                 const rutaDisplay = renderRutaBadge(rutaVal, row, rowIndex);
 
@@ -3283,7 +3420,7 @@
                     <td title="${rutaVal}">${rutaDisplay}</td>
                     <td class="op-cell" title="${oc}">${tendidoBtnHtml}<span class="oc-link" onclick="if(isHabilitadoView()) abrirModalOC(${rowIndex});">${oc}</span></td>
                     <td title="${color}">${color}</td>
-                    <td class="op-cell wrap-text" title="${opPtda}">${opPtda}</td>
+                    <td class="op-cell wrap-text" title="${opPtda}">${washerHtml}${opPtda}</td>
                     <td class="kg-cell" style="text-align:center;">${pdsStr}</td>
                     <td title="${prenda}">${prendaNorm}</td>
                     <td title="${articulo}">${articulo}</td>
@@ -3540,6 +3677,52 @@
             }
 
             const writeIdx = colMap[colName];
+
+            // Confirmación: si estamos en la vista Bloqueo -> sub-tab PROG
+            // y el usuario intenta cambiar 'estado_bloqueo' a 'OK', mostrar modal.
+            try {
+                if (colName === 'estado_bloqueo' && (value || '').toString().toUpperCase().trim() === 'OK') {
+                    const onBloqView = document.getElementById('view-bloqueo') && document.getElementById('view-bloqueo').classList.contains('active');
+                    if (onBloqView && currentBloqueoFilter === 'PROG' && !window._skipBloqueoConfirm) {
+                        const prev = (writeIdx !== undefined && writeIdx !== -1 && rawData[rowIndex] && rawData[rowIndex][writeIdx]) ? rawData[rowIndex][writeIdx] : '';
+                        window._pendingBloqUpdate = { rowIndex, colName, value, selectElement, prev };
+                        const modal = document.getElementById('modal-confirm-bloqueo');
+                        if (modal) modal.classList.add('active');
+                        return; // esperar confirmación
+                    }
+                }
+            } catch (e) { console.error('Error comprobación confirmación bloqueo', e); }
+
+            // Confirmación: en vista Corte -> sub-tabs PROG (1T/2T/3T) al cambiar STATUS_CORTE a OK
+            try {
+                const vnorm = (value || '').toString().toUpperCase().trim();
+                const onCorteViewCheck = document.getElementById('view-corte') && document.getElementById('view-corte').classList.contains('active');
+                const isProgSubtabCheck = (currentCorteFilter && currentCorteFilter.toString().toUpperCase().startsWith('PROG ') && currentCorteFilter !== 'X PROG');
+                const isStatusColCheck = (colName === 'estado_corte' || (typeof colName === 'string' && colName.toUpperCase() === 'STATUS') || (typeof colName === 'string' && colName.toUpperCase().includes('STATUS_CORTE')));
+
+                if (isStatusColCheck && vnorm === 'OK' && onCorteViewCheck && isProgSubtabCheck && !window._skipCorteConfirm) {
+                    const prev = (writeIdx !== undefined && writeIdx !== -1 && rawData[rowIndex] && rawData[rowIndex][writeIdx]) ? rawData[rowIndex][writeIdx] : '';
+                    window._pendingCorteUpdate = { rowIndex, colName, value, selectElement, prev };
+                    const modal = document.getElementById('modal-confirm-corte');
+                    if (modal) modal.classList.add('active');
+                    return; // esperar confirmación del usuario
+                }
+            } catch (e) { console.error('Error comprobación confirmación corte', e); }
+
+            // Confirmación: en vista Enumerado al cambiar 'estado_enumerado' a 'OK ENM' o 'OK PAQUETEO'
+            try {
+                const vEnum = (value || '').toString().toUpperCase().trim();
+                if (colName === 'estado_enumerado' && (vEnum === 'OK ENM' || vEnum === 'OK PAQUETEO' || vEnum === 'OK PAQ' || vEnum === 'OK PAQUETEO')) {
+                    const onEnumView = document.getElementById('view-enumerado') && document.getElementById('view-enumerado').classList.contains('active');
+                    if (onEnumView && !window._skipEnumeradoConfirm) {
+                        const prev = (writeIdx !== undefined && writeIdx !== -1 && rawData[rowIndex] && rawData[rowIndex][writeIdx]) ? rawData[rowIndex][writeIdx] : '';
+                        window._pendingEnumeradoUpdate = { rowIndex, colName, value, selectElement, prev };
+                        const modal = document.getElementById('modal-confirm-enumerado');
+                        if (modal) modal.classList.add('active');
+                        return; // esperar confirmación
+                    }
+                }
+            } catch (e) { console.error('Error comprobación confirmación enumerado', e); }
 
             // Validación específica solicitada:
             // En la vista Corte, cuando estamos en sub-tab PROG (1T/2T/3T) y
@@ -3964,6 +4147,176 @@
                 console.error('Error preparando guardado:', e);
             }
         };
+
+        // Estado y handlers para confirmación de Bloqueo->OK en Bloqueo->PROG
+        window._pendingBloqUpdate = null;
+        window._skipBloqueoConfirm = false;
+
+        function cerrarModalConfirmBloq() {
+            const m = document.getElementById('modal-confirm-bloqueo');
+            if (m) m.classList.remove('active');
+        }
+
+        window.handleConfirmBloq = function(confirmed) {
+            const pending = window._pendingBloqUpdate;
+            const modal = document.getElementById('modal-confirm-bloqueo');
+            if (!pending) { if (modal) modal.classList.remove('active'); return; }
+
+            if (!confirmed) {
+                try { if (pending.selectElement) pending.selectElement.value = pending.prev; } catch(e){}
+                if (modal) modal.classList.remove('active');
+                window._pendingBloqUpdate = null;
+                return;
+            }
+
+            // Ejecutar la actualización real evitando volver a pedir confirmación
+            window._pendingBloqUpdate = null;
+            window._skipBloqueoConfirm = true;
+            if (modal) modal.classList.remove('active');
+            try {
+                // Llamar nuevamente a updateRow pero con la bandera para omitir confirmación
+                window.updateRow(pending.rowIndex, pending.colName, pending.value, pending.selectElement);
+            } catch (e) { console.error('Error aplicando cambio confirmado:', e); }
+            setTimeout(() => { window._skipBloqueoConfirm = false; }, 50);
+        };
+
+        function cerrarModalConfirmBloqAlias() { cerrarModalConfirmBloq(); }
+
+        // Estado y handlers para confirmación de Corte STATUS->OK en sub-tabs PROG
+        window._pendingCorteUpdate = null;
+        window._skipCorteConfirm = false;
+
+        // Estado y handlers para confirmación Enumerado
+        window._pendingEnumeradoUpdate = null;
+        window._skipEnumeradoConfirm = false;
+
+        function cerrarModalConfirmEnumerado() {
+            const m = document.getElementById('modal-confirm-enumerado');
+            if (m) m.classList.remove('active');
+        }
+
+        window.handleConfirmEnumerado = function(confirmed) {
+            const pending = window._pendingEnumeradoUpdate;
+            const modal = document.getElementById('modal-confirm-enumerado');
+            if (!pending) { if (modal) modal.classList.remove('active'); return; }
+
+            if (!confirmed) {
+                try { if (pending.selectElement) pending.selectElement.value = pending.prev; } catch(e){}
+                if (modal) modal.classList.remove('active');
+                window._pendingEnumeradoUpdate = null;
+                return;
+            }
+
+            // Aplicar cambio confirmado evitando reabrir el modal
+            window._pendingEnumeradoUpdate = null;
+            window._skipEnumeradoConfirm = true;
+            if (modal) modal.classList.remove('active');
+            try { window.updateRow(pending.rowIndex, pending.colName, pending.value, pending.selectElement); } catch (e) { console.error('Error aplicando cambio confirmado Enumerado:', e); }
+            setTimeout(() => { window._skipEnumeradoConfirm = false; }, 50);
+        };
+
+        function cerrarModalConfirmCorte() {
+            const m = document.getElementById('modal-confirm-corte');
+            if (m) m.classList.remove('active');
+        }
+
+        window.handleConfirmCorte = function(confirmed) {
+            const pending = window._pendingCorteUpdate;
+            const modal = document.getElementById('modal-confirm-corte');
+            if (!pending) { if (modal) modal.classList.remove('active'); return; }
+
+            if (!confirmed) {
+                try { if (pending.selectElement) pending.selectElement.value = pending.prev; } catch(e){}
+                if (modal) modal.classList.remove('active');
+                window._pendingCorteUpdate = null;
+                return;
+            }
+
+            // Aplicar cambio confirmado evitando reabrir el modal
+            window._pendingCorteUpdate = null;
+            window._skipCorteConfirm = true;
+            if (modal) modal.classList.remove('active');
+            try { window.updateRow(pending.rowIndex, pending.colName, pending.value, pending.selectElement); } catch (e) { console.error('Error aplicando cambio confirmado Corte:', e); }
+            setTimeout(() => { window._skipCorteConfirm = false; }, 50);
+        };
+
+        // Estado y handlers para Lavadora (modal + confirm)
+        window._pendingWasherUpdate = null;
+
+        function abrirModalLavado(rowIndex) {
+            try {
+                const row = rawData[rowIndex] || [];
+                const estado = getVal(row, 'estado_lavada') || '';
+                const ruta = getVal(row, 'RUTA TELA') || getVal(row, 'RUTA') || '';
+                const opTela = String(getVal(row, 'OP TELA') || '').trim();
+                const partida = String(getVal(row, 'PARTIDA') || '').trim();
+                const opPtda = `${opTela}-${partida}`;
+
+                document.getElementById('modal-lavadora-title').innerText = `OP-PTDA: ${opPtda}`;
+                document.getElementById('modal-lavadora-sub').innerText = `Estado actual: ${estado || '(vacío)'}`;
+                document.getElementById('modal-lavadora-ruta').innerText = ruta || '-';
+                const sel = document.getElementById('modal-lavadora-select');
+                if (sel) sel.value = '';
+
+                window._pendingWasherUpdate = { rowIndex, prev: estado };
+                const m = document.getElementById('modal-lavadora');
+                if (m) m.classList.add('active');
+            } catch (e) { console.error('Error abriendo modal lavadora', e); }
+        }
+
+        function cerrarModalLavado() {
+            const m = document.getElementById('modal-lavadora');
+            if (m) m.classList.remove('active');
+            // limpiar pending
+            window._pendingWasherUpdate = null;
+        }
+
+        function onModalLavadoraApply() {
+            try {
+                const sel = document.getElementById('modal-lavadora-select');
+                if (!sel) return;
+                const val = sel.value || '';
+                if (val === '') { alert('Seleccione una opción.'); return; }
+                // Abrir modal de confirmación
+                const modal = document.getElementById('modal-confirm-washer');
+                window._pendingWasherUpdate = window._pendingWasherUpdate || {};
+                window._pendingWasherUpdate.value = val;
+                if (modal) modal.classList.add('active');
+            } catch (e) { console.error('Error aplicando en modal lavadora', e); }
+        }
+
+        function cerrarModalConfirmWasher() {
+            const m = document.getElementById('modal-confirm-washer');
+            if (m) m.classList.remove('active');
+        }
+
+        function handleConfirmWasher(confirmed) {
+            const pending = window._pendingWasherUpdate;
+            const modal = document.getElementById('modal-confirm-washer');
+            if (!pending) { if (modal) modal.classList.remove('active'); return; }
+
+            if (!confirmed) {
+                if (modal) modal.classList.remove('active');
+                // keep modal lavadora open so user can choose again
+                return;
+            }
+
+            // Confirmado: escribir en estado_lavada
+            try {
+                if (modal) modal.classList.remove('active');
+                const rowIndex = pending.rowIndex;
+                const value = pending.value || 'EN LAV';
+                // Crear un elemento temporal para pasar como selectElement (updateRow espera un elemento DOM)
+                try {
+                    const fake = document.createElement('select');
+                    fake.className = 'table-select';
+                    window.updateRow(rowIndex, 'estado_lavada', value, fake);
+                } catch (e) { console.error('Error actualizando estado_lavada', e); }
+            } catch (e) { console.error('Error en handleConfirmWasher', e); }
+            // Cerrar modal de edición
+            cerrarModalLavado();
+            window._pendingWasherUpdate = null;
+        }
 
         window.switchView = function(viewName, btn) {
             document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
@@ -5677,12 +6030,12 @@
     </script>
 
     <script>
-        // Auto-reload every 30 seconds with visible countdown next to title
+        // Auto-reload every 60 seconds with visible countdown next to title
         (function(){
                 try {
-                // Use 20 seconds as requested
-                window.RELOAD_INTERVAL_MS = 20 * 1000;
-                window.__reloadRemaining = Math.round(window.RELOAD_INTERVAL_MS / 1000);
+            // Use 60 seconds
+            window.RELOAD_INTERVAL_MS = 60 * 1000;
+            window.__reloadRemaining = Math.round(window.RELOAD_INTERVAL_MS / 1000);
                 window.__reloadPaused = false;
 
                 function updateTimerDisplay() {
