@@ -522,7 +522,7 @@
             font-size: 12px;
             font-weight: 700;
             cursor: pointer;
-            margin-right: 6px;
+            margin-right: 0.5px;
             transition: all 0.12s;
             line-height: 1;
         }
@@ -870,7 +870,7 @@
 
     <!-- HEADER -->
     <header>
-        <div class="brand"><span class="icon-link disabled" title="Cargar giros" style="color:inherit;text-decoration:none;display:inline-flex;align-items:center;" aria-disabled="true"><i class="ph ph-table"></i></span> Prog Corte/Habilitado <span id="auto-reload-timer" class="reload-timer" title="Auto-reload cada 60s">--</span></div>
+        <div class="brand"><span class="icon-link disabled" title="Cargar giros" style="color:inherit;text-decoration:none;display:inline-flex;align-items:center;" aria-disabled="true"><i class="ph ph-table"></i></span> Prog Corte/Habilitado <span id="auto-reload-timer" class="reload-timer" title="Auto-reload cada 10 minutos">--</span></div>
         <nav class="nav-tabs">
             <button class="nav-tab active" onclick="switchView('bloqueo', this)">
                 <i class="ph ph-lock-key"></i> Bloqueo <span class="badge" id="count-bloqueo">0</span>
@@ -3847,6 +3847,85 @@
                 }
             } catch (e) { console.error('Error asegurando rawData para estado_enumerado', e); }
 
+            // PROPAGACIÓN AUTOMÁTICA: En vista Corte Pzas, sub-tabs PROG (1T/2T/3T)
+            // cuando se cambia RIB, BLOQUES? o COLL o TAP?, aplicar el cambio a todas las filas
+            // que compartan la misma base de OC (ej: 40358-101, 40358-102, etc.)
+            try {
+                const onCorteView = document.getElementById('view-corte') && document.getElementById('view-corte').classList.contains('active');
+                const isProgSubtab = (currentCorteFilter && currentCorteFilter.toString().toUpperCase().startsWith('PROG ') && currentCorteFilter !== 'X PROG');
+                
+                const isRibCol = (colName === 'estado_rib');
+                const isBloqCol = (colName === 'ESTADO_BLOQUES' || colName === 'ESTADO BLOQUES' || colName === 'estado_bloques');
+                const isCollTapCol = (colName === 'ESTADO_COLL_TAP' || colName === 'ESTADO COLL TAP' || colName === 'estado_coll_tap');
+                
+                if (onCorteView && isProgSubtab && (isRibCol || isBloqCol || isCollTapCol)) {
+                    // Obtener la base de OC de la fila actual (quitar últimos 2 dígitos si existen)
+                    const opIdx = findColIndexNormalized('OP');
+                    const corteIdx = findColIndexNormalized('CORTE');
+                    
+                    if (opIdx !== -1 && corteIdx !== -1) {
+                        const op = String(rawData[rowIndex][opIdx] || '').trim();
+                        const corte = String(rawData[rowIndex][corteIdx] || '').trim();
+                        
+                        // Extraer base de CORTE (quitar sufijo de 2 dígitos si existe)
+                        let corteBase = corte;
+                        if (/\d{2}$/.test(corte) && corte.length > 2) {
+                            corteBase = corte.slice(0, -2);
+                        }
+                        
+                        // Buscar todas las filas con la misma base de OC
+                        const rowsToUpdate = [];
+                        for (let j = 1; j < rawData.length; j++) {
+                            if (j === rowIndex) continue; // saltar la fila actual
+                            
+                            const otherOp = String(rawData[j][opIdx] || '').trim();
+                            const otherCorte = String(rawData[j][corteIdx] || '').trim();
+                            
+                            // Extraer base del otro CORTE
+                            let otherCorteBase = otherCorte;
+                            if (/\d{2}$/.test(otherCorte) && otherCorte.length > 2) {
+                                otherCorteBase = otherCorte.slice(0, -2);
+                            }
+                            
+                            // Verificar si coinciden OP y base de CORTE
+                            if (otherOp === op && otherCorteBase === corteBase) {
+                                rowsToUpdate.push(j);
+                            }
+                        }
+                        
+                        // Aplicar el cambio a todas las filas encontradas
+                        if (rowsToUpdate.length > 0) {
+                            console.log(`Propagando cambio de ${colName} a ${rowsToUpdate.length} filas con base OC: ${op}-${corteBase}`);
+                            
+                            rowsToUpdate.forEach((j, index) => {
+                                setTimeout(() => {
+                                    rawData[j][writeIdx] = value;
+                                    
+                                    // Guardar en backend
+                                    fetch(WEB_APP_URL, {
+                                        method: 'POST',
+                                        mode: 'no-cors',
+                                        body: JSON.stringify({
+                                            action: 'update',
+                                            row: j,
+                                            colName: colName,
+                                            value: value
+                                        })
+                                    }).catch(e => console.error(`Error guardando propagación para fila ${j}:`, e));
+                                }, index * 100); // escalonar las peticiones
+                            });
+                            
+                            // Re-renderizar la vista después de propagar
+                            setTimeout(() => {
+                                renderCorte();
+                            }, (rowsToUpdate.length * 100) + 300);
+                        }
+                    }
+                }
+            } catch (e) {
+                console.error('Error en propagación automática de columnas:', e);
+            }
+
             // Loguear intento de guardado para depuración (ver Network/Console)
             try {
                 const payloadPreview = { row: rowIndex, colName: (rawData[0] && rawData[0][writeIdx]) ? rawData[0][writeIdx] : colName, value };
@@ -6030,11 +6109,11 @@
     </script>
 
     <script>
-        // Auto-reload every 60 seconds with visible countdown next to title
+        // Auto-reload every 10 minutes with visible countdown next to title
         (function(){
                 try {
-            // Use 60 seconds
-            window.RELOAD_INTERVAL_MS = 60 * 1000;
+            // Use 10 minutes
+            window.RELOAD_INTERVAL_MS = 10 * 60 * 1000;
             window.__reloadRemaining = Math.round(window.RELOAD_INTERVAL_MS / 1000);
                 window.__reloadPaused = false;
 
