@@ -3649,7 +3649,161 @@
             return tr;
         }
 
+        // Función auxiliar para propagar cambios a filas con mismo OP y serie de corte
+        function propagateToSameOPAndCorteSeries(rowIndex, colName, value) {
+            try {
+                console.log('=== INICIANDO PROPAGACIÓN ===');
+                console.log('Fila:', rowIndex, 'Columna:', colName, 'Valor:', value);
+                
+                // Función auxiliar para normalizar nombres de columnas
+                const findColIndexNormalized = function(name) {
+                    if (!rawData || rawData.length === 0) return -1;
+                    const headers = rawData[0];
+                    const norm = s => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+                    const target = norm(name);
+                    for (let i = 0; i < headers.length; i++) {
+                        if (norm(headers[i]) === target) return i;
+                    }
+                    return -1;
+                };
+
+                // Obtener índices de columnas necesarias
+                const opIdx = findColIndexNormalized('OP');
+                const corteIdx = findColIndexNormalized('CORTE');
+                
+                // Para la columna objetivo, intentar primero el nombre exacto, luego variantes
+                let colIdx = -1;
+                
+                // Si colName ya está en colMap, usarlo
+                if (colMap[colName] !== undefined && colMap[colName] !== -1) {
+                    colIdx = colMap[colName];
+                    console.log('Usando colIdx desde colMap:', colIdx);
+                } else {
+                    // Intentar encontrar la columna
+                    colIdx = findColIndexNormalized(colName);
+                    
+                    // Si no encuentra la columna, intentar con variantes según el tipo
+                    if (colIdx === -1) {
+                        console.log('No se encontró columna con nombre:', colName, '- intentando variantes');
+                        
+                        if (colName.includes('BLOQUES') || colName.includes('bloques')) {
+                            const variants = ['estado_bloques', 'ESTADO_BLOQUES', 'ESTADO BLOQUES'];
+                            for (let v of variants) {
+                                colIdx = findColIndexNormalized(v);
+                                if (colIdx !== -1) {
+                                    console.log('Encontrada variante:', v, 'en índice:', colIdx);
+                                    break;
+                                }
+                            }
+                        } else if (colName.includes('COLL') || colName.includes('TAP') || colName.includes('coll') || colName.includes('tap')) {
+                            const variants = ['estado_coll_tap', 'ESTADO_COLL_TAP', 'ESTADO COLL TAP'];
+                            for (let v of variants) {
+                                colIdx = findColIndexNormalized(v);
+                                if (colIdx !== -1) {
+                                    console.log('Encontrada variante:', v, 'en índice:', colIdx);
+                                    break;
+                                }
+                            }
+                        } else if (colName.includes('rib') || colName.includes('RIB')) {
+                            const variants = ['estado_rib', 'ESTADO_RIB', 'ESTADO RIB'];
+                            for (let v of variants) {
+                                colIdx = findColIndexNormalized(v);
+                                if (colIdx !== -1) {
+                                    console.log('Encontrada variante:', v, 'en índice:', colIdx);
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                console.log('Índices encontrados - OP:', opIdx, 'CORTE:', corteIdx, 'Columna objetivo:', colIdx);
+
+                if (opIdx === -1 || corteIdx === -1 || colIdx === -1) {
+                    console.warn('No se encontraron columnas necesarias para propagar', {opIdx, corteIdx, colIdx});
+                    if (colIdx === -1) {
+                        console.warn('Headers disponibles:', rawData[0]);
+                    }
+                    return;
+                }
+
+                // Obtener valores de la fila actual
+                const currentOP = String(rawData[rowIndex][opIdx] || '').trim();
+                const currentCorte = String(rawData[rowIndex][corteIdx] || '').trim();
+
+                console.log('Valores actuales - OP:', currentOP, 'CORTE:', currentCorte);
+
+                if (!currentOP || !currentCorte) {
+                    console.warn('Fila sin OP o CORTE, no se propagará');
+                    return;
+                }
+
+                // Extraer el número base del corte (todos menos los últimos 2 dígitos)
+                // Ejemplos: 101 -> 1, 403 -> 4, 1202 -> 12
+                const corteNum = currentCorte.match(/\d+/);
+                if (!corteNum) {
+                    console.warn('CORTE no contiene números:', currentCorte);
+                    return;
+                }
+                
+                const corteNumStr = corteNum[0];
+                const corteBase = corteNumStr.slice(0, -2); // Remover últimos 2 dígitos
+                
+                console.log('Serie de corte identificada:', corteBase + 'xx');
+                
+                let updatedCount = 0;
+                
+                // Buscar todas las filas con el mismo OP y mismo corteBase
+                for (let j = 1; j < rawData.length; j++) {
+                    if (j === rowIndex) continue; // Saltar la fila actual
+                    
+                    const otherOP = String(rawData[j][opIdx] || '').trim();
+                    const otherCorte = String(rawData[j][corteIdx] || '').trim();
+                    
+                    // Verificar si tiene el mismo OP
+                    if (otherOP !== currentOP) continue;
+                    
+                    // Verificar si el corte pertenece a la misma serie
+                    const otherCorteNum = otherCorte.match(/\d+/);
+                    if (!otherCorteNum) continue;
+                    
+                    const otherCorteNumStr = otherCorteNum[0];
+                    const otherCorteBase = otherCorteNumStr.slice(0, -2);
+                    
+                    // Si el corteBase coincide, propagar el cambio
+                    if (otherCorteBase === corteBase) {
+                        const prevValue = rawData[j][colIdx];
+                        console.log(`Fila ${j} (Corte: ${otherCorte}): ${prevValue} -> ${value}`);
+                        
+                        rawData[j][colIdx] = value;
+                        updatedCount++;
+                        
+                        // Determinar el nombre de columna correcto para enviar al backend
+                        const sendColName = (rawData[0] && rawData[0][colIdx]) ? rawData[0][colIdx] : colName;
+                        
+                        // Guardar cambio en el backend
+                        fetch(WEB_APP_URL, {
+                            method: 'POST',
+                            mode: 'no-cors',
+                            body: JSON.stringify({
+                                action: "update",
+                                row: j,
+                                colName: sendColName,
+                                value: value
+                            })
+                        }).catch(e => console.error('Error guardando propagación:', e));
+                    }
+                }
+                
+                console.log(`✓ Propagación completada: ${updatedCount} filas actualizadas para ${colName} en OP ${currentOP}, serie ${corteBase}xx`);
+            } catch (e) {
+                console.error('Error en propagateToSameOPAndCorteSeries:', e);
+            }
+        }
+
         window.updateRow = function(rowIndex, colName, value, selectElement) {
+            console.log('🔄 updateRow llamado:', { rowIndex, colName, value });
+            
             if (colName.includes('estado_') || (typeof colName === 'string' && colName.toUpperCase() === 'STATUS')) {
                 selectElement.className = "table-select";
                 const v = (value || '').toString();
@@ -3832,24 +3986,123 @@
             if (writeIdx !== undefined && writeIdx !== -1) rawData[rowIndex][writeIdx] = value;
             updateCounters();
 
-            // --- FIX: asegurar que 'estado_enumerado' se actualiza en rawData aunque colMap falle ---
+            console.log('📊 Después de actualizar rawData:', { rowIndex, writeIdx, colName, value, dataSaved: (writeIdx !== undefined && writeIdx !== -1) });
+
+            // --- FIX: asegurar que columnas específicas se actualizan en rawData aunque colMap falle ---
             try {
                 const normKey = (colName || '').toString().toLowerCase().replace(/[^a-z0-9]/g, '');
+                
+                // Para estado_enumerado
                 if (normKey === 'estadoenumerado' || colName === 'estado_enumerado') {
                     const idxEv = findHeaderIndexCaseInsensitive('estado_enumerado');
                     if (idxEv !== -1) {
                         const vNorm = (value || '').toString().trim();
                         rawData[rowIndex][idxEv] = vNorm;
-                        // ensure colMap is aware for future ops
                         colMap['estado_enumerado'] = idxEv;
                         writeIdx = idxEv;
                     }
                 }
-            } catch (e) { console.error('Error asegurando rawData para estado_enumerado', e); }
+                
+                // Para ESTADO_BLOQUES
+                if (normKey === 'estadobloques' || colName === 'ESTADO_BLOQUES' || colName === 'ESTADO BLOQUES' || colName === 'estado_bloques') {
+                    const bloqVariants = ['ESTADO_BLOQUES', 'ESTADO BLOQUES', 'estado_bloques', 'ESTADO BLOQUES'];
+                    let foundIdx = -1;
+                    for (let variant of bloqVariants) {
+                        const idx = findColIndexNormalized(variant);
+                        if (idx !== -1) {
+                            foundIdx = idx;
+                            break;
+                        }
+                    }
+                    if (foundIdx !== -1) {
+                        rawData[rowIndex][foundIdx] = value;
+                        colMap['ESTADO_BLOQUES'] = foundIdx;
+                        colMap['ESTADO BLOQUES'] = foundIdx;
+                        colMap['estado_bloques'] = foundIdx;
+                        writeIdx = foundIdx;
+                    }
+                }
+                
+                // Para ESTADO_COLL_TAP
+                if (normKey === 'estadocolltap' || colName === 'ESTADO_COLL_TAP' || colName === 'ESTADO COLL TAP' || colName === 'estado_coll_tap') {
+                    const collVariants = ['ESTADO_COLL_TAP', 'ESTADO COLL TAP', 'estado_coll_tap', 'ESTADO_COLL_TAP'];
+                    let foundIdx = -1;
+                    for (let variant of collVariants) {
+                        const idx = findColIndexNormalized(variant);
+                        if (idx !== -1) {
+                            foundIdx = idx;
+                            break;
+                        }
+                    }
+                    if (foundIdx !== -1) {
+                        rawData[rowIndex][foundIdx] = value;
+                        colMap['ESTADO_COLL_TAP'] = foundIdx;
+                        colMap['ESTADO COLL TAP'] = foundIdx;
+                        colMap['estado_coll_tap'] = foundIdx;
+                        writeIdx = foundIdx;
+                    }
+                }
+            } catch (e) { console.error('Error asegurando rawData para columnas especiales', e); }
 
-            // PROPAGACIÓN AUTOMÁTICA: En vista Corte Pzas, sub-tabs PROG (1T/2T/3T)
-            // cuando se cambia RIB, BLOQUES? o COLL o TAP?, aplicar el cambio a todas las filas
-            // que compartan la misma base de OC (ej: 40358-101, 40358-102, etc.)
+            // GUARDAR LA FILA ACTUAL INMEDIATAMENTE (antes de propagación)
+            // Esto asegura que el cambio de la fila actual se persista aunque haya errores en la propagación
+            try {
+                if (!WEB_APP_URL) {
+                    console.error('❌ WEB_APP_URL no está definido!');
+                    return;
+                }
+                
+                let sendColName = colName;
+                console.log(`🔍 Determinando nombre de columna para guardar:`, { colName, writeIdx, headerEnRawData: (writeIdx !== undefined && writeIdx !== -1 && rawData[0]) ? rawData[0][writeIdx] : 'NO ENCONTRADO' });
+                
+                if (writeIdx !== undefined && writeIdx !== -1 && rawData[0] && rawData[0][writeIdx]) {
+                    sendColName = rawData[0][writeIdx];
+                    console.log(`✓ Usando nombre del header: "${sendColName}"`);
+                } else {
+                    console.warn(`⚠ writeIdx no válido (${writeIdx}), intentando resolver por normalización...`);
+                    // intentar resolver por normalización
+                    const found = (function(name){
+                        if (!rawData || rawData.length === 0) return -1;
+                        const headers = rawData[0];
+                        const norm = s => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+                        const target = norm(name);
+                        for (let i = 0; i < headers.length; i++) {
+                            if (norm(headers[i]) === target) return i;
+                        }
+                        return -1;
+                    })(colName);
+                    if (found !== -1 && rawData[0] && rawData[0][found]) {
+                        sendColName = rawData[0][found];
+                        console.log(`✓ Encontrado por normalización en índice ${found}: "${sendColName}"`);
+                    } else {
+                        console.error(`❌ No se pudo encontrar el header para "${colName}"`);
+                    }
+                }
+
+                const payload = {
+                    action: "update",
+                    row: rowIndex,
+                    colName: sendColName,
+                    value: value
+                };
+
+                console.log(`💾 Guardando fila actual ${rowIndex}:`, payload);
+                console.log(`📡 WEB_APP_URL:`, WEB_APP_URL);
+                
+                fetch(WEB_APP_URL, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    body: JSON.stringify(payload)
+                }).then(() => {
+                    console.log(`  ✓ Fetch completado para fila ${rowIndex} (no-cors no permite ver respuesta)`);
+                }).catch(e => {
+                    console.error(`  ✗ Error en fetch para fila ${rowIndex}:`, e);
+                });
+            } catch (e) {
+                console.error('❌ Error crítico guardando fila actual:', e);
+            }
+
+            // PROPAGACIÓN AUTOMÁTICA usando la función mejorada del script de referencia
             try {
                 const onCorteView = document.getElementById('view-corte') && document.getElementById('view-corte').classList.contains('active');
                 const isProgSubtab = (currentCorteFilter && currentCorteFilter.toString().toUpperCase().startsWith('PROG ') && currentCorteFilter !== 'X PROG');
@@ -3859,67 +4112,19 @@
                 const isCollTapCol = (colName === 'ESTADO_COLL_TAP' || colName === 'ESTADO COLL TAP' || colName === 'estado_coll_tap');
                 
                 if (onCorteView && isProgSubtab && (isRibCol || isBloqCol || isCollTapCol)) {
-                    // Obtener la base de OC de la fila actual (quitar últimos 2 dígitos si existen)
-                    const opIdx = findColIndexNormalized('OP');
-                    const corteIdx = findColIndexNormalized('CORTE');
+                    console.log('🔄 Iniciando propagación automática para', colName);
+                    propagateToSameOPAndCorteSeries(rowIndex, colName, value);
                     
-                    if (opIdx !== -1 && corteIdx !== -1) {
-                        const op = String(rawData[rowIndex][opIdx] || '').trim();
-                        const corte = String(rawData[rowIndex][corteIdx] || '').trim();
-                        
-                        // Extraer base de CORTE (quitar sufijo de 2 dígitos si existe)
-                        let corteBase = corte;
-                        if (/\d{2}$/.test(corte) && corte.length > 2) {
-                            corteBase = corte.slice(0, -2);
-                        }
-                        
-                        // Buscar todas las filas con la misma base de OC
-                        const rowsToUpdate = [];
-                        for (let j = 1; j < rawData.length; j++) {
-                            if (j === rowIndex) continue; // saltar la fila actual
-                            
-                            const otherOp = String(rawData[j][opIdx] || '').trim();
-                            const otherCorte = String(rawData[j][corteIdx] || '').trim();
-                            
-                            // Extraer base del otro CORTE
-                            let otherCorteBase = otherCorte;
-                            if (/\d{2}$/.test(otherCorte) && otherCorte.length > 2) {
-                                otherCorteBase = otherCorte.slice(0, -2);
-                            }
-                            
-                            // Verificar si coinciden OP y base de CORTE
-                            if (otherOp === op && otherCorteBase === corteBase) {
-                                rowsToUpdate.push(j);
-                            }
-                        }
-                        
-                        // Aplicar el cambio a todas las filas encontradas
-                        if (rowsToUpdate.length > 0) {
-                            console.log(`Propagando cambio de ${colName} a ${rowsToUpdate.length} filas con base OC: ${op}-${corteBase}`);
-                            
-                            rowsToUpdate.forEach((j, index) => {
-                                setTimeout(() => {
-                                    rawData[j][writeIdx] = value;
-                                    
-                                    // Guardar en backend
-                                    fetch(WEB_APP_URL, {
-                                        method: 'POST',
-                                        mode: 'no-cors',
-                                        body: JSON.stringify({
-                                            action: 'update',
-                                            row: j,
-                                            colName: colName,
-                                            value: value
-                                        })
-                                    }).catch(e => console.error(`Error guardando propagación para fila ${j}:`, e));
-                                }, index * 100); // escalonar las peticiones
-                            });
-                            
-                            // Re-renderizar la vista después de propagar
-                            setTimeout(() => {
-                                renderCorte();
-                            }, (rowsToUpdate.length * 100) + 300);
-                        }
+                    // Re-renderizar la vista después de un breve delay
+                    setTimeout(() => {
+                        console.log('♻️ Re-renderizando vista Corte...');
+                        renderCorte();
+                    }, 300);
+                } else {
+                    if (isRibCol || isBloqCol || isCollTapCol) {
+                        console.log('ℹ️ Propagación no activada:', {
+                            razon: !onCorteView ? 'No está en vista Corte' : !isProgSubtab ? 'No está en sub-tab PROG' : 'Condición no cumplida'
+                        });
                     }
                 }
             } catch (e) {
@@ -4190,41 +4395,8 @@
                 }
             }
 
-            // Guardar el cambio original (si no fue guardado por la propagación)
-            // Enviar al backend el nombre exacto de la cabecera si podemos
-            // localizarlo para asegurar que el sheet reciba la columna correcta.
-            try {
-                let sendColName = colName;
-                if (writeIdx !== undefined && writeIdx !== -1 && rawData[0] && rawData[0][writeIdx]) {
-                    sendColName = rawData[0][writeIdx];
-                } else {
-                    // intentar resolver por normalización
-                    const found = (function(name){
-                        if (!rawData || rawData.length === 0) return -1;
-                        const headers = rawData[0];
-                        const norm = s => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-                        const target = norm(name);
-                        for (let i = 0; i < headers.length; i++) {
-                            if (norm(headers[i]) === target) return i;
-                        }
-                        return -1;
-                    })(colName);
-                    if (found !== -1 && rawData[0] && rawData[0][found]) sendColName = rawData[0][found];
-                }
-
-                fetch(WEB_APP_URL, {
-                    method: 'POST',
-                    mode: 'no-cors',
-                    body: JSON.stringify({
-                        action: "update",
-                        row: rowIndex,
-                        colName: sendColName,
-                        value: value
-                    })
-                }).catch(e => console.error("Error guardando", e));
-            } catch (e) {
-                console.error('Error preparando guardado:', e);
-            }
+            // El guardado de la fila actual ya se realizó antes de la propagación (arriba)
+            // para asegurar que siempre se persista incluso si hay errores en la propagación
         };
 
         // Estado y handlers para confirmación de Bloqueo->OK en Bloqueo->PROG
