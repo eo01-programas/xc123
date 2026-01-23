@@ -798,6 +798,77 @@
         .c-estampado { background: #ecfdf5; color: #065f46; }
         .c-habilitado { background: #f3f4f6; color: #111827; }
 
+        /* --- BOTÓN FLOTANTE CON MENÚ DESPLEGABLE --- */
+        .floating-menu-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 50;
+        }
+
+        .floating-menu-toggle {
+            width: 35px;
+            height: 35px;
+            background: var(--primary);
+            color: var(--white);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            transition: all 0.2s ease;
+            border: none;
+            padding: 0;
+        }
+
+        .floating-menu-toggle:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(0,0,0,0.2);
+        }
+
+        .floating-menu-items {
+            position: absolute;
+            bottom: 50px;
+            right: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(10px);
+            transition: all 0.3s ease;
+            pointer-events: none;
+        }
+
+        .floating-menu-items.active {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+            pointer-events: auto;
+        }
+
+        .floating-menu-item {
+            width: 35px;
+            height: 35px;
+            background: var(--primary);
+            color: var(--white);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            transition: all 0.2s ease;
+            border: none;
+            padding: 0;
+        }
+
+        .floating-menu-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(0,0,0,0.2);
+        }
+
         /* --- MODAL CARGA ASIGNAR ARTES --- */
         .modal-content-loading {
             background: white;
@@ -1021,24 +1092,31 @@
         </div>
     </div>
 
-    <!-- BOTÓN FLOTANTE: Stock (embudo) -->
-    <div id="stock-funnel-button" title="Ver stock" onclick="window.location.href='stock.html'" aria-label="Ver stock">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M3 4h18v2H3V4zM6 10h12v2H6v-2zM10 16h4v2h-4v-2z" fill="currentColor"/>
-        </svg>
-    </div>
-
-    <div id="costura-button" title="Ver costura" onclick="window.location.href='costura.html'" aria-label="Ver costura" style="position: fixed; bottom: 80px; right: 20px; width: 50px; height: 50px; background: var(--primary); color: var(--white); border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 50; transition: all 0.2s ease;">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm3.5-9c.83 0 1.5-.67 1.5-1.5S16.33 8 15.5 8 14 8.67 14 9.5s.67 1.5 1.5 1.5zm-7 0c.83 0 1.5-.67 1.5-1.5S9.33 8 8.5 8 7 8.67 7 9.5 7.67 11 8.5 11zm3.5 6.5c2.33 0 4.31-1.46 5.11-3.5H6.89c.8 2.04 2.78 3.5 5.11 3.5z" fill="currentColor"/>
-        </svg>
-    </div>
-
-    <div id="busqueda-button" title="Buscar OP/COLOR" onclick="window.location.href='busqueda.html'" aria-label="Buscar OP/COLOR" style="position: fixed; bottom: 25px; right: 20px; width: 50px; height: 50px; background: var(--primary); color: var(--white); border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 50; transition: all 0.2s ease;">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <circle cx="10" cy="10" r="6" stroke="currentColor" stroke-width="2" fill="none"/>
-            <path d="M14.5 14.5l5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-        </svg>
+    <!-- MENÚ FLOTANTE CON DESPLEGABLE -->
+    <div class="floating-menu-container">
+        <button class="floating-menu-toggle" id="floating-menu-toggle" title="Menú" aria-label="Menú">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M7 15l5-5 5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+            </svg>
+        </button>
+        <div class="floating-menu-items" id="floating-menu-items">
+            <button class="floating-menu-item" title="Ver stock" onclick="window.location.href='stock.html'" aria-label="Ver stock">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M3 4h18v2H3V4zM6 10h12v2H6v-2zM10 16h4v2h-4v-2z" fill="currentColor"/>
+                </svg>
+            </button>
+            <button class="floating-menu-item" title="Ver costura" onclick="window.location.href='costura.html'" aria-label="Ver costura">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm3.5-9c.83 0 1.5-.67 1.5-1.5S16.33 8 15.5 8 14 8.67 14 9.5s.67 1.5 1.5 1.5zm-7 0c.83 0 1.5-.67 1.5-1.5S9.33 8 8.5 8 7 8.67 7 9.5 7.67 11 8.5 11zm3.5 6.5c2.33 0 4.31-1.46 5.11-3.5H6.89c.8 2.04 2.78 3.5 5.11 3.5z" fill="currentColor"/>
+                </svg>
+            </button>
+            <button class="floating-menu-item" title="Buscar OP/COLOR" onclick="window.location.href='busqueda.html'" aria-label="Buscar OP/COLOR">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="10" cy="10" r="6" stroke="currentColor" stroke-width="2" fill="none"/>
+                    <path d="M14.5 14.5l5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+            </button>
+        </div>
     </div>
 
     <!-- MODAL STOCK FUNNEL -->
@@ -2032,6 +2110,36 @@
             try { setupBloqueoHeaderFilterMenu(); } catch(e) { console.error('setupBloqueoHeaderFilterMenu error', e); }
             try { setupCorteHeaderFilterMenu(); } catch(e) { console.error('setupCorteHeaderFilterMenu error', e); }
             try { setupEnumeradoHeaderFilterMenu(); } catch(e) { console.error('setupEnumeradoHeaderFilterMenu error', e); }
+            
+            // Inicializar menú flotante desplegable
+            initFloatingMenu();
+        }
+
+        function initFloatingMenu() {
+            const toggleBtn = document.getElementById('floating-menu-toggle');
+            const menuItems = document.getElementById('floating-menu-items');
+            
+            if (!toggleBtn || !menuItems) return;
+            
+            // Toggle del menú al hacer click en el botón
+            toggleBtn.addEventListener('click', function() {
+                menuItems.classList.toggle('active');
+            });
+            
+            // Cerrar menú al hacer click fuera
+            document.addEventListener('click', function(e) {
+                if (!toggleBtn.contains(e.target) && !menuItems.contains(e.target)) {
+                    menuItems.classList.remove('active');
+                }
+            });
+            
+            // Cerrar menú cuando se hace click en un item (después de navegar)
+            const menuButtons = menuItems.querySelectorAll('.floating-menu-item');
+            menuButtons.forEach(btn => {
+                btn.addEventListener('click', function() {
+                    menuItems.classList.remove('active');
+                });
+            });
         }
 
         window.loadDataCallback = function(jsonResponse) {
