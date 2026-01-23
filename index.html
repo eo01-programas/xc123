@@ -1118,9 +1118,11 @@
                     <thead>
                         <tr>
                             <th id="th-bloqueo-p" style="width: 30px; display:none;">P</th>
+                            <th style="width: 70px;">F. GIRADO</th>
                             <th style="width: 65px; text-align: center;">HOD</th>
                             <th style="width: 65px; text-align: center;">F.ING.COST</th>
                             <th style="width: 30px;">CLIENTE</th>
+                            <th style="width: 60px;">RUTA</th>
                             
                             <!-- AUMENTADO A 80px PARA VER DATOS LARGOS -->
                             <th style="width: 80px;">OP-PTDA</th>
@@ -1467,6 +1469,7 @@
                     <thead>
                         <tr>
                             <th id="th-corte-p" style="width: 30px; display:none;">P</th>
+                            <th style="width: 70px;">F. GIRADO</th>
                             <th style="width: 65px; text-align: center;">HOD</th>
                             <th style="width: 75px; text-align: center;">F.ING.COST</th>
                             <th style="width: 40px;">CLIENTE</th>
@@ -2623,7 +2626,19 @@
                 const rowA = rawData[a];
                 const rowB = rawData[b];
                 
-                // 1. Ordenar por columna P primero (valores numéricos primero, luego vacíos)
+                // 1. PRIMERO ordenar por OP-PTDA para agrupar filas con mismo OP-PTDA juntas
+                const opTelaA = String(rowA[colMap["OP TELA"]] || "").trim();
+                const partidaA = String(rowA[colMap["PARTIDA"]] || "").trim();
+                const opPtdaA = (opTelaA + "-" + partidaA).toLowerCase();
+
+                const opTelaB = String(rowB[colMap["OP TELA"]] || "").trim();
+                const partidaB = String(rowB[colMap["PARTIDA"]] || "").trim();
+                const opPtdaB = (opTelaB + "-" + partidaB).toLowerCase();
+                
+                const opPtdaCmp = opPtdaA.localeCompare(opPtdaB, undefined, { numeric: true, sensitivity: 'base' });
+                if (opPtdaCmp !== 0) return opPtdaCmp;
+                
+                // 2. Dentro del mismo OP-PTDA, ordenar por columna P (valores numéricos primero, luego vacíos)
                 const idxP = findHeaderIndexCaseInsensitive('P');
                 let pA = '';
                 let pB = '';
@@ -2638,21 +2653,12 @@
                 
                 if (pNumA !== pNumB) return pNumA - pNumB;
                 
-                // 2. Luego ordenar por fecha de despacho (más reciente primero)
+                // 3. Finalmente ordenar por fecha de despacho dentro del mismo grupo OP-PTDA+P (más reciente primero)
                 const dateA = rowA[colMap["HOD"]] || 0;
                 const dateB = rowB[colMap["HOD"]] || 0;
                 if (dateA !== dateB) return dateB - dateA;
                 
-                // 3. Finalmente por OP-PTDA para mantener agrupación
-                const opTelaA = String(rowA[colMap["OP TELA"]] || "").trim();
-                const partidaA = String(rowA[colMap["PARTIDA"]] || "").trim();
-                const opPtdaA = (opTelaA + "-" + partidaA).toLowerCase();
-
-                const opTelaB = String(rowB[colMap["OP TELA"]] || "").trim();
-                const partidaB = String(rowB[colMap["PARTIDA"]] || "").trim();
-                const opPtdaB = (opTelaB + "-" + partidaB).toLowerCase();
-                
-                return opPtdaA.localeCompare(opPtdaB, undefined, { numeric: true, sensitivity: 'base' });
+                return 0;
             });
         }
 
@@ -2661,7 +2667,19 @@
                 const rowA = rawData[a];
                 const rowB = rawData[b];
                 
-                // 1. Ordenar por columna P primero (valores numéricos primero, luego vacíos)
+                // 1. PRIMERO ordenar por OP-PTDA para agrupar filas con mismo OP-PTDA juntas
+                const opTelaA = String(rowA[colMap["OP TELA"]] || "").trim();
+                const partidaA = String(rowA[colMap["PARTIDA"]] || "").trim();
+                const opPtdaA = (opTelaA + "-" + partidaA).toLowerCase();
+
+                const opTelaB = String(rowB[colMap["OP TELA"]] || "").trim();
+                const partidaB = String(rowB[colMap["PARTIDA"]] || "").trim();
+                const opPtdaB = (opTelaB + "-" + partidaB).toLowerCase();
+                
+                const opPtdaCmp = opPtdaA.localeCompare(opPtdaB, undefined, { numeric: true, sensitivity: 'base' });
+                if (opPtdaCmp !== 0) return opPtdaCmp;
+                
+                // 2. Dentro del mismo OP-PTDA, ordenar por columna P (valores numéricos primero, luego vacíos)
                 const idxP = findHeaderIndexCaseInsensitive('P');
                 let pA = '';
                 let pB = '';
@@ -2676,21 +2694,12 @@
                 
                 if (pNumA !== pNumB) return pNumA - pNumB;
                 
-                // 2. Luego ordenar por fecha de despacho (más reciente primero)
+                // 3. Finalmente ordenar por fecha de despacho dentro del mismo grupo OP-PTDA+P (más reciente primero)
                 const dateA = rowA[colMap["HOD"]] || 0;
                 const dateB = rowB[colMap["HOD"]] || 0;
                 if (dateA !== dateB) return dateB - dateA;
                 
-                // 3. Finalmente por OP-PTDA para mantener agrupación
-                const opTelaA = String(rowA[colMap["OP TELA"]] || "").trim();
-                const partidaA = String(rowA[colMap["PARTIDA"]] || "").trim();
-                const opPtdaA = (opTelaA + "-" + partidaA).toLowerCase();
-
-                const opTelaB = String(rowB[colMap["OP TELA"]] || "").trim();
-                const partidaB = String(rowB[colMap["PARTIDA"]] || "").trim();
-                const opPtdaB = (opTelaB + "-" + partidaB).toLowerCase();
-                
-                return opPtdaA.localeCompare(opPtdaB, undefined, { numeric: true, sensitivity: 'base' });
+                return 0;
             });
         }
 
@@ -5241,6 +5250,8 @@
                 const articulo = getVal(row, "ARTÍCULO");
                 const nroMolde = getVal(row, "NRO. MOLDE");
                 const tipoCert = normalizeTipoCert(getVal(row, "TIPO CERTIFICADO"));
+                const fGirado = formatValue(getVal(row, "F. GIRADO"), 'date');
+                const ruta = getVal(row, "RUTA TELA") || "";
 
                 let controlHtml = "";
 
@@ -5419,9 +5430,11 @@
 
                 // Usamos title para mostrar el dato completo en hover por si acaso
                 let html = `
+                    ${type === "bloqueo" ? `<td>${fGirado}</td>` : ''}
                     <td class="date-cell">${fDespacho}</td>
                     ${fIngCostHtml}
                     <td>${cliente}</td>
+                    ${type === "bloqueo" ? `<td title="${ruta}">${ruta}</td>` : ''}
                     <!-- TOOLTIP TITLE PARA VER TEXTO COMPLETO -->
                     <td class="op-cell wrap-text" title="${opPtda}">${opPtda}</td>
                     <td class="op-cell" title="${oc}">${oc}</td>
@@ -5511,6 +5524,7 @@
 
                 const rawColor = getVal(row, "COLOR");
                 const color = abbreviateHeather(rawColor);
+                const fGirado = formatValue(getVal(row, "F. GIRADO"), 'date');
 
                 const opTela = String(getVal(row, "OP TELA") || "").trim();
                 const partida = String(getVal(row, "PARTIDA") || "").trim();
@@ -5556,6 +5570,7 @@
                     : opPtda;
 
                 let html = `
+                    <td>${fGirado}</td>
                     <td class="date-cell">${fDespacho}</td>
                     ${fIngCostHtml}
                     <td title="${cliente}">${cliente}</td>
