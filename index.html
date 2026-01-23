@@ -7,8 +7,17 @@
     <!-- Fuentes e Iconos -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <!-- Librería ExcelJS para generar archivos Excel con formato completo -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
+    <!-- Librería html2canvas para convertir HTML a imagen -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     
     <style>
+        html {
+            height: 100%;
+            overflow: hidden;
+        }
+
         :root {
             --primary: #2563eb;
             --primary-light: #eff6ff;
@@ -61,10 +70,12 @@
             color: var(--gray-800);
             margin: 0;
             padding: 0;
-            height: 100vh;
+            height: 100%;
             display: flex;
             flex-direction: column;
             font-size: 12px; 
+            box-sizing: border-box;
+            overflow: hidden;
         }
 
         /* --- HEADER --- */
@@ -117,7 +128,7 @@
         .nav-tab.active .badge { background-color: var(--primary-light); color: var(--primary); }
 
         /* --- CONTENIDO --- */
-        main { padding: 20px; flex: 1; overflow-y: auto; overflow-x: hidden; }
+        main { padding: 20px; flex: 1; overflow: hidden; box-sizing: border-box; }
 
         .view-section { display: none; animation: fadeIn 0.4s ease; height: 100%; display: flex; flex-direction: column;}
         .view-section.active { display: flex; } 
@@ -1105,6 +1116,11 @@
                     <path d="M3 4h18v2H3V4zM6 10h12v2H6v-2zM10 16h4v2h-4v-2z" fill="currentColor"/>
                 </svg>
             </button>
+            <button class="floating-menu-item" title="Correo almacén" onclick="downloadCorreoAlmacenExcel()" aria-label="Correo almacén">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z" fill="currentColor"/>
+                </svg>
+            </button>
             <button class="floating-menu-item" title="Ver costura" onclick="window.location.href='costura.html'" aria-label="Ver costura">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm3.5-9c.83 0 1.5-.67 1.5-1.5S16.33 8 15.5 8 14 8.67 14 9.5s.67 1.5 1.5 1.5zm-7 0c.83 0 1.5-.67 1.5-1.5S9.33 8 8.5 8 7 8.67 7 9.5 7.67 11 8.5 11zm3.5 6.5c2.33 0 4.31-1.46 5.11-3.5H6.89c.8 2.04 2.78 3.5 5.11 3.5z" fill="currentColor"/>
@@ -1149,7 +1165,7 @@
 
     <!-- HEADER -->
     <header>
-        <div class="brand"><i class="ph ph-table"></i> Prog Corte/Habilitado</div>
+        <div class="brand"><a href="cargar_giros.html" class="icon-link" title="Cargar giros" style="color:inherit;text-decoration:none;display:inline-flex;align-items:center;"><i class="ph ph-table"></i></a> PCP confecciones - Corte/Habilitado</div>
         <nav class="nav-tabs">
             <button class="nav-tab active" onclick="switchView('bloqueo', this)">
                 <i class="ph ph-lock-key"></i> Bloqueo <span class="badge" id="count-bloqueo">0</span>
@@ -1546,6 +1562,7 @@
                 <table>
                     <thead>
                         <tr>
+                            <th style="width: 18px;">RSV</th>
                             <th id="th-corte-p" style="width: 30px; display:none;">P</th>
                             <th style="width: 70px;">F. GIRADO</th>
                             <th style="width: 65px; text-align: center;">HOD</th>
@@ -2733,8 +2750,8 @@
             return indices.sort((a, b) => {
                 const rowA = rawData[a];
                 const rowB = rawData[b];
-                
-                // 1. PRIMERO ordenar por OP-PTDA para agrupar filas con mismo OP-PTDA juntas
+
+                // Comparadores comunes
                 const opTelaA = String(rowA[colMap["OP TELA"]] || "").trim();
                 const partidaA = String(rowA[colMap["PARTIDA"]] || "").trim();
                 const opPtdaA = (opTelaA + "-" + partidaA).toLowerCase();
@@ -2742,11 +2759,7 @@
                 const opTelaB = String(rowB[colMap["OP TELA"]] || "").trim();
                 const partidaB = String(rowB[colMap["PARTIDA"]] || "").trim();
                 const opPtdaB = (opTelaB + "-" + partidaB).toLowerCase();
-                
-                const opPtdaCmp = opPtdaA.localeCompare(opPtdaB, undefined, { numeric: true, sensitivity: 'base' });
-                if (opPtdaCmp !== 0) return opPtdaCmp;
-                
-                // 2. Dentro del mismo OP-PTDA, ordenar por columna P (valores numéricos primero, luego vacíos)
+
                 const idxP = findHeaderIndexCaseInsensitive('P');
                 let pA = '';
                 let pB = '';
@@ -2754,18 +2767,32 @@
                     pA = String(rowA[idxP] || '').trim();
                     pB = String(rowB[idxP] || '').trim();
                 }
-                
-                // Convertir a número para comparación (vacío = Infinity para que vaya al final)
                 const pNumA = pA === '' ? Infinity : parseInt(pA) || Infinity;
                 const pNumB = pB === '' ? Infinity : parseInt(pB) || Infinity;
-                
-                if (pNumA !== pNumB) return pNumA - pNumB;
-                
-                // 3. Finalmente ordenar por fecha de despacho dentro del mismo grupo OP-PTDA+P (más reciente primero)
+
+                // Si estamos en sub-tab PROG, ordenar primero por P (prioridad)
+                try {
+                    if (typeof currentBloqueoFilter !== 'undefined' && currentBloqueoFilter === 'PROG') {
+                        if (pNumA !== pNumB) return pNumA - pNumB;
+                        const opPtdaCmp = opPtdaA.localeCompare(opPtdaB, undefined, { numeric: true, sensitivity: 'base' });
+                        if (opPtdaCmp !== 0) return opPtdaCmp;
+                    } else {
+                        // Orden por defecto: OP-PTDA primero
+                        const opPtdaCmp = opPtdaA.localeCompare(opPtdaB, undefined, { numeric: true, sensitivity: 'base' });
+                        if (opPtdaCmp !== 0) return opPtdaCmp;
+                        if (pNumA !== pNumB) return pNumA - pNumB;
+                    }
+                } catch (e) {
+                    const opPtdaCmp = opPtdaA.localeCompare(opPtdaB, undefined, { numeric: true, sensitivity: 'base' });
+                    if (opPtdaCmp !== 0) return opPtdaCmp;
+                    if (pNumA !== pNumB) return pNumA - pNumB;
+                }
+
+                // Finalmente ordenar por fecha de despacho dentro del mismo grupo (más reciente primero)
                 const dateA = rowA[colMap["HOD"]] || 0;
                 const dateB = rowB[colMap["HOD"]] || 0;
                 if (dateA !== dateB) return dateB - dateA;
-                
+
                 return 0;
             });
         }
@@ -2775,7 +2802,7 @@
                 const rowA = rawData[a];
                 const rowB = rawData[b];
                 
-                // 1. PRIMERO ordenar por OP-PTDA para agrupar filas con mismo OP-PTDA juntas
+                // Comparadores comunes
                 const opTelaA = String(rowA[colMap["OP TELA"]] || "").trim();
                 const partidaA = String(rowA[colMap["PARTIDA"]] || "").trim();
                 const opPtdaA = (opTelaA + "-" + partidaA).toLowerCase();
@@ -2783,11 +2810,7 @@
                 const opTelaB = String(rowB[colMap["OP TELA"]] || "").trim();
                 const partidaB = String(rowB[colMap["PARTIDA"]] || "").trim();
                 const opPtdaB = (opTelaB + "-" + partidaB).toLowerCase();
-                
-                const opPtdaCmp = opPtdaA.localeCompare(opPtdaB, undefined, { numeric: true, sensitivity: 'base' });
-                if (opPtdaCmp !== 0) return opPtdaCmp;
-                
-                // 2. Dentro del mismo OP-PTDA, ordenar por columna P (valores numéricos primero, luego vacíos)
+
                 const idxP = findHeaderIndexCaseInsensitive('P');
                 let pA = '';
                 let pB = '';
@@ -2795,18 +2818,33 @@
                     pA = String(rowA[idxP] || '').trim();
                     pB = String(rowB[idxP] || '').trim();
                 }
-                
-                // Convertir a número para comparación (vacío = Infinity para que vaya al final)
                 const pNumA = pA === '' ? Infinity : parseInt(pA) || Infinity;
                 const pNumB = pB === '' ? Infinity : parseInt(pB) || Infinity;
-                
-                if (pNumA !== pNumB) return pNumA - pNumB;
-                
-                // 3. Finalmente ordenar por fecha de despacho dentro del mismo grupo OP-PTDA+P (más reciente primero)
+
+                // Si la vista Corte está en uno de los sub-tabs PROG, ordenar primero por P
+                try {
+                    if (typeof currentCorteFilter !== 'undefined' && (currentCorteFilter === 'PROG 1T' || currentCorteFilter === 'PROG 2T' || currentCorteFilter === 'PROG 3T')) {
+                        if (pNumA !== pNumB) return pNumA - pNumB;
+                        const opPtdaCmp = opPtdaA.localeCompare(opPtdaB, undefined, { numeric: true, sensitivity: 'base' });
+                        if (opPtdaCmp !== 0) return opPtdaCmp;
+                    } else {
+                        // Orden por defecto: OP-PTDA primero, luego P
+                        const opPtdaCmp = opPtdaA.localeCompare(opPtdaB, undefined, { numeric: true, sensitivity: 'base' });
+                        if (opPtdaCmp !== 0) return opPtdaCmp;
+                        if (pNumA !== pNumB) return pNumA - pNumB;
+                    }
+                } catch (e) {
+                    // fallback al orden anterior en caso de error
+                    const opPtdaCmp = opPtdaA.localeCompare(opPtdaB, undefined, { numeric: true, sensitivity: 'base' });
+                    if (opPtdaCmp !== 0) return opPtdaCmp;
+                    if (pNumA !== pNumB) return pNumA - pNumB;
+                }
+
+                // Finalmente ordenar por fecha de despacho dentro del mismo grupo (más reciente primero)
                 const dateA = rowA[colMap["HOD"]] || 0;
                 const dateB = rowB[colMap["HOD"]] || 0;
                 if (dateA !== dateB) return dateB - dateA;
-                
+
                 return 0;
             });
         }
@@ -3481,26 +3519,7 @@
                 
                 // Agregar celda P al inicio (Lavanderia siempre muestra P en "Por Lavar")
                 const pCell = document.createElement('td');
-                pCell.className = 'p-cell';
-                try {
-                    const idxP = findHeaderIndexCaseInsensitive('P');
-                    const onLavView = document.getElementById('view-lavado') && document.getElementById('view-lavado').classList.contains('active');
-                    const isPorLavar = onLavView && String(currentLavadoFilter).toUpperCase() === 'EN LAV';
-                    if (idxP !== -1) {
-                        const pVal = String(row[idxP] || '').trim();
-                        if (isPorLavar) {
-                            // Mostrar como texto no editable
-                            pCell.textContent = pVal;
-                        } else {
-                            // Mantener input en otros casos
-                            pCell.innerHTML = createPrioridadCell(i, row).replace(/<td.*?>|<\/td>/g, '');
-                        }
-                    } else {
-                        pCell.innerHTML = createPrioridadCell(i, row).replace(/<td.*?>|<\/td>/g, '');
-                    }
-                } catch (e) {
-                    pCell.innerHTML = createPrioridadCell(i, row).replace(/<td.*?>|<\/td>/g, '');
-                }
+                pCell.innerHTML = createPrioridadCell(i, row).replace(/<td.*?>|<\/td>/g, '');
                 tr.insertBefore(pCell, tr.firstChild);
                 
                 // Si P = 1, aplicar color rojo claro
@@ -3832,11 +3851,11 @@
                     
                     count++;
                     const tr = createRow(row, i, "corte", currentGroup);
-                    // En sub-tabs PROG, eliminar celda de equipo_corte (posición 12) y las 2 últimas
+                    // En sub-tabs PROG, eliminar celda de equipo_corte (posición 13, después de RIB)
                     const tds = tr.querySelectorAll('td');
-                    if (tds && tds.length >= 13) {
-                        // Eliminar celda equipo_corte (índice 12, antes de STATUS_CORTE)
-                        tds[12].remove();
+                    if (tds && tds.length >= 14) {
+                        // Eliminar celda equipo_corte (índice 13, después de RIB y antes de STATUS_CORTE)
+                        tds[13].remove();
                     }
                     
                     // Agregar celda P al inicio en sub-tabs PROG
@@ -4029,20 +4048,7 @@
 
                 // Agregar celda P al inicio en Enumerado
                 const pCell = document.createElement('td');
-                try {
-                    const btnPor = document.getElementById('enumerado-btn-por');
-                    const isPorActive = btnPor && btnPor.classList.contains('active');
-                    const idxP = findHeaderIndexCaseInsensitive('P');
-                    const pVal = (idxP !== -1 && item.row && item.row[idxP] !== undefined) ? String(item.row[idxP]).trim() : '';
-                    if (isPorActive) {
-                        // Mostrar como texto no editable
-                        pCell.textContent = pVal;
-                    } else {
-                        pCell.innerHTML = createPrioridadCell(item.i, item.row).replace(/<td.*?>|<\/td>/g, '');
-                    }
-                } catch (e) {
-                    pCell.innerHTML = createPrioridadCell(item.i, item.row).replace(/<td.*?>|<\/td>/g, '');
-                }
+                pCell.innerHTML = createPrioridadCell(item.i, item.row).replace(/<td.*?>|<\/td>/g, '');
                 tr.insertBefore(pCell, tr.firstChild);
 
                 const ocNow = (item.oc || '').toString();
@@ -4137,14 +4143,10 @@
                         tdFDesp.innerText = formatValue(getVal(row, 'HOD') || getVal(row, 'F DESPACHO') || '', 'date');
                         tr.appendChild(tdFDesp);
                         
-                        // F.ING.COST - mostrar como texto en X PROG (no editable)
+                        // F.ING.COST - usar date picker si estamos en X PROG
                         const tdFCost = document.createElement('td');
                         tdFCost.className = 'date-cell';
                         if (currentTransferFilter === 'X PROG') {
-                            // En 'Por Programar' mostramos la fecha como texto (no editable)
-                            tdFCost.innerText = formatValue(getVal(row, 'F. ING COST') || getVal(row, 'F ING COST') || getVal(row, 'F.ING.COST') || '', 'date');
-                        } else {
-                            // En otras vistas mantenemos el date-picker para edición
                             const rawFIngCost = getVal(row, 'F.ING.COST') || getVal(row, 'F. ING COST') || getVal(row, 'F ING COST') || '';
                             const dateValue = convertToDateInputFormat(rawFIngCost);
                             tdFCost.innerHTML = `<input type="date" class="short-year" value="${dateValue}" onchange="handleDateChange(this, ${i}, 'F.ING.COST')"><span class="date-yy">${formatDateShortFromInput(dateValue) || 'mm/dd/aaaa'}</span>`;
@@ -4159,6 +4161,8 @@
                                     };
                                 }
                             }, 0);
+                        } else {
+                            tdFCost.innerText = formatValue(getVal(row, 'F. ING COST') || getVal(row, 'F ING COST') || '', 'date');
                         }
                         tr.appendChild(tdFCost);
                         
@@ -4260,45 +4264,41 @@
                         tdTipoTransfer.innerText = getVal(row, 'tipo-transfer') || getVal(row, 'tipo_transfer') || '';
                         tr.appendChild(tdTipoTransfer);
                         
-                        // estado_transfer: en 'Por Programar' mostrar como texto (no editable)
+                        // estado_transfer (select con valores X PROG, PROG y opcionalmente OK)
                         const tdEstadoTransfer = document.createElement('td');
-                        if (currentTransferFilter === 'X PROG') {
-                            tdEstadoTransfer.innerText = estadoTransfer;
-                        } else {
-                            const selEstado = document.createElement('select');
-                            selEstado.className = 'table-select';
-                            selEstado.setAttribute('data-row-index', i);
-                            // Mostrar la opción OK sólo en el sub-tab 'PROG' o si el valor actual es 'OK'
-                            const showOkOption = (currentTransferFilter === 'PROG') || (estadoTransfer === 'OK');
-                            selEstado.innerHTML = `
-                                <option value="X PROG" ${estadoTransfer === 'X PROG' ? 'selected' : ''}>X PROG</option>
-                                <option value="PROG" ${estadoTransfer === 'PROG' ? 'selected' : ''}>PROG</option>
-                                ${showOkOption ? `<option value="OK" ${estadoTransfer === 'OK' ? 'selected' : ''}>OK</option>` : ''}
-                            `;
-                            // Aplicar clases visuales según el valor actual
-                            if (estadoTransfer === 'PROG') { selEstado.classList.add('sel-PROG'); selEstado.classList.remove('sel-OK'); }
-                            else if (estadoTransfer === 'OK') { selEstado.classList.add('sel-OK'); selEstado.classList.remove('sel-PROG'); }
-                            else { selEstado.classList.remove('sel-PROG'); selEstado.classList.remove('sel-OK'); }
-                            selEstado.onchange = function() {
-                                // Validar que n.transfxpda no esté vacío o "LLEVA?" antes de cambiar a PROG
-                                if (this.value === 'PROG') {
-                                    const rawNTransChk = getVal(row, 'n.transfxpda');
-                                    const nTransfValChk = ((rawNTransChk !== undefined && rawNTransChk !== null && rawNTransChk.toString().trim() !== '') ? rawNTransChk.toString().trim() : 'LLEVA?');
-                                    if (nTransfValChk === '' || nTransfValChk === 'LLEVA?') {
-                                        alert('Debe especificar el número de transfer por prenda antes de cambiar a PROG');
-                                        this.value = estadoTransfer; // revertir al valor anterior
-                                        return;
-                                    }
+                        const selEstado = document.createElement('select');
+                        selEstado.className = 'table-select';
+                        selEstado.setAttribute('data-row-index', i);
+                        // Mostrar la opción OK sólo en el sub-tab 'PROG' o si el valor actual es 'OK'
+                        const showOkOption = (currentTransferFilter === 'PROG') || (estadoTransfer === 'OK');
+                        selEstado.innerHTML = `
+                            <option value="X PROG" ${estadoTransfer === 'X PROG' ? 'selected' : ''}>X PROG</option>
+                            <option value="PROG" ${estadoTransfer === 'PROG' ? 'selected' : ''}>PROG</option>
+                            ${showOkOption ? `<option value="OK" ${estadoTransfer === 'OK' ? 'selected' : ''}>OK</option>` : ''}
+                        `;
+                        // Aplicar clases visuales según el valor actual
+                        if (estadoTransfer === 'PROG') { selEstado.classList.add('sel-PROG'); selEstado.classList.remove('sel-OK'); }
+                        else if (estadoTransfer === 'OK') { selEstado.classList.add('sel-OK'); selEstado.classList.remove('sel-PROG'); }
+                        else { selEstado.classList.remove('sel-PROG'); selEstado.classList.remove('sel-OK'); }
+                        selEstado.onchange = function() {
+                            // Validar que n.transfxpda no esté vacío o "LLEVA?" antes de cambiar a PROG
+                            if (this.value === 'PROG') {
+                                const rawNTransChk = getVal(row, 'n.transfxpda');
+                                const nTransfValChk = ((rawNTransChk !== undefined && rawNTransChk !== null && rawNTransChk.toString().trim() !== '') ? rawNTransChk.toString().trim() : 'LLEVA?');
+                                if (nTransfValChk === '' || nTransfValChk === 'LLEVA?') {
+                                    alert('Debe especificar el número de transfer por prenda antes de cambiar a PROG');
+                                    this.value = estadoTransfer; // revertir al valor anterior
+                                    return;
                                 }
-                                updateRow(i, 'estado_transfer', this.value, this);
-                                // Ajustar clases visuales
-                                this.classList.remove('sel-PROG');
-                                this.classList.remove('sel-OK');
-                                if (this.value === 'PROG') this.classList.add('sel-PROG');
-                                if (this.value === 'OK') this.classList.add('sel-OK');
-                            };
-                            tdEstadoTransfer.appendChild(selEstado);
-                        }
+                            }
+                            updateRow(i, 'estado_transfer', this.value, this);
+                            // Ajustar clases visuales
+                            this.classList.remove('sel-PROG');
+                            this.classList.remove('sel-OK');
+                            if (this.value === 'PROG') this.classList.add('sel-PROG');
+                            if (this.value === 'OK') this.classList.add('sel-OK');
+                        };
+                        tdEstadoTransfer.appendChild(selEstado);
                         tr.appendChild(tdEstadoTransfer);
                         
                         // Agregar celda P al inicio si estamos en sub-tab PROG
@@ -4677,27 +4677,17 @@
                     count++;
                     const tr = document.createElement('tr');
 
-                    // COLUMNA P - Prioridad (mostrar como texto en X PROG)
+                    // COLUMNA P - Prioridad
                     const pCell = document.createElement('td');
-                    if (currentHabilitadoFilter === 'X PROG') {
-                        const pVal = (getVal(row, 'P') || '').toString().trim();
-                        pCell.innerHTML = pVal;
-                    } else {
-                        pCell.innerHTML = createPrioridadCell(i, row).replace(/<td.*?>|<\/td>/g, '');
-                    }
+                    pCell.innerHTML = createPrioridadCell(i, row).replace(/<td.*?>|<\/td>/g, '');
 
                     // HOD
                     const fDesp = formatValue(getVal(row, 'HOD'), 'date') || '';
 
-                    // F.ING.COST -> mostrar como texto en X PROG (no editable), sino date-picker
+                    // F.ING.COST -> mantener lógica de date picker (usamos formato de input si es posible)
                     const rawFIng = getVal(row, 'F.ING.COST');
                     const dateValue = convertToDateInputFormat(rawFIng);
-                    let fIngHtml = '';
-                    if (currentHabilitadoFilter === 'X PROG') {
-                        fIngHtml = `<td class="date-cell">${formatValue(getVal(row, 'F.ING.COST') || getVal(row, 'F ING COST') || '', 'date')}</td>`;
-                    } else {
-                        fIngHtml = `<td class="date-cell"><input type="date" class="short-year" value="${dateValue}" onchange="handleDateChange(this, ${i}, 'F.ING.COST')"><span class="date-yy">${formatDateShortFromInput(dateValue) || 'mm/dd/aaaa'}</span></td>`;
-                    }
+                    const fIngHtml = `<td class="date-cell"><input type="date" class="short-year" value="${dateValue}" onchange="handleDateChange(this, ${i}, 'F.ING.COST')"><span class="date-yy">${formatDateShortFromInput(dateValue) || 'mm/dd/aaaa'}</span></td>`;
 
                     // CLIENTE
                     const cliente = normalizeClientName(getVal(row, 'CLIENTE')) || '';
@@ -4888,20 +4878,15 @@
                     // Mostrar opción OK solo en sub-tabs PROG 1T, PROG 2T, PROG 3T
                     const showOkOption = (currentHabilitadoFilter === 'PROG 1T' || currentHabilitadoFilter === 'PROG 2T' || currentHabilitadoFilter === 'PROG 3T');
                     
-                    let habilHtml = '';
-                    if (currentHabilitadoFilter === 'X PROG') {
-                        habilHtml = `<td style="text-align:center;">${habilValNorm}</td>`;
-                    } else {
-                        habilHtml = `<td>
-                            <select class="table-select ${habilClass}" onchange="if(this.value === 'OK') { abrirModalIngresoCostura(${i}); this.value = '${habilValNorm}'; } else { updateRow(${i}, 'estado_habilitado', this.value, this); setTimeout(renderHabilitado, 300); }">
-                                <option value="X PROG" ${habilValNorm === 'X PROG' || habilValNorm === '' ? 'selected' : ''}>X PROG</option>
-                                <option value="PROG 1T" ${habilValNorm === 'PROG 1T' ? 'selected' : ''}>PROG 1T</option>
-                                <option value="PROG 2T" ${habilValNorm === 'PROG 2T' ? 'selected' : ''}>PROG 2T</option>
-                                <option value="PROG 3T" ${habilValNorm === 'PROG 3T' ? 'selected' : ''}>PROG 3T</option>
-                                ${showOkOption ? `<option value="OK" ${habilValNorm === 'OK' ? 'selected' : ''}>OK</option>` : ''}
-                            </select>
-                        </td>`;
-                    }
+                    const habilHtml = `<td>
+                        <select class="table-select ${habilClass}" onchange="if(this.value === 'OK') { abrirModalIngresoCostura(${i}); this.value = '${habilValNorm}'; } else { updateRow(${i}, 'estado_habilitado', this.value, this); setTimeout(renderHabilitado, 300); }">
+                            <option value="X PROG" ${habilValNorm === 'X PROG' || habilValNorm === '' ? 'selected' : ''}>X PROG</option>
+                            <option value="PROG 1T" ${habilValNorm === 'PROG 1T' ? 'selected' : ''}>PROG 1T</option>
+                            <option value="PROG 2T" ${habilValNorm === 'PROG 2T' ? 'selected' : ''}>PROG 2T</option>
+                            <option value="PROG 3T" ${habilValNorm === 'PROG 3T' ? 'selected' : ''}>PROG 3T</option>
+                            ${showOkOption ? `<option value="OK" ${habilValNorm === 'OK' ? 'selected' : ''}>OK</option>` : ''}
+                        </select>
+                    </td>`;
 
                     // STATUS - Columna calculada según RUTA TELA y estados
                     const rutaTela = (getVal(row, 'RUTA TELA') || getVal(row, 'RUTA_TELA') || getVal(row, 'RUTA') || '').toString().toUpperCase().trim();
@@ -5318,9 +5303,8 @@
                     const isBloqueoView = document.getElementById('view-bloqueo') && document.getElementById('view-bloqueo').classList.contains('active');
                     const isLavadoView = document.getElementById('view-lavado') && document.getElementById('view-lavado').classList.contains('active');
                     
-                    // Bloqueo → usar date picker en sub-tabs distintos de 'Por Programar' (X PROG)
-                    // En 'Por Programar' queremos mostrar el dato como texto (no editable)
-                    if (isBloqueoView && currentBloqueoFilter !== 'X PROG') useDatePicker = true;
+                    // Bloqueo → Por Programar (X PROG)
+                    if (isBloqueoView && currentBloqueoFilter === 'X PROG') useDatePicker = true;
                     // Lavado siempre tiene sub-tab activo, no aplica date picker aquí
                 } catch (e) {}
                 
@@ -5450,19 +5434,8 @@
                             <option value="PROG" ${effectiveValue === "PROG" ? "selected" : ""}>PROG</option>
                             ${okOptionHtml}
                         </select>`;
-
-                    // Si estamos en la vista Bloqueo->Por Programar (X PROG), mostrar solo texto
-                    let bloqHtml = '';
-                    try {
-                        const onBloqView = document.getElementById('view-bloqueo') && document.getElementById('view-bloqueo').classList.contains('active');
-                        if (onBloqView && currentBloqueoFilter === 'X PROG') {
-                            bloqHtml = `<td title="${effectiveValue}"><span class="${bloqClass}">${effectiveValue}</span></td>`;
-                        } else {
-                            bloqHtml = `<td>${bloqSelect}</td>`;
-                        }
-                    } catch(e) { bloqHtml = `<td>${bloqSelect}</td>`; }
-
-                    controlHtml = `<td title="${nroMolde}">${nroMolde}</td><td title="${tipoCert}">${tipoCert}</td>${bloqHtml}${ribHtml}`;
+                    
+                    controlHtml = `<td title="${nroMolde}">${nroMolde}</td><td title="${tipoCert}">${tipoCert}</td><td>${bloqSelect}</td>${ribHtml}`;
 
                 } else if (type === "lavado") {
                         const lavValue = getVal(row, "estado_lavada") || "EN LAV";
@@ -5488,18 +5461,6 @@
                                 </select>
                                 ${isDevol ? '<span class="lav-badge" title="EN LAV (devolucion)">DEVOL.</span>' : ''}
                             </div>`;
-
-                        // En Lavado -> Por Lavar (EN LAV) mostrar solo el dato (sin select)
-                        let lavHtml = '';
-                        try {
-                            const onLavView = document.getElementById('view-lavado') && document.getElementById('view-lavado').classList.contains('active');
-                            if (onLavView && String(currentLavadoFilter).toUpperCase() === 'EN LAV') {
-                                const spanClass = (lavValue === 'OK') ? 'sel-OK' : 'sel-ENLAV';
-                                lavHtml = `<td><div class="lav-wrap"><span class="${spanClass}">${lavValue}</span>${isDevol ? '<span class="lav-badge" title="EN LAV (devolucion)">DEVOL.</span>' : ''}</div></td>`;
-                            } else {
-                                lavHtml = `<td>${lavSelect}</td>`;
-                            }
-                        } catch(e) { lavHtml = `<td>${lavSelect}</td>`; }
                     
                     const ribOriginal = rib || "NO LLEVA";
                     const ribGuardado = getVal(row, "estado_rib");
@@ -5533,7 +5494,7 @@
                                     </select>`;
                     }
 
-                    controlHtml = `<td title="${tipoCert}">${tipoCert}</td>${lavHtml}<td>${ribSelect}</td>`;
+                    controlHtml = `<td title="${tipoCert}">${tipoCert}</td><td>${lavSelect}</td><td>${ribSelect}</td>`;
                 }
 
                 // Usamos title para mostrar el dato completo en hover por si acaso
@@ -5584,12 +5545,10 @@
                     const isHabilitadoView = document.getElementById('view-habilitado') && document.getElementById('view-habilitado').classList.contains('active');
                     const isCorteBloques = document.getElementById('view-corte-bloques') && document.getElementById('view-corte-bloques').classList.contains('active');
                     
-                    // Corte Pzas → usar date picker en sub-tabs distintos de 'Por Programar' (X PROG)
-                    // En 'Por Programar' (X PROG) queremos mostrar F.ING.COST como texto (no editable)
-                    if (isCorteView && currentCorteFilter !== 'X PROG') useDatePicker = true;
-                    // Corte Bloques → usar date picker en sub-tabs distintos de 'Por Programar' (X PROG)
-                    // En 'Por Programar' (X PROG) queremos mostrar F.ING.COST como texto (no editable)
-                    if (isCorteBloques && currentCorteBloquesFilter !== 'X PROG') useDatePicker = true;
+                    // Corte Pzas → Por Programar (X PROG)
+                    if (isCorteView && currentCorteFilter === 'X PROG') useDatePicker = true;
+                    // Corte Bloques → Por Programar (X PROG)
+                    if (isCorteBloques && currentCorteBloquesFilter === 'X PROG') useDatePicker = true;
                     // Enumerado → Por enumerar (sub-tab activo)
                     if (isEnumeradoView) useDatePicker = true;
                     // Transfer → Por Programar (X PROG)
@@ -5677,7 +5636,11 @@
                     ? `<span class="oc-link" style="cursor:pointer;" onclick="abrirModalLavadoFromCorte(${rowIndex})" title="Cambiar estado lavada">${opPtda}</span>`
                     : opPtda;
 
+                // Obtener valor RSV
+                const rsv = getVal(row, "RSV") || "";
+
                 let html = `
+                    <td title="${rsv}">${rsv}</td>
                     <td>${fGirado}</td>
                     <td class="date-cell">${fDespacho}</td>
                     ${fIngCostHtml}
@@ -5725,13 +5688,7 @@
                                     if (isEnumeradoView()) return equipoCorte || '';
                                 } catch (e) {}
 
-                                // En la vista Enumerado o en Corte->Por Programar (X PROG) mostrar solo el dato (texto)
-                                try {
-                                    const onCorteView = document.getElementById('view-corte') && document.getElementById('view-corte').classList.contains('active');
-                                    if (isEnumeradoView() || (onCorteView && currentCorteFilter === 'X PROG')) return equipoCorte || '';
-                                } catch (e) {}
-
-                                // Para otros sub-tabs (p.ej. PROG 1T/2T/3T) mostrar select editable
+                                // Si estamos en sub-tab "Por Programar" (X PROG), mostrar select
                                 if (currentCorteFilter === 'X PROG') {
                                     const currentEquipo = equipoCorte || '';
                                     let optionsHtml = '<option value="">-- Seleccionar --</option>';
@@ -5745,6 +5702,7 @@
                                     </select>
                                 `;
                                 } else {
+                                    // En otros sub-tabs, solo mostrar el texto
                                     return equipoCorte;
                                 }
                             })()}
@@ -5769,15 +5727,6 @@
                                 if (!allowXProg && est === 'X PROG') effectiveEst = 'PROG 1T';
 
                                 const xProgOption = allowXProg ? `<option value="X PROG" ${(!effectiveEst || effectiveEst === '' || effectiveEst === 'X PROG') ? 'selected' : ''}>X PROG</option>` : '';
-
-                                try {
-                                    const onCorte = document.getElementById('view-corte') && document.getElementById('view-corte').classList.contains('active');
-                                    if (onCorte && currentCorteFilter === 'X PROG') {
-                                        // Mostrar solo texto en Corte -> Por Programar
-                                        const displayEst = effectiveEst || '';
-                                        return `<span title="${displayEst}">${displayEst}</span>`;
-                                    }
-                                } catch(e) {}
 
                                 return `
                                     <select class="table-select ${estClass}" onchange="updateRow(${rowIndex}, '${updateColName}', this.value, this)">
@@ -7301,13 +7250,6 @@
                     try {
                         const filtEl = document.getElementById('corte-route-filters');
                         if (filtEl) filtEl.style.display = (filterState === 'X PROG') ? 'flex' : 'none';
-                        // Ocultar el switch 'Normal' cuando estemos en Por Programar (X PROG)
-                        try {
-                            const normalInput = document.getElementById('flt-normal');
-                            if (normalInput && normalInput.parentElement) {
-                                normalInput.parentElement.style.display = (filterState === 'X PROG') ? 'none' : '';
-                            }
-                        } catch(e) {}
                     } catch (e) {}
                     // Mostrar/ocultar botón EQ_Corte solo cuando estemos en 'Por Programar' (X PROG)
                     try {
@@ -7813,11 +7755,9 @@
                 tdFDesp.innerText = formatValue(getVal(row, 'HOD') || getVal(row, 'F DESPACHO') || '', 'date');
                 tr.appendChild(tdFDesp);
 
-                // F.ING.COST - mostrar como texto en X PROG (no editable)
+                // F.ING.COST - usar date picker si estamos en X PROG
                 const tdFCost = document.createElement('td'); tdFCost.className = 'date-cell';
                 if (window.currentArtesBordadoFilter === 'X PROG') {
-                    tdFCost.innerText = formatValue(getVal(row, 'F.ING.COST') || getVal(row, 'F ING COST') || '', 'date');
-                } else {
                     const rawFIngCost = getVal(row, 'F.ING.COST') || getVal(row, 'F ING COST') || '';
                     const dateValue = convertToDateInputFormat(rawFIngCost);
                     tdFCost.innerHTML = `<input type="date" class="short-year" value="${dateValue}" onchange="handleDateChange(this, ${i}, 'F.ING.COST')"><span class="date-yy">${formatDateShortFromInput(dateValue) || 'mm/dd/aaaa'}</span>`;
@@ -7832,6 +7772,8 @@
                             };
                         }
                     }, 0);
+                } else {
+                    tdFCost.innerText = formatValue(getVal(row, 'F.ING.COST') || getVal(row, 'F ING COST') || '', 'date');
                 }
                 tr.appendChild(tdFCost);
 
@@ -7866,17 +7808,13 @@
                 tdNbd.innerText = valNbd;
                 tr.appendChild(tdNbd);
 
-                // estado_bordado -> mostrar como texto en X PROG, sino select editable
+                // estado_bordado -> select editable (X PROG / PROG)
                 const tdEst = document.createElement('td');
-                if (window.currentArtesBordadoFilter === 'X PROG') {
-                    tdEst.innerText = estadoBNorm;
-                } else {
-                    const selEst = document.createElement('select');
-                    selEst.className = 'table-select';
-                    selEst.innerHTML = `<option value="X PROG" ${estadoBNorm === 'X PROG' ? 'selected' : ''}>X PROG</option><option value="PROG" ${estadoBNorm.toUpperCase().indexOf('PROG')!==-1 && estadoBNorm.toUpperCase()!=='X PROG' ? 'selected' : ''}>PROG</option>`;
-                    selEst.onchange = function(){ updateRow(i, 'estado_bordado', this.value, this); setTimeout(()=>{ renderArtesBordado(); updateCounters(); }, 300); };
-                    tdEst.appendChild(selEst);
-                }
+                const selEst = document.createElement('select');
+                selEst.className = 'table-select';
+                selEst.innerHTML = `<option value="X PROG" ${estadoBNorm === 'X PROG' ? 'selected' : ''}>X PROG</option><option value="PROG" ${estadoBNorm.toUpperCase().indexOf('PROG')!==-1 && estadoBNorm.toUpperCase()!=='X PROG' ? 'selected' : ''}>PROG</option>`;
+                selEst.onchange = function(){ updateRow(i, 'estado_bordado', this.value, this); setTimeout(()=>{ renderArtesBordado(); updateCounters(); }, 300); };
+                tdEst.appendChild(selEst);
                 tr.appendChild(tdEst);
 
                 // Alternar sombreado por OP-PTDA
@@ -7963,11 +7901,9 @@
 
                 // HOD
                 const tdFDesp = document.createElement('td'); tdFDesp.className = 'date-cell'; tdFDesp.innerText = formatValue(getVal(row, 'HOD') || getVal(row, 'F DESPACHO') || '', 'date'); tr.appendChild(tdFDesp);
-                // F.ING.COST - mostrar como texto en X PROG (no editable)
+                // F.ING.COST - usar date picker si estamos en X PROG
                 const tdFCost = document.createElement('td'); tdFCost.className = 'date-cell';
                 if (window.currentArtesEstampadoFilter === 'X PROG') {
-                    tdFCost.innerText = formatValue(getVal(row, 'F.ING.COST') || getVal(row, 'F ING COST') || '', 'date');
-                } else {
                     const rawFIngCost = getVal(row, 'F.ING.COST') || getVal(row, 'F ING COST') || '';
                     const dateValue = convertToDateInputFormat(rawFIngCost);
                     tdFCost.innerHTML = `<input type="date" class="short-year" value="${dateValue}" onchange="handleDateChange(this, ${i}, 'F.ING.COST')"><span class="date-yy">${formatDateShortFromInput(dateValue) || 'mm/dd/aaaa'}</span>`;
@@ -7982,6 +7918,8 @@
                             };
                         }
                     }, 0);
+                } else {
+                    tdFCost.innerText = formatValue(getVal(row, 'F.ING.COST') || getVal(row, 'F ING COST') || '', 'date');
                 }
                 tr.appendChild(tdFCost);
                 // CLIENTE
@@ -7999,17 +7937,12 @@
                 // n.ESTAMPxpda
                 const tdNest = document.createElement('td'); const valNest = getVal(row, 'n.ESTAMPxpda') || getVal(row, 'N.ESTAMPXPDA') || getVal(row, 'n.ESTAMP xpda') || ''; tdNest.innerText = valNest; tr.appendChild(tdNest);
 
-                // estado_estampado -> mostrar como texto en X PROG, sino select editable
+                // estado_estampado -> select editable (X PROG / PROG)
                 const tdEst = document.createElement('td');
-                if (window.currentArtesEstampadoFilter === 'X PROG') {
-                    tdEst.innerText = estadoNorm;
-                } else {
-                    const selEst = document.createElement('select'); selEst.className = 'table-select';
-                    selEst.innerHTML = `<option value="X PROG" ${estadoNorm === 'X PROG' ? 'selected' : ''}>X PROG</option><option value="PROG" ${estadoNorm.toUpperCase().indexOf('PROG')!==-1 && estadoNorm.toUpperCase()!=='X PROG' ? 'selected' : ''}>PROG</option>`;
-                    selEst.onchange = function(){ updateRow(i, 'estado_estampado', this.value, this); setTimeout(()=>{ renderArtesEstampado(); updateCounters(); }, 300); };
-                    tdEst.appendChild(selEst);
-                }
-                tr.appendChild(tdEst);
+                const selEst = document.createElement('select'); selEst.className = 'table-select';
+                selEst.innerHTML = `<option value="X PROG" ${estadoNorm === 'X PROG' ? 'selected' : ''}>X PROG</option><option value="PROG" ${estadoNorm.toUpperCase().indexOf('PROG')!==-1 && estadoNorm.toUpperCase()!=='X PROG' ? 'selected' : ''}>PROG</option>`;
+                selEst.onchange = function(){ updateRow(i, 'estado_estampado', this.value, this); setTimeout(()=>{ renderArtesEstampado(); updateCounters(); }, 300); };
+                tdEst.appendChild(selEst); tr.appendChild(tdEst);
 
                 tbody.appendChild(tr);
             });
@@ -8458,31 +8391,15 @@
                     if (valNorm === 'OK') selectClass = 'sel-OK';
                     
                     const td = document.createElement('td');
-                    // Si estamos en Corte Bloques -> Por Programar (X PROG), mostrar solo texto
-                    try {
-                        if (currentCorteBloquesFilter === 'X PROG') {
-                            td.title = valNorm;
-                            td.innerText = valNorm;
-                        } else {
-                            // Ocultar la opción OK cuando el sub-tab activo sea 'X PROG' (Por Programar)
-                            const showOkOption = (typeof currentCorteBloquesFilter === 'undefined') ? true : (currentCorteBloquesFilter !== 'X PROG');
-                            td.innerHTML = `
-                                <select class="table-select ${selectClass}" onchange="updateRow(${i}, 'estado_corte_bloques', this.value, this)">
-                                    <option value="X PROG" ${valNorm === 'X PROG' ? 'selected' : ''}>X PROG</option>
-                                    <option value="PROG" ${valNorm === 'PROG' ? 'selected' : ''}>PROG</option>
-                                    ${showOkOption ? `<option value="OK" ${valNorm === 'OK' ? 'selected' : ''}>OK</option>` : ''}
-                                </select>
-                            `;
-                        }
-                    } catch(e) {
-                        td.innerHTML = `
-                            <select class="table-select ${selectClass}" onchange="updateRow(${i}, 'estado_corte_bloques', this.value, this)">
-                                <option value="X PROG" ${valNorm === 'X PROG' ? 'selected' : ''}>X PROG</option>
-                                <option value="PROG" ${valNorm === 'PROG' ? 'selected' : ''}>PROG</option>
-                                <option value="OK" ${valNorm === 'OK' ? 'selected' : ''}>OK</option>
-                            </select>
-                        `;
-                    }
+                    // Ocultar la opción OK cuando el sub-tab activo sea 'X PROG' (Por Programar)
+                    const showOkOption = (typeof currentCorteBloquesFilter === 'undefined') ? true : (currentCorteBloquesFilter !== 'X PROG');
+                    td.innerHTML = `
+                        <select class="table-select ${selectClass}" onchange="updateRow(${i}, 'estado_corte_bloques', this.value, this)">
+                            <option value="X PROG" ${valNorm === 'X PROG' ? 'selected' : ''}>X PROG</option>
+                            <option value="PROG" ${valNorm === 'PROG' ? 'selected' : ''}>PROG</option>
+                            ${showOkOption ? `<option value="OK" ${valNorm === 'OK' ? 'selected' : ''}>OK</option>` : ''}
+                        </select>
+                    `;
                     tr.appendChild(td);
                 } catch (e) {}
 
@@ -9461,6 +9378,375 @@
                 alert('Error al guardar los equipos.');
             }
         };
+
+        // Función para convertir Date(yyyy,mm,dd) a DD/Mon formato
+        function formatearFechaDespacho(valor) {
+            if (!valor || valor === '') return '';
+            const mesesEs = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+            
+            // Si es string con formato Date(yyyy,mm,dd)
+            if (typeof valor === 'string') {
+                const m = valor.match(/Date\((\d+),(\d+),(\d+)\)/);
+                if (m) {
+                    const year = m[1];
+                    const month = parseInt(m[2], 10);
+                    const day = String(m[3]).padStart(2, '0');
+                    const monthName = mesesEs[month] || '';
+                    return `${day}/${monthName}`;
+                }
+            }
+            return valor;
+        }
+
+        // Función para descargar Excel "Correo Almacen" con datos filtrados usando ExcelJS
+        window.downloadCorreoAlmacenExcel = async function() {
+            if (!rawData || rawData.length < 2) {
+                alert('No hay datos disponibles para descargar.');
+                return;
+            }
+
+            // Definir las columnas específicas que queremos exportar (en el orden correcto)
+            const columnasExportar = [
+                'CLIENTE', 'OP', 'CORTE', 'COLOR', 'PDS GIRADAS', 
+                'OP TELA', 'PARTIDA', 'KG GIRADOS', 'RIB', 
+                'ARTÍCULO', 'NRO. MOLDE', 'F. DESPACHO', 'P'
+            ];
+
+            // Obtener índices de las columnas a exportar
+            const headers = rawData[0];
+            const colIndices = columnasExportar.map(col => {
+                const idx = getColIndex(col);
+                return idx !== -1 ? idx : null;
+            }).filter(idx => idx !== null);
+            
+            // Obtener el índice de la columna "F. DESPACHO" para formatearla
+            const idxFDespacho = getColIndex('F. DESPACHO');
+            const idxFDespachoEnExportar = columnasExportar.indexOf('F. DESPACHO');
+
+            // Filtrar datos según los criterios y agrupar por RUTA TELA
+            const grupoLavada = [];
+            const grupoAcabada = [];
+
+            for (let i = 1; i < rawData.length; i++) {
+                const row = rawData[i];
+                const rutaTela = (getVal(row, 'RUTA TELA') || '').toString().trim().toUpperCase();
+                const estadoBloqueo = (getVal(row, 'estado_bloqueo') || '').toString().trim().toUpperCase();
+                const estadoCorte = (getVal(row, 'estado_corte') || '').toString().trim().toUpperCase();
+
+                // Extraer solo las columnas necesarias
+                const rowFiltrada = colIndices.map((idx, posicion) => {
+                    const valor = row[idx] || '';
+                    // Formatear la columna "F. DESPACHO"
+                    if (idxFDespachoEnExportar === posicion && idxFDespacho !== -1) {
+                        return formatearFechaDespacho(valor);
+                    }
+                    return valor;
+                });
+
+                // Criterio 1: RUTA TELA = "LAVADA" y estado_bloqueo = "PROG"
+                if (rutaTela === 'LAVADA' && estadoBloqueo === 'PROG') {
+                    grupoLavada.push({ 
+                        row: rowFiltrada, 
+                        kgGirados: parseFloat(getVal(row, 'KG GIRADOS')) || 0,
+                        pdsGiradas: parseFloat(getVal(row, 'PDS GIRADAS')) || 0
+                    });
+                }
+                // Criterio 2: RUTA TELA = "ACABADA" y estado_corte = "PROG 1T", "PROG 2T" o "PROG 3T"
+                else if (rutaTela === 'ACABADA' && (estadoCorte === 'PROG 1T' || estadoCorte === 'PROG 2T' || estadoCorte === 'PROG 3T')) {
+                    grupoAcabada.push({ 
+                        row: rowFiltrada, 
+                        kgGirados: parseFloat(getVal(row, 'KG GIRADOS')) || 0,
+                        pdsGiradas: parseFloat(getVal(row, 'PDS GIRADAS')) || 0
+                    });
+                }
+            }
+
+            if (grupoLavada.length === 0 && grupoAcabada.length === 0) {
+                alert('No hay datos que cumplan los criterios de filtro.');
+                return;
+            }
+
+            // Crear encabezados filtrados
+            const headersFiltrados = colIndices.map(idx => headers[idx]);
+
+            // Crear workbook y worksheet con ExcelJS
+            const workbook = new ExcelJS.Workbook();
+            const worksheet = workbook.addWorksheet('Hoja 1');
+
+            // Definir anchos de columna
+            worksheet.columns = [
+                { width: 30 }, // CLIENTE
+                { width: 10 }, // OP
+                { width: 10 }, // CORTE
+                { width: 25 }, // COLOR
+                { width: 12 }, // PDS GIRADAS
+                { width: 10 }, // OP TELA
+                { width: 10 }, // PARTIDA
+                { width: 12 }, // KG GIRADOS
+                { width: 10 }, // RIB
+                { width: 45 }, // ARTÍCULO
+                { width: 15 }, // NRO. MOLDE
+                { width: 13 }, // F. DESPACHO
+                { width: 8 }   // P
+            ];
+
+            // Agregar encabezados con formato
+            const headerRow = worksheet.addRow(headersFiltrados);
+            headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 11, name: 'Calibri' };
+            headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF4472C4' } };
+            headerRow.alignment = { horizontal: 'center', vertical: 'middle' };
+            headerRow.eachCell((cell) => {
+                cell.border = {
+                    top: { style: 'thin', color: { argb: 'FF000000' } },
+                    left: { style: 'thin', color: { argb: 'FF000000' } },
+                    bottom: { style: 'thin', color: { argb: 'FF000000' } },
+                    right: { style: 'thin', color: { argb: 'FF000000' } }
+                };
+            });
+
+            const idxKgGirados = headersFiltrados.indexOf('KG GIRADOS') + 1; // +1 porque las columnas en ExcelJS son 1-indexed
+            const idxPdsGiradas = headersFiltrados.indexOf('PDS GIRADAS') + 1;
+
+            // Calcular sumas antes de crear el Excel
+            let sumaKgLavada = 0;
+            let sumaPdsLavada = 0;
+            let sumaKgAcabada = 0;
+            let sumaPdsAcabada = 0;
+
+            if (grupoLavada.length > 0) {
+                sumaKgLavada = grupoLavada.reduce((sum, item) => sum + item.kgGirados, 0);
+                sumaPdsLavada = grupoLavada.reduce((sum, item) => sum + item.pdsGiradas, 0);
+            }
+
+            if (grupoAcabada.length > 0) {
+                sumaKgAcabada = grupoAcabada.reduce((sum, item) => sum + item.kgGirados, 0);
+                sumaPdsAcabada = grupoAcabada.reduce((sum, item) => sum + item.pdsGiradas, 0);
+            }
+
+            // Agregar grupo LAVADA si tiene datos
+            if (grupoLavada.length > 0) {
+                // Fila de título "RUTA TELA: LAVADA"
+                const tituloLavadaRow = worksheet.addRow(['RUTA TELA: LAVADA']);
+                worksheet.mergeCells(tituloLavadaRow.number, 1, tituloLavadaRow.number, headersFiltrados.length);
+                tituloLavadaRow.font = { bold: true, color: { argb: 'FF000000' }, size: 11, name: 'Calibri' };
+                tituloLavadaRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFCC66' } };
+                tituloLavadaRow.alignment = { horizontal: 'left', vertical: 'middle' };
+
+                // Datos de LAVADA
+                grupoLavada.forEach(item => {
+                    const dataRow = worksheet.addRow(item.row);
+                    dataRow.font = { size: 11, name: 'Calibri' };
+                    dataRow.alignment = { vertical: 'middle' };
+                    dataRow.eachCell((cell) => {
+                        cell.border = {
+                            top: { style: 'thin', color: { argb: 'FFD0D0D0' } },
+                            left: { style: 'thin', color: { argb: 'FFD0D0D0' } },
+                            bottom: { style: 'thin', color: { argb: 'FFD0D0D0' } },
+                            right: { style: 'thin', color: { argb: 'FFD0D0D0' } }
+                        };
+                    });
+                });
+
+                // Fila de suma para LAVADA
+                const sumRowLavada = worksheet.addRow([]);
+                sumRowLavada.getCell(idxPdsGiradas).value = parseFloat(sumaPdsLavada.toFixed(0));
+                sumRowLavada.getCell(idxKgGirados).value = parseFloat(sumaKgLavada.toFixed(1));
+                sumRowLavada.font = { bold: true, size: 11, name: 'Calibri' };
+                sumRowLavada.getCell(idxPdsGiradas).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE7E6E6' } };
+                sumRowLavada.getCell(idxKgGirados).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE7E6E6' } };
+            }
+
+            // Agregar grupo ACABADA si tiene datos
+            if (grupoAcabada.length > 0) {
+                // Fila de título "RUTA TELA: ACABADA"
+                const tituloAcabadaRow = worksheet.addRow(['RUTA TELA: ACABADA']);
+                worksheet.mergeCells(tituloAcabadaRow.number, 1, tituloAcabadaRow.number, headersFiltrados.length);
+                tituloAcabadaRow.font = { bold: true, color: { argb: 'FF000000' }, size: 11, name: 'Calibri' };
+                tituloAcabadaRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFCC66' } };
+                tituloAcabadaRow.alignment = { horizontal: 'left', vertical: 'middle' };
+
+                // Datos de ACABADA
+                grupoAcabada.forEach(item => {
+                    const dataRow = worksheet.addRow(item.row);
+                    dataRow.font = { size: 11, name: 'Calibri' };
+                    dataRow.alignment = { vertical: 'middle' };
+                    dataRow.eachCell((cell) => {
+                        cell.border = {
+                            top: { style: 'thin', color: { argb: 'FFD0D0D0' } },
+                            left: { style: 'thin', color: { argb: 'FFD0D0D0' } },
+                            bottom: { style: 'thin', color: { argb: 'FFD0D0D0' } },
+                            right: { style: 'thin', color: { argb: 'FFD0D0D0' } }
+                        };
+                    });
+                });
+
+                // Fila de suma para ACABADA
+                const sumRowAcabada = worksheet.addRow([]);
+                sumRowAcabada.getCell(idxPdsGiradas).value = parseFloat(sumaPdsAcabada.toFixed(0));
+                sumRowAcabada.getCell(idxKgGirados).value = parseFloat(sumaKgAcabada.toFixed(1));
+                sumRowAcabada.font = { bold: true, size: 11, name: 'Calibri' };
+                sumRowAcabada.getCell(idxPdsGiradas).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE7E6E6' } };
+                sumRowAcabada.getCell(idxKgGirados).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE7E6E6' } };
+            }
+
+            // Generar nombre del archivo con fecha actual (dd-mmm)
+            const today = new Date();
+            const day = String(today.getDate()).padStart(2, '0');
+            const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+            const month = months[today.getMonth()];
+            const fileName = `PROGRAMA DE BLOQUEO Y LAVADO (${day}-${month})`;
+
+            // Generar archivo Excel y descargar
+            const buffer = await workbook.xlsx.writeBuffer();
+            const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = fileName + '.xlsx';
+            a.click();
+            window.URL.revokeObjectURL(url);
+
+            // Esperar un poco antes de generar la imagen
+            setTimeout(async () => {
+                // Generar tabla HTML para convertir a imagen
+                let htmlTable = '<table style="border-collapse: collapse; font-family: Calibri; font-size: 11px; background: white;">';
+                
+                // Agregar encabezados
+                htmlTable += '<tr>';
+                headersFiltrados.forEach(header => {
+                    htmlTable += `<td style="border: 1px solid #000; background-color: #4472C4; color: white; padding: 8px; font-weight: bold; text-align: center;">${header}</td>`;
+                });
+                htmlTable += '</tr>';
+
+                // Agregar grupo LAVADA
+                if (grupoLavada.length > 0) {
+                    htmlTable += `<tr><td colspan="${headersFiltrados.length}" style="border: 1px solid #D0D0D0; background-color: #FFCC66; padding: 8px; font-weight: bold;">RUTA TELA: LAVADA</td></tr>`;
+                    grupoLavada.forEach(item => {
+                        htmlTable += '<tr>';
+                        item.row.forEach(cell => {
+                            htmlTable += `<td style="border: 1px solid #D0D0D0; padding: 6px;">${cell}</td>`;
+                        });
+                        htmlTable += '</tr>';
+                    });
+                    htmlTable += '<tr>';
+                    headersFiltrados.forEach((header, idx) => {
+                        const isPds = header === 'PDS GIRADAS';
+                        const isKg = header === 'KG GIRADOS';
+                        let cellValue = '';
+                        if (isPds) cellValue = parseFloat(sumaPdsLavada.toFixed(0));
+                        else if (isKg) cellValue = parseFloat(sumaKgLavada.toFixed(1));
+                        htmlTable += `<td style="border: 1px solid #D0D0D0; background-color: #E7E6E6; padding: 6px; font-weight: bold; ${(isPds || isKg) ? 'text-align: center;' : ''}">${cellValue}</td>`;
+                    });
+                    htmlTable += '</tr>';
+                }
+
+                // Agregar grupo ACABADA
+                if (grupoAcabada.length > 0) {
+                    htmlTable += `<tr><td colspan="${headersFiltrados.length}" style="border: 1px solid #D0D0D0; background-color: #FFCC66; padding: 8px; font-weight: bold;">RUTA TELA: ACABADA</td></tr>`;
+                    grupoAcabada.forEach(item => {
+                        htmlTable += '<tr>';
+                        item.row.forEach(cell => {
+                            htmlTable += `<td style="border: 1px solid #D0D0D0; padding: 6px;">${cell}</td>`;
+                        });
+                        htmlTable += '</tr>';
+                    });
+                    htmlTable += '<tr>';
+                    headersFiltrados.forEach((header, idx) => {
+                        const isPds = header === 'PDS GIRADAS';
+                        const isKg = header === 'KG GIRADOS';
+                        let cellValue = '';
+                        if (isPds) cellValue = parseFloat(sumaPdsAcabada.toFixed(0));
+                        else if (isKg) cellValue = parseFloat(sumaKgAcabada.toFixed(1));
+                        htmlTable += `<td style="border: 1px solid #D0D0D0; background-color: #E7E6E6; padding: 6px; font-weight: bold; ${(isPds || isKg) ? 'text-align: center;' : ''}">${cellValue}</td>`;
+                    });
+                    htmlTable += '</tr>';
+                }
+
+                htmlTable += '</table>';
+
+                // Crear elemento temporal para renderizar la tabla
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = htmlTable;
+                tempDiv.style.position = 'fixed';
+                tempDiv.style.top = '0';
+                tempDiv.style.left = '0';
+                tempDiv.style.backgroundColor = 'white';
+                tempDiv.style.padding = '10px';
+                tempDiv.style.zIndex = '10000';
+                document.body.appendChild(tempDiv);
+
+                // Convertir tabla a imagen
+                try {
+                    const canvas = await html2canvas(tempDiv, { 
+                        scale: 2, 
+                        backgroundColor: '#ffffff',
+                        allowTaint: true,
+                        useCORS: true
+                    });
+                    const link = document.createElement('a');
+                    link.href = canvas.toDataURL('image/png');
+                    link.download = fileName + '.png';
+                    link.click();
+                    document.body.removeChild(tempDiv);
+                    
+                    // Abrir Outlook de escritorio después de generar los archivos
+                    setTimeout(() => {
+                        abrirOutlookCorreoAlmacen(fileName);
+                    }, 500);
+                } catch (err) {
+                    console.error('Error al generar imagen:', err);
+                    document.body.removeChild(tempDiv);
+                    alert('Error al generar la imagen. El archivo Excel se descargó correctamente.');
+                }
+            }, 500);
+        };
+
+        // Función para abrir Outlook de escritorio con el correo preparado
+        function abrirOutlookCorreoAlmacen(fileName) {
+            // Destinatarios
+            const destinatarios = [
+                'msilva@cofaco.com',
+                'Tizado@cofaco.com',
+                'jefecorte@cofaco.com',
+                'Lavanderia01@cofaco.com',
+                'corte@cofaco.com',
+                'WHodali@cofaco.com'
+            ].join(';');
+
+            // Fecha para el asunto: ddd dd/mmm - yyyy
+            const today = new Date();
+            const diasSemana = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+            const meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+            const diaSemana = diasSemana[today.getDay()];
+            const dia = String(today.getDate()).padStart(2, '0');
+            const mes = meses[today.getMonth()];
+            const anio = today.getFullYear();
+            
+            const asunto = `PROGRAMA DE BLOQUEO Y LAVADO ${diaSemana} ${dia}/${mes} - ${anio}`;
+
+            // Saludo según la hora
+            const hora = today.getHours();
+            const saludo = hora < 12 ? 'Buenos días' : 'Buenas tardes';
+
+            // Cuerpo del correo
+            const cuerpo = `Hola Marco, ${saludo}
+
+Por favor pasar las siguientes telas a corte, si hay algo anexado avisar y pasar.
+
+[PEGAR IMAGEN AQUÍ]
+
+Gracias.
+PCP Confecciones
+
+---
+NOTA: Por favor adjunte los archivos descargados (${fileName}.xlsx y ${fileName}.png)`;
+
+            // Crear URL mailto para abrir Outlook
+            const mailtoUrl = `mailto:${destinatarios}?subject=${encodeURIComponent(asunto)}&body=${encodeURIComponent(cuerpo)}`;
+
+            // Abrir Outlook
+            window.location.href = mailtoUrl;
+        }
     </script>
 
     <script>
