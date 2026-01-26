@@ -1273,17 +1273,14 @@
                             <th style="width: 50px;">RUTA</th>
                             <th style="width: 45px;">OC</th>
                             <th style="width: 80px;">COLOR</th>
-                            <th style="width: 80px;">OP-PTDA</th>
                             <th style="width: 45px; text-align:center;">PDS</th>
                             <th style="width: 60px;">PRENDA</th>
-                            <th style="width: 70px;">ART.</th>
                             <th style="width: 70px;">TIPO CERT.</th>
                             <th style="width: 85px;">RIB</th>
-                            <th style="width: 80px;">equipo_corte</th>
+                            <th style="width: 80px;">EQUIPO_CORTE</th>
                             <th style="width: 80px;">STATUS_CORTE</th>
                             <th style="width: 80px;">BLOQUES?</th>
-                            <th style="width: 80px;">COLL o TAP?</th>
-                            <th style="width: 80px;">estado_enumerado</th>
+                            <th style="width: 80px;">ESTADO_ENM</th>
                         </tr>
                     </thead>
                     <tbody id="tbody-enumerado"></tbody>
@@ -4005,16 +4002,6 @@
             tbody.innerHTML = "";
             let count = 0;
             let pds_total = 0;
-            // Ocultar las columnas OP-PTDA y ART. en el encabezado de Enumerado
-            try {
-                const thsEnum = document.querySelectorAll('#view-enumerado thead th');
-                thsEnum.forEach(th => {
-                    const txt = (th.textContent || '').toString().trim().toUpperCase();
-                    if (txt === 'OP-PTDA' || txt === 'ART.' || txt === 'ART') th.style.display = 'none';
-                    // Ocultar columna COLL/TAP en la vista Enumerado
-                    if (txt.indexOf('COLL') !== -1 || txt.indexOf('COLL O TAP') !== -1 || txt.indexOf('ESTADO_COLL_TAP') !== -1 || txt.indexOf('ESTADO COLL TAP') !== -1) th.style.display = 'none';
-                });
-            } catch (e) {}
 
             // Enumerado: coleccionar filas cuyo estado_corte = 'OK' y estado_enumerado != 'OK ENM'/'OK S/ENM'
             const items = [];
@@ -4113,16 +4100,44 @@
                     if (tendidoBtn) tendidoBtn.remove();
                 } catch (e) {}
                 try {
+                    // La fila de createRow tipo "corte" genera columnas en este orden:
+                    // 0:RSV, 1:F.GIRADO, 2:HOD, 3:F.ING.COST, 4:CLIENTE, 5:RUTA, 6:OC, 7:COLOR,
+                    // 8:OP-PTDA, 9:PDS, 10:PRENDA, 11:ARTÍCULO, 12:TIPO CERT., 13:RIB,
+                    // 14:equipo_corte, 15:STATUS_CORTE, 16:BLOQUES?, 17:COLL o TAP?
+                    // Para Enumerado, eliminamos: RSV, F.GIRADO, OP-PTDA, ARTÍCULO, COLL o TAP?
                     const tds = tr.querySelectorAll('td');
-                    // Eliminar ART primero (índice 9) luego OP-PTDA (índice 6)
-                    if (tds.length > 9) tds[9].remove();
-                    if (tds.length > 6) tds[6].remove();
+                    // Eliminar en orden descendente para no alterar los índices
+                    if (tds.length > 17) tds[17].remove(); // COLL o TAP?
+                    if (tds.length > 11) tds[11].remove(); // ARTÍCULO
+                    if (tds.length > 8) tds[8].remove();   // OP-PTDA
+                    if (tds.length > 1) tds[1].remove();   // F.GIRADO
+                    if (tds.length > 0) tds[0].remove();   // RSV
                 } catch (e) {}
 
                 // Agregar celda P al inicio en Enumerado
                 const pCell = document.createElement('td');
                 pCell.innerHTML = createPrioridadCell(item.i, item.row).replace(/<td.*?>|<\/td>/g, '');
                 tr.insertBefore(pCell, tr.firstChild);
+
+                // Agregar celda de estado_enumerado con desplegable al final
+                const estadoEnumCell = document.createElement('td');
+                let estadoEnumVal = '';
+                try {
+                    const idxEv = findHeaderIndexCaseInsensitive('estado_enumerado');
+                    if (idxEv !== -1 && item.row[idxEv] !== undefined) estadoEnumVal = item.row[idxEv] || '';
+                    else estadoEnumVal = getVal(item.row, 'estado_enumerado') || '';
+                } catch (e) { estadoEnumVal = getVal(item.row, 'estado_enumerado') || ''; }
+                estadoEnumVal = (estadoEnumVal || '').toString().trim();
+                const enumClass = (estadoEnumVal === 'OK ENM' || estadoEnumVal === 'OK S/ENM' || estadoEnumVal === 'OK PAQUETEO') ? 'sel-OK' : '';
+                estadoEnumCell.innerHTML = `
+                    <select class="table-select ${enumClass}" onchange="updateRow(${item.i}, 'estado_enumerado', this.value, this)">
+                        <option value="X ENM" ${(!estadoEnumVal || estadoEnumVal === 'X ENM') ? 'selected' : ''}>X ENM</option>
+                        <option value="OK ENM" ${estadoEnumVal === 'OK ENM' ? 'selected' : ''}>OK ENM</option>
+                        <option value="OK S/ENM" ${estadoEnumVal === 'OK S/ENM' ? 'selected' : ''}>OK S/ENM</option>
+                        <option value="OK PAQUETEO" ${estadoEnumVal === 'OK PAQUETEO' ? 'selected' : ''}>OK PAQUETEO</option>
+                    </select>
+                `;
+                tr.appendChild(estadoEnumCell);
 
                 const ocNow = (item.oc || '').toString();
                 if (ocNow !== lastOc) {
