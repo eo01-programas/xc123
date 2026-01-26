@@ -8379,6 +8379,15 @@
 
                 const tr = createRow(row, i, 'corte', currentGroup);
 
+                // Eliminar las primeras dos celdas (RSV y F.GIRADO) que no corresponden a Corte Bloques
+                try {
+                    const tdsStart = tr.querySelectorAll('td');
+                    if (tdsStart.length >= 2) {
+                        tdsStart[0].remove(); // RSV
+                        tr.querySelectorAll('td')[0].remove(); // F.GIRADO (ahora es la primera)
+                    }
+                } catch (e) {}
+
                 // Quitar el botón de tendido ('+') que aparece dentro de la celda OC
                 // en la vista Corte Bloques: no debe mostrarse aquí.
                 try {
