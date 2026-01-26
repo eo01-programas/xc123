@@ -8675,7 +8675,8 @@
                 const btnHTML = isLast ? `<button class="btn-tendido" onclick="agregarTendidoModal()" style="margin-right: 6px;" title="Agregar tendido">+</button>` : '';
                 
                 if (isLast) {
-                    html += `<tr><td style="font-weight: 600; text-align: center;">${btnHTML}${tendido}</td><td><input type="number" id="pds-tendido-${i}" placeholder="Diferencia" oninput="recalcularTendidosModal()" min="0" max="${pdsTotal}"></td></tr>`;
+                    // Último tendido: editable manualmente sin recálculo automático
+                    html += `<tr><td style="font-weight: 600; text-align: center;">${btnHTML}${tendido}</td><td><input type="number" id="pds-tendido-${i}" placeholder="Ingrese PDS (diferencia)" min="0" max="${pdsTotal}"></td></tr>`;
                 } else {
                     html += `<tr><td style="font-weight: 600; text-align: center;">${tendido}</td><td><input type="number" id="pds-tendido-${i}" placeholder="Ingrese PDS" oninput="recalcularTendidosModal()" min="0" max="${pdsTotal}"></td></tr>`;
                 }
@@ -8736,7 +8737,12 @@
                 const pds = sortedPds[i];
                 const isLast = (i === sortedTendidos.length - 1);
                 const btnHTML = isLast ? `<button class="btn-tendido" onclick="agregarTendidoModal()" style="margin-right: 6px;" title="Agregar tendido">+</button>` : '';
-                html += `<tr><td style="font-weight: 600; text-align: center;">${btnHTML}${tendido}</td><td><input type="number" id="pds-tendido-${i}" value="${pds}" oninput="recalcularTendidosModal()" min="0" max="${totalPds}"></td></tr>`;
+                // Último tendido: editable manualmente sin recálculo automático
+                if (isLast) {
+                    html += `<tr><td style="font-weight: 600; text-align: center;">${btnHTML}${tendido}</td><td><input type="number" id="pds-tendido-${i}" value="${pds}" min="0" max="${totalPds}"></td></tr>`;
+                } else {
+                    html += `<tr><td style="font-weight: 600; text-align: center;">${btnHTML}${tendido}</td><td><input type="number" id="pds-tendido-${i}" value="${pds}" oninput="recalcularTendidosModal()" min="0" max="${totalPds}"></td></tr>`;
+                }
             }
             tbody.innerHTML = html;
             document.getElementById('modal-tendido').classList.add('active');
@@ -8788,10 +8794,14 @@
                 const oldInput = document.getElementById(`pds-tendido-${i}`);
                 if (oldInput) inputVal = oldInput.value;
                 
-                html += `<tr><td style="font-weight: 600; text-align: center;">${btnHTML}${tendido}</td><td><input type="number" id="pds-tendido-${i}" value="${inputVal}" oninput="recalcularTendidosModal()" min="0" max="${total}"></td></tr>`;
+                // Último tendido: editable manualmente sin recálculo automático
+                if (isLast) {
+                    html += `<tr><td style="font-weight: 600; text-align: center;">${btnHTML}${tendido}</td><td><input type="number" id="pds-tendido-${i}" value="${inputVal}" placeholder="Ingrese PDS (diferencia)" min="0" max="${total}"></td></tr>`;
+                } else {
+                    html += `<tr><td style="font-weight: 600; text-align: center;">${btnHTML}${tendido}</td><td><input type="number" id="pds-tendido-${i}" value="${inputVal}" oninput="recalcularTendidosModal()" min="0" max="${total}"></td></tr>`;
+                }
             }
             tbody.innerHTML = html;
-            setTimeout(() => recalcularTendidosModal(), 100);
         };
 
         window.cerrarModalTendido = function() {
