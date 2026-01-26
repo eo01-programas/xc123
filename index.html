@@ -1630,7 +1630,7 @@
 
     <script>
         // --- CONFIGURACIÓN ---
-        const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwjsOAdximh_v3NGucp0WpfuW5mXRB-s1ocKPWHmt5JJyq3tDeZAOMGEyxroLgzzdVJkA/exec"; 
+        const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbykoMk9xn1degxUPr1CN2XvBm5tRvlDNY0ox-k3EdI0xIoxEXsQ9FN7SsSqrPN1fQGyRw/exec"; 
         const SHEET_ID = "18cQuwqerdMggAeJ8TCUKA7-gujXsA91-CRMUTNpr8aQ";
 
         let rawData = [];
@@ -2097,6 +2097,8 @@
         function getRouteKeyForRow(row) {
             const rutaVal = getVal(row, "RUTA TELA") || getVal(row, "RUTA") || "";
             const rutaKey = String(rutaVal || "").toUpperCase().trim();
+            // Si no hay valor en RUTA TELA/RUTA, considerarlo como NORMAL
+            if (rutaKey === '') return 'NORMAL';
             if (rutaKey.indexOf('NORMAL') !== -1) return 'NORMAL';
             if (rutaKey === 'ACABADA') return 'AC';
             if (rutaKey === 'LAVADA') {
@@ -2795,6 +2797,58 @@
 
                 return 0;
             });
+        }
+
+        // --- ORDENAMIENTO PARA LAVADO ---
+        function sortLavadoData(indices) {
+            const idxP = findHeaderIndexCaseInsensitive('P');
+            const groups = {};
+            indices.forEach(i => {
+                const row = rawData[i];
+                const opTela = String(row[colMap["OP TELA"]] || '').trim();
+                const partida = String(row[colMap["PARTIDA"]] || '').trim();
+                const key = (opTela + '-' + partida).toLowerCase();
+                if (!groups[key]) groups[key] = { indices: [], minP: Infinity, opPtda: key };
+                groups[key].indices.push(i);
+                let p = '';
+                if (idxP !== -1) p = String(row[idxP] || '').trim();
+                const pnum = (p === '') ? Infinity : (parseInt(p) || Infinity);
+                if (pnum < groups[key].minP) groups[key].minP = pnum;
+            });
+
+            const sortedGroupKeys = Object.keys(groups).sort((a, b) => {
+                const ga = groups[a], gb = groups[b];
+                if (ga.minP !== gb.minP) return ga.minP - gb.minP;
+                return ga.opPtda.localeCompare(gb.opPtda, undefined, { numeric: true, sensitivity: 'base' });
+            });
+
+            const result = [];
+            sortedGroupKeys.forEach(k => {
+                const arr = groups[k].indices.slice();
+                arr.sort((a, b) => {
+                    const rowA = rawData[a], rowB = rawData[b];
+                    let pA = '', pB = '';
+                    if (idxP !== -1) { pA = String(rowA[idxP] || '').trim(); pB = String(rowB[idxP] || '').trim(); }
+                    const pnA = (pA === '') ? Infinity : (parseInt(pA) || Infinity);
+                    const pnB = (pB === '') ? Infinity : (parseInt(pB) || Infinity);
+                    if (pnA !== pnB) return pnA - pnB;
+
+                    const dateA = rowA[colMap["HOD"]] || 0;
+                    const dateB = rowB[colMap["HOD"]] || 0;
+                    if (dateA !== dateB) return dateB - dateA;
+
+                    const opTelaA = String(rowA[colMap["OP TELA"]] || '').trim();
+                    const partidaA = String(rowA[colMap["PARTIDA"]] || '').trim();
+                    const opPtdaA = (opTelaA + '-' + partidaA).toLowerCase();
+                    const opTelaB = String(rowB[colMap["OP TELA"]] || '').trim();
+                    const partidaB = String(rowB[colMap["PARTIDA"]] || '').trim();
+                    const opPtdaB = (opTelaB + '-' + partidaB).toLowerCase();
+                    return opPtdaA.localeCompare(opPtdaB, undefined, { numeric: true, sensitivity: 'base' });
+                });
+                result.push(...arr);
+            });
+
+            return result;
         }
 
         function sortCorteData(indices) {
@@ -3497,7 +3551,7 @@
                 validIndices.push(i);
             }
 
-            validIndices = sortBloqueoData(validIndices);
+            validIndices = sortLavadoData(validIndices);
 
             // Agrupar por OP-PTDA alternando clases para sombreado
             let lastOpPtda = null;
@@ -9835,4 +9889,3 @@ NOTA: Por favor adjunte los archivos descargados (${fileName}.xlsx y ${fileName}
 
     </body>
     </html>
-
