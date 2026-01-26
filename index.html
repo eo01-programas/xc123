@@ -442,6 +442,14 @@
             background: rgba(127,29,29,0.9);
             border: 1px solid rgba(127,29,29,0.95);
         }
+        /* RIB NO LLEVA pill: gray neutral */
+        .pill-rib-no-lleva {
+            color: #4b5563;
+            background: #f3f4f6;
+            border: 1px solid #d1d5db;
+            font-size: 10px;
+            padding: 3px 8px;
+        }
         /* Pza -> fondo azul claro */
         .pill-pza {
             color: #075985;
@@ -1159,6 +1167,17 @@
                 <div class="spinner" style="margin: 0 auto 20px auto;"></div>
                 <div style="font-size: 16px; font-weight: 600; color: var(--gray-800); margin-bottom: 8px;">Cargando cambios...</div>
                 <div style="font-size: 12px; color: var(--gray-500);">Por favor, espere mientras se actualizan los datos en el servidor</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL CARGA PROPAGACIÓN DATOS -->
+    <div id="modal-loading-propagacion" class="modal-overlay" style="background: rgba(0,0,0,0.5); pointer-events: auto; display: none;">
+        <div class="modal-content-loading" style="pointer-events: none; background: white; padding: 30px 40px; border-radius: 12px; box-shadow: 0 10px 40px rgba(0,0,0,0.2);">
+            <div style="text-align: center;">
+                <div class="spinner" style="margin: 0 auto 15px auto;"></div>
+                <div style="font-size: 15px; font-weight: 600; color: var(--gray-800); margin-bottom: 6px;">Guardando datos...</div>
+                <div id="propagacion-status" style="font-size: 12px; color: var(--gray-500);">Actualizando filas relacionadas</div>
             </div>
         </div>
     </div>
@@ -3905,11 +3924,11 @@
                     
                     count++;
                     const tr = createRow(row, i, "corte", currentGroup);
-                    // En sub-tabs PROG, eliminar celda de equipo_corte (posición 13, después de RIB)
+                    // En sub-tabs PROG, eliminar celda de equipo_corte (posición 14, después de RIB)
                     const tds = tr.querySelectorAll('td');
-                    if (tds && tds.length >= 14) {
-                        // Eliminar celda equipo_corte (índice 13, después de RIB y antes de STATUS_CORTE)
-                        tds[13].remove();
+                    if (tds && tds.length >= 15) {
+                        // Eliminar celda equipo_corte (índice 14, después de RIB y antes de STATUS_CORTE)
+                        tds[14].remove();
                     }
                     
                     // Agregar celda P al inicio en sub-tabs PROG
@@ -5716,6 +5735,25 @@
                             const ribClass = (ribValue === "OK") ? "sel-OK" : "";
                             try {
                                 const onCorteView = document.getElementById('view-corte') && document.getElementById('view-corte').classList.contains('active');
+                                // En PROG 1T/2T/3T: si NO LLEVA mostrar pill, si SI LLEVA mostrar desplegable con estado_rib
+                                const isProgSubtab = (currentCorteFilter === 'PROG 1T' || currentCorteFilter === 'PROG 2T' || currentCorteFilter === 'PROG 3T');
+                                if (onCorteView && isProgSubtab) {
+                                    if (ribOriginal === 'NO LLEVA') {
+                                        return `<span class="pill pill-rib-no-lleva" title="NO LLEVA">NO LLEVA</span>`;
+                                    } else {
+                                        // SI LLEVA: mostrar desplegable con estado_rib
+                                        return `
+                                            <select class="table-select ${ribClass}" onchange="updateRow(${rowIndex}, 'estado_rib', this.value, this)">
+                                                <option value="SI LLEVA" ${ribValue === "SI LLEVA" ? "selected" : ""}>SI LLEVA</option>
+                                                <option value="NO PASO" ${ribValue === "NO PASO" ? "selected" : ""}>NO PASO</option>
+                                                <option value="EN CORTE" ${ribValue === "EN CORTE" ? "selected" : ""}>EN CORTE</option>
+                                                <option value="EN LAV" ${ribValue === "EN LAV" ? "selected" : ""}>EN LAV</option>
+                                                <option value="LAV(rep)" ${ribValue === "LAV(rep)" ? "selected" : ""}>LAV(rep)</option>
+                                                <option value="EN HAB" ${ribValue === "EN HAB" ? "selected" : ""}>EN HAB</option>
+                                            </select>
+                                        `;
+                                    }
+                                }
                                 if (onCorteView && currentCorteFilter === 'X PROG') {
                                     const spanClass = (ribValue === 'SI LLEVA') ? 'rib-si-lleva' : 'rib-text';
                                     return `<span title="${ribValue}" class="${spanClass}">${ribValue}</span>`;
@@ -5932,7 +5970,15 @@
         }
 
         // Función auxiliar para propagar cambios a filas con mismo OP y serie de corte
-        function propagateToSameOPAndCorteSeries(rowIndex, colName, value) {
+        async function propagateToSameOPAndCorteSeries(rowIndex, colName, value) {
+            // Mostrar modal de carga
+            const modalPropagacion = document.getElementById('modal-loading-propagacion');
+            const statusText = document.getElementById('propagacion-status');
+            if (modalPropagacion) {
+                modalPropagacion.style.display = 'flex';
+                if (statusText) statusText.textContent = 'Buscando filas relacionadas...';
+            }
+            
             try {
                 console.log('=== INICIANDO PROPAGACIÓN ===');
                 console.log('Fila:', rowIndex, 'Columna:', colName, 'Valor:', value);
@@ -6006,6 +6052,7 @@
                     if (colIdx === -1) {
                         console.warn('Headers disponibles:', rawData[0]);
                     }
+                    if (modalPropagacion) modalPropagacion.style.display = 'none';
                     return;
                 }
 
@@ -6017,6 +6064,7 @@
 
                 if (!currentOP || !currentCorte) {
                     console.warn('Fila sin OP o CORTE, no se propagará');
+                    if (modalPropagacion) modalPropagacion.style.display = 'none';
                     return;
                 }
 
@@ -6025,6 +6073,7 @@
                 const corteNum = currentCorte.match(/\d+/);
                 if (!corteNum) {
                     console.warn('CORTE no contiene números:', currentCorte);
+                    if (modalPropagacion) modalPropagacion.style.display = 'none';
                     return;
                 }
                 
@@ -6033,7 +6082,8 @@
                 
                 console.log('Serie de corte identificada:', corteBase + 'x');
                 
-                let updatedCount = 0;
+                // Recopilar todas las filas que deben actualizarse
+                const rowsToUpdate = [];
                 
                 // Buscar todas las filas con el mismo OP y mismo corteBase
                 for (let j = 1; j < rawData.length; j++) {
@@ -6052,34 +6102,69 @@
                     const otherCorteNumStr = otherCorteNum[0];
                     const otherCorteBase = otherCorteNumStr.slice(0, -1);
                     
-                    // Si el corteBase coincide, propagar el cambio
+                    // Si el corteBase coincide, agregar a la lista
                     if (otherCorteBase === corteBase) {
-                        const prevValue = rawData[j][colIdx];
-                        console.log(`Fila ${j} (Corte: ${otherCorte}): ${prevValue} -> ${value}`);
-                        
-                        rawData[j][colIdx] = value;
-                        updatedCount++;
-                        
-                        // Determinar el nombre de columna correcto para enviar al backend
-                        const sendColName = (rawData[0] && rawData[0][colIdx]) ? rawData[0][colIdx] : colName;
-                        
-                        // Guardar cambio en el backend
-                        fetch(WEB_APP_URL, {
-                            method: 'POST',
-                            mode: 'no-cors',
-                            body: JSON.stringify({
-                                action: "update",
-                                row: j,
-                                colName: sendColName,
-                                value: value
-                            })
-                        }).catch(e => console.error('Error guardando propagación:', e));
+                        rowsToUpdate.push({ rowIdx: j, corte: otherCorte });
                     }
                 }
                 
-                console.log(`✓ Propagación completada: ${updatedCount} filas actualizadas para ${colName} en OP ${currentOP}, serie ${corteBase}x`);
+                if (rowsToUpdate.length === 0) {
+                    console.log('No hay filas adicionales para propagar');
+                    if (modalPropagacion) modalPropagacion.style.display = 'none';
+                    return;
+                }
+                
+                // Actualizar mensaje de estado
+                if (statusText) statusText.textContent = `Guardando ${rowsToUpdate.length} filas...`;
+                
+                // Crear array de promesas para todas las actualizaciones
+                const updatePromises = rowsToUpdate.map((item, index) => {
+                    const j = item.rowIdx;
+                    const prevValue = rawData[j][colIdx];
+                    console.log(`Fila ${j} (Corte: ${item.corte}): ${prevValue} -> ${value}`);
+                    
+                    rawData[j][colIdx] = value;
+                    
+                    // Determinar el nombre de columna correcto para enviar al backend
+                    const sendColName = (rawData[0] && rawData[0][colIdx]) ? rawData[0][colIdx] : colName;
+                    
+                    // Guardar cambio en el backend con un pequeño delay escalonado
+                    return new Promise((resolve) => {
+                        setTimeout(() => {
+                            fetch(WEB_APP_URL, {
+                                method: 'POST',
+                                mode: 'no-cors',
+                                body: JSON.stringify({
+                                    action: "update",
+                                    row: j,
+                                    colName: sendColName,
+                                    value: value
+                                })
+                            }).then(() => {
+                                if (statusText) statusText.textContent = `Guardando... (${index + 1}/${rowsToUpdate.length})`;
+                                resolve();
+                            }).catch(e => {
+                                console.error('Error guardando propagación:', e);
+                                resolve(); // Resolver de todas formas para no bloquear
+                            });
+                        }, index * 50); // 50ms de delay entre cada petición
+                    });
+                });
+                
+                // Esperar a que todas las actualizaciones terminen
+                await Promise.all(updatePromises);
+                
+                console.log(`✓ Propagación completada: ${rowsToUpdate.length} filas actualizadas para ${colName} en OP ${currentOP}, serie ${corteBase}x`);
+                
+                // Pequeña pausa antes de ocultar el modal
+                if (statusText) statusText.textContent = '¡Guardado completado!';
+                await new Promise(resolve => setTimeout(resolve, 400));
+                
             } catch (e) {
                 console.error('Error en propagateToSameOPAndCorteSeries:', e);
+            } finally {
+                // Ocultar modal de carga
+                if (modalPropagacion) modalPropagacion.style.display = 'none';
             }
         }
 
