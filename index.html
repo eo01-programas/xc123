@@ -1184,7 +1184,7 @@
 
     <!-- HEADER -->
     <header>
-        <div class="brand"><a href="cargar_giros.html" class="icon-link" title="Cargar giros" style="color:inherit;text-decoration:none;display:inline-flex;align-items:center;"><i class="ph ph-table"></i></a> PCP confecciones - Corte/Habilitado</div>
+        <div class="brand">Prog Corte/Habilitado</div>
         <nav class="nav-tabs">
             <button class="nav-tab active" onclick="switchView('bloqueo', this)">
                 <i class="ph ph-lock-key"></i> Bloqueo <span class="badge" id="count-bloqueo">0</span>
@@ -1571,7 +1571,7 @@
                         <label class="filter-item"><input type="checkbox" id="flt-ac" onchange="onRouteFilterChange('AC', this.checked)"><span>AC</span></label>
                         <label class="filter-item"><input type="checkbox" id="flt-xl" onchange="onRouteFilterChange('x lavar', this.checked)"><span>x lavar</span></label>
                         <label class="filter-item"><input type="checkbox" id="flt-xb" onchange="onRouteFilterChange('x bloq', this.checked)"><span>x bloq</span></label>
-                        <label class="filter-item"><input type="checkbox" id="flt-normal" onchange="onRouteFilterChange('NORMAL', this.checked)"><span>Normal</span></label>
+                        <label class="filter-item" style="display:none;"><input type="checkbox" id="flt-normal" onchange="onRouteFilterChange('NORMAL', this.checked)"><span>Normal</span></label>
                     </div>
             </div>
             <div class="table-container">
@@ -4114,9 +4114,17 @@
                     if (tds.length > 0) tds[0].remove();   // RSV
                 } catch (e) {}
 
-                // Agregar celda P al inicio en Enumerado
+                // Agregar celda P al inicio en Enumerado como texto (no editable)
                 const pCell = document.createElement('td');
-                pCell.innerHTML = createPrioridadCell(item.i, item.row).replace(/<td.*?>|<\/td>/g, '');
+                let pValue = '';
+                try {
+                    const idxP = findHeaderIndexCaseInsensitive('P');
+                    if (idxP !== -1 && item.row[idxP] !== undefined && item.row[idxP] !== null) {
+                        pValue = String(item.row[idxP]).trim();
+                    }
+                } catch (e) {}
+                pCell.className = 'p-cell';
+                pCell.innerText = pValue;
                 tr.insertBefore(pCell, tr.firstChild);
 
                 // Agregar celda de estado_enumerado con desplegable al final
@@ -4352,41 +4360,49 @@
                         tdTipoTransfer.innerText = getVal(row, 'tipo-transfer') || getVal(row, 'tipo_transfer') || '';
                         tr.appendChild(tdTipoTransfer);
                         
-                        // estado_transfer (select con valores X PROG, PROG y opcionalmente OK)
+                        // estado_transfer (select en otros sub-tabs, texto en X PROG)
                         const tdEstadoTransfer = document.createElement('td');
-                        const selEstado = document.createElement('select');
-                        selEstado.className = 'table-select';
-                        selEstado.setAttribute('data-row-index', i);
-                        // Mostrar la opción OK sólo en el sub-tab 'PROG' o si el valor actual es 'OK'
-                        const showOkOption = (currentTransferFilter === 'PROG') || (estadoTransfer === 'OK');
-                        selEstado.innerHTML = `
-                            <option value="X PROG" ${estadoTransfer === 'X PROG' ? 'selected' : ''}>X PROG</option>
-                            <option value="PROG" ${estadoTransfer === 'PROG' ? 'selected' : ''}>PROG</option>
-                            ${showOkOption ? `<option value="OK" ${estadoTransfer === 'OK' ? 'selected' : ''}>OK</option>` : ''}
-                        `;
-                        // Aplicar clases visuales según el valor actual
-                        if (estadoTransfer === 'PROG') { selEstado.classList.add('sel-PROG'); selEstado.classList.remove('sel-OK'); }
-                        else if (estadoTransfer === 'OK') { selEstado.classList.add('sel-OK'); selEstado.classList.remove('sel-PROG'); }
-                        else { selEstado.classList.remove('sel-PROG'); selEstado.classList.remove('sel-OK'); }
-                        selEstado.onchange = function() {
-                            // Validar que n.transfxpda no esté vacío o "LLEVA?" antes de cambiar a PROG
-                            if (this.value === 'PROG') {
-                                const rawNTransChk = getVal(row, 'n.transfxpda');
-                                const nTransfValChk = ((rawNTransChk !== undefined && rawNTransChk !== null && rawNTransChk.toString().trim() !== '') ? rawNTransChk.toString().trim() : 'LLEVA?');
-                                if (nTransfValChk === '' || nTransfValChk === 'LLEVA?') {
-                                    alert('Debe especificar el número de transfer por prenda antes de cambiar a PROG');
-                                    this.value = estadoTransfer; // revertir al valor anterior
-                                    return;
+                        
+                        // En Transfer → Por Programar (X PROG), mostrar como texto
+                        if (currentTransferFilter === 'X PROG') {
+                            tdEstadoTransfer.innerText = estadoTransfer;
+                            tdEstadoTransfer.title = estadoTransfer;
+                        } else {
+                            // En otros sub-tabs, mostrar como select
+                            const selEstado = document.createElement('select');
+                            selEstado.className = 'table-select';
+                            selEstado.setAttribute('data-row-index', i);
+                            // Mostrar la opción OK sólo en el sub-tab 'PROG' o si el valor actual es 'OK'
+                            const showOkOption = (currentTransferFilter === 'PROG') || (estadoTransfer === 'OK');
+                            selEstado.innerHTML = `
+                                <option value="X PROG" ${estadoTransfer === 'X PROG' ? 'selected' : ''}>X PROG</option>
+                                <option value="PROG" ${estadoTransfer === 'PROG' ? 'selected' : ''}>PROG</option>
+                                ${showOkOption ? `<option value="OK" ${estadoTransfer === 'OK' ? 'selected' : ''}>OK</option>` : ''}
+                            `;
+                            // Aplicar clases visuales según el valor actual
+                            if (estadoTransfer === 'PROG') { selEstado.classList.add('sel-PROG'); selEstado.classList.remove('sel-OK'); }
+                            else if (estadoTransfer === 'OK') { selEstado.classList.add('sel-OK'); selEstado.classList.remove('sel-PROG'); }
+                            else { selEstado.classList.remove('sel-PROG'); selEstado.classList.remove('sel-OK'); }
+                            selEstado.onchange = function() {
+                                // Validar que n.transfxpda no esté vacío o "LLEVA?" antes de cambiar a PROG
+                                if (this.value === 'PROG') {
+                                    const rawNTransChk = getVal(row, 'n.transfxpda');
+                                    const nTransfValChk = ((rawNTransChk !== undefined && rawNTransChk !== null && rawNTransChk.toString().trim() !== '') ? rawNTransChk.toString().trim() : 'LLEVA?');
+                                    if (nTransfValChk === '' || nTransfValChk === 'LLEVA?') {
+                                        alert('Debe especificar el número de transfer por prenda antes de cambiar a PROG');
+                                        this.value = estadoTransfer; // revertir al valor anterior
+                                        return;
+                                    }
                                 }
-                            }
-                            updateRow(i, 'estado_transfer', this.value, this);
-                            // Ajustar clases visuales
-                            this.classList.remove('sel-PROG');
-                            this.classList.remove('sel-OK');
-                            if (this.value === 'PROG') this.classList.add('sel-PROG');
-                            if (this.value === 'OK') this.classList.add('sel-OK');
-                        };
-                        tdEstadoTransfer.appendChild(selEstado);
+                                updateRow(i, 'estado_transfer', this.value, this);
+                                // Ajustar clases visuales
+                                this.classList.remove('sel-PROG');
+                                this.classList.remove('sel-OK');
+                                if (this.value === 'PROG') this.classList.add('sel-PROG');
+                                if (this.value === 'OK') this.classList.add('sel-OK');
+                            };
+                            tdEstadoTransfer.appendChild(selEstado);
+                        }
                         tr.appendChild(tdEstadoTransfer);
                         
                         // Agregar celda P al inicio si estamos en sub-tab PROG
@@ -4766,16 +4782,30 @@
                     const tr = document.createElement('tr');
 
                     // COLUMNA P - Prioridad
+                    // COLUMNA P - Mostrar como texto si estamos en X PROG, si no usar prioridad editable
                     const pCell = document.createElement('td');
-                    pCell.innerHTML = createPrioridadCell(i, row).replace(/<td.*?>|<\/td>/g, '');
+                    if (currentHabilitadoFilter === 'X PROG') {
+                        // Mostrar P como texto (no editable)
+                        pCell.innerText = getVal(row, 'P') || '';
+                    } else {
+                        // Mostrar P con lógica de prioridad
+                        pCell.innerHTML = createPrioridadCell(i, row).replace(/<td.*?>|<\/td>/g, '');
+                    }
 
                     // HOD
                     const fDesp = formatValue(getVal(row, 'HOD'), 'date') || '';
 
-                    // F.ING.COST -> mantener lógica de date picker (usamos formato de input si es posible)
+                    // F.ING.COST -> mostrar como texto si estamos en X PROG, si no usar date picker
                     const rawFIng = getVal(row, 'F.ING.COST');
                     const dateValue = convertToDateInputFormat(rawFIng);
-                    const fIngHtml = `<td class="date-cell"><input type="date" class="short-year" value="${dateValue}" onchange="handleDateChange(this, ${i}, 'F.ING.COST')"><span class="date-yy">${formatDateShortFromInput(dateValue) || 'mm/dd/aaaa'}</span></td>`;
+                    let fIngHtml = '';
+                    if (currentHabilitadoFilter === 'X PROG') {
+                        // Mostrar F.ING.COST como texto (no editable)
+                        fIngHtml = `<td class="date-cell">${formatDateShortFromInput(dateValue) || 'mm/dd/aaaa'}</td>`;
+                    } else {
+                        // Usar date picker (editable)
+                        fIngHtml = `<td class="date-cell"><input type="date" class="short-year" value="${dateValue}" onchange="handleDateChange(this, ${i}, 'F.ING.COST')"><span class="date-yy">${formatDateShortFromInput(dateValue) || 'mm/dd/aaaa'}</span></td>`;
+                    }
 
                     // CLIENTE
                     const cliente = normalizeClientName(getVal(row, 'CLIENTE')) || '';
@@ -4966,15 +4996,22 @@
                     // Mostrar opción OK solo en sub-tabs PROG 1T, PROG 2T, PROG 3T
                     const showOkOption = (currentHabilitadoFilter === 'PROG 1T' || currentHabilitadoFilter === 'PROG 2T' || currentHabilitadoFilter === 'PROG 3T');
                     
-                    const habilHtml = `<td>
-                        <select class="table-select ${habilClass}" onchange="if(this.value === 'OK') { abrirModalIngresoCostura(${i}); this.value = '${habilValNorm}'; } else { updateRow(${i}, 'estado_habilitado', this.value, this); setTimeout(renderHabilitado, 300); }">
-                            <option value="X PROG" ${habilValNorm === 'X PROG' || habilValNorm === '' ? 'selected' : ''}>X PROG</option>
-                            <option value="PROG 1T" ${habilValNorm === 'PROG 1T' ? 'selected' : ''}>PROG 1T</option>
-                            <option value="PROG 2T" ${habilValNorm === 'PROG 2T' ? 'selected' : ''}>PROG 2T</option>
-                            <option value="PROG 3T" ${habilValNorm === 'PROG 3T' ? 'selected' : ''}>PROG 3T</option>
-                            ${showOkOption ? `<option value="OK" ${habilValNorm === 'OK' ? 'selected' : ''}>OK</option>` : ''}
-                        </select>
-                    </td>`;
+                    let habilHtml = '';
+                    if (currentHabilitadoFilter === 'X PROG') {
+                        // Mostrar estado_habilitado como texto (no editable) en X PROG
+                        habilHtml = `<td>${habilValNorm || 'X PROG'}</td>`;
+                    } else {
+                        // Mostrar como select (editable) en otros sub-tabs
+                        habilHtml = `<td>
+                            <select class="table-select ${habilClass}" onchange="if(this.value === 'OK') { abrirModalIngresoCostura(${i}); this.value = '${habilValNorm}'; } else { updateRow(${i}, 'estado_habilitado', this.value, this); setTimeout(renderHabilitado, 300); }">
+                                <option value="X PROG" ${habilValNorm === 'X PROG' || habilValNorm === '' ? 'selected' : ''}>X PROG</option>
+                                <option value="PROG 1T" ${habilValNorm === 'PROG 1T' ? 'selected' : ''}>PROG 1T</option>
+                                <option value="PROG 2T" ${habilValNorm === 'PROG 2T' ? 'selected' : ''}>PROG 2T</option>
+                                <option value="PROG 3T" ${habilValNorm === 'PROG 3T' ? 'selected' : ''}>PROG 3T</option>
+                                ${showOkOption ? `<option value="OK" ${habilValNorm === 'OK' ? 'selected' : ''}>OK</option>` : ''}
+                            </select>
+                        </td>`;
+                    }
 
                     // STATUS - Columna calculada según RUTA TELA y estados
                     const rutaTela = (getVal(row, 'RUTA TELA') || getVal(row, 'RUTA_TELA') || getVal(row, 'RUTA') || '').toString().toUpperCase().trim();
@@ -5391,8 +5428,8 @@
                     const isBloqueoView = document.getElementById('view-bloqueo') && document.getElementById('view-bloqueo').classList.contains('active');
                     const isLavadoView = document.getElementById('view-lavado') && document.getElementById('view-lavado').classList.contains('active');
                     
-                    // Bloqueo → Por Programar (X PROG)
-                    if (isBloqueoView && currentBloqueoFilter === 'X PROG') useDatePicker = true;
+                    // Bloqueo → Por Programar (X PROG) - NO ES DATE PICKER
+                    if (isBloqueoView && currentBloqueoFilter === 'X PROG') useDatePicker = false;
                     // Lavado siempre tiene sub-tab activo, no aplica date picker aquí
                 } catch (e) {}
                 
@@ -5485,45 +5522,53 @@
                     if (bloqValue === "PROG") bloqClass = "sel-PROG";
                     if (bloqValue === "OK") bloqClass = "sel-OK";
 
-                    // Determinar si se deben ocultar opciones en el select de Bloqueo
-                    let showOkOption = true;
-                    let showXProgOption = true;
+                    let bloqHtml = '';
                     try {
                         const onBloqView = document.getElementById('view-bloqueo') && document.getElementById('view-bloqueo').classList.contains('active');
-                        if (onBloqView && currentBloqueoFilter === 'X PROG') showOkOption = false;
-                        if (onBloqView && currentBloqueoFilter === 'PROG') showXProgOption = false;
-                    } catch (e) { /* silent */ }
+                        if (onBloqView && currentBloqueoFilter === 'X PROG') {
+                            // En Por Programar (X PROG): mostrar como texto (no editable)
+                            bloqHtml = `<td title="${bloqValue}"><span class="${bloqClass}">${bloqValue}</span></td>`;
+                        } else {
+                            // En otros sub-tabs: mostrar como select
+                            // Determinar si se deben ocultar opciones en el select de Bloqueo
+                            let showOkOption = true;
+                            let showXProgOption = true;
+                            if (onBloqView && currentBloqueoFilter === 'X PROG') showOkOption = false;
+                            if (onBloqView && currentBloqueoFilter === 'PROG') showXProgOption = false;
 
-                    // Si ocultamos X PROG pero el valor actual es 'X PROG', forzamos un valor visible
-                    const effectiveValue = (bloqValue === 'X PROG' && !showXProgOption) ? 'PROG' : bloqValue;
+                            // Si ocultamos X PROG pero el valor actual es 'X PROG', forzamos un valor visible
+                            const effectiveValue = (bloqValue === 'X PROG' && !showXProgOption) ? 'PROG' : bloqValue;
 
-                    const xProgOptionHtml = showXProgOption ? `<option value="X PROG" ${effectiveValue === "X PROG" ? "selected" : ""}>X PROG</option>` : '';
-                    const okOptionHtml = showOkOption ? `<option value="OK" ${effectiveValue === "OK" ? "selected" : ""}>OK</option>` : '';
+                            const xProgOptionHtml = showXProgOption ? `<option value="X PROG" ${effectiveValue === "X PROG" ? "selected" : ""}>X PROG</option>` : '';
+                            const okOptionHtml = showOkOption ? `<option value="OK" ${effectiveValue === "OK" ? "selected" : ""}>OK</option>` : '';
 
-                    // En la vista Bloqueo->Programado, requerir que el usuario haya seleccionado RIB (estado_rib)
-                    // para permitir cambiar el estado de Bloqueo. Si no existe un valor guardado en estado_rib,
-                    // deshabilitar el select y mostrar tooltip indicando que primero debe elegir RIB.
-                    let requireRibSelection = false;
-                    try {
-                        const onBloqView = document.getElementById('view-bloqueo') && document.getElementById('view-bloqueo').classList.contains('active');
-                        if (onBloqView && currentBloqueoFilter === 'PROG') requireRibSelection = true;
-                    } catch (e) { /* ignore */ }
+                            // En la vista Bloqueo->Programado, requerir que el usuario haya seleccionado RIB (estado_rib)
+                            // para permitir cambiar el estado de Bloqueo. Si no existe un valor guardado en estado_rib,
+                            // deshabilitar el select y mostrar tooltip indicando que primero debe elegir RIB.
+                            let requireRibSelection = false;
+                            if (onBloqView && currentBloqueoFilter === 'PROG') requireRibSelection = true;
 
-                    // Considerar que si la columna original "RIB" indica "NO LLEVA",
-                    // entonces se considera como si ya estuviera seleccionada y por tanto
-                    // permitir cambiar el estado de Bloqueo incluso en sub-tab PROG.
-                    const hasRibSavedOrNoLleva = !!ribGuardado || (String(ribOriginal).toUpperCase() === "NO LLEVA");
-                    const bloqDisabledAttr = (requireRibSelection && !hasRibSavedOrNoLleva) ? 'disabled' : '';
-                    const bloqTitle = (requireRibSelection && !hasRibSavedOrNoLleva) ? 'Seleccione RIB primero' : '';
+                            // Considerar que si la columna original "RIB" indica "NO LLEVA",
+                            // entonces se considera como si ya estuviera seleccionada y por tanto
+                            // permitir cambiar el estado de Bloqueo incluso en sub-tab PROG.
+                            const hasRibSavedOrNoLleva = !!ribGuardado || (String(ribOriginal).toUpperCase() === "NO LLEVA");
+                            const bloqDisabledAttr = (requireRibSelection && !hasRibSavedOrNoLleva) ? 'disabled' : '';
+                            const bloqTitle = (requireRibSelection && !hasRibSavedOrNoLleva) ? 'Seleccione RIB primero' : '';
 
-                    const bloqSelect = `
-                        <select class="table-select ${bloqClass}" ${bloqDisabledAttr} title="${bloqTitle}" onchange="updateRow(${rowIndex}, 'estado_bloqueo', this.value, this)">
-                            ${xProgOptionHtml}
-                            <option value="PROG" ${effectiveValue === "PROG" ? "selected" : ""}>PROG</option>
-                            ${okOptionHtml}
-                        </select>`;
+                            const bloqSelect = `
+                                <select class="table-select ${bloqClass}" ${bloqDisabledAttr} title="${bloqTitle}" onchange="updateRow(${rowIndex}, 'estado_bloqueo', this.value, this)">
+                                    ${xProgOptionHtml}
+                                    <option value="PROG" ${effectiveValue === "PROG" ? "selected" : ""}>PROG</option>
+                                    ${okOptionHtml}
+                                </select>`;
+                            bloqHtml = `<td>${bloqSelect}</td>`;
+                        }
+                    } catch(e) {
+                        // Fallback
+                        bloqHtml = `<td><span class="${bloqClass}">${bloqValue}</span></td>`;
+                    }
                     
-                    controlHtml = `<td title="${nroMolde}">${nroMolde}</td><td title="${tipoCert}">${tipoCert}</td><td>${bloqSelect}</td>${ribHtml}`;
+                    controlHtml = `<td title="${nroMolde}">${nroMolde}</td><td title="${tipoCert}">${tipoCert}</td>${bloqHtml}${ribHtml}`;
 
                 } else if (type === "lavado") {
                         const lavValue = getVal(row, "estado_lavada") || "EN LAV";
@@ -5534,21 +5579,10 @@
                         const isDevol = String(lavValue || '').toUpperCase().includes('DEVOLUCION') || String(lavValue || '').toUpperCase().includes('DEVOLUCIÓN');
                         if (isDevol) isDevolucionRow = true;
 
-                        const lavSelect = `
-                            <div class="lav-wrap">
-                                <select class="table-select ${lavClass}" onchange="updateRow(${rowIndex}, 'estado_lavada', this.value, this)">
-                                    <option value="EN LAV" ${lavValue === "EN LAV" ? "selected" : ""}>EN LAV</option>
-                                    <option value="X ARRANQUE" ${lavValue === "X ARRANQUE" ? "selected" : ""}>X ARRANQUE</option>
-                                    <option value="X LAVAR" ${lavValue === "X LAVAR" ? "selected" : ""}>X LAVAR</option>
-                                    <option value="X CENTRIFUGAR" ${lavValue === "X CENTRIFUGAR" ? "selected" : ""}>X CENTRIFUGAR</option>
-                                    <option value="X SECAR" ${lavValue === "X SECAR" ? "selected" : ""}>X SECAR</option>
-                                    <option value="X AUD INTERNA" ${lavValue === "X AUD INTERNA" ? "selected" : ""}>X AUD INTERNA</option>
-                                    <option value="X AUD CALIDAD" ${lavValue === "X AUD CALIDAD" ? "selected" : ""}>X AUD CALIDAD</option>
-                                    <option value="RECHAZADO" ${lavValue === "RECHAZADO" ? "selected" : ""}>RECHAZADO</option>
-                                    <option value="OK" ${lavValue === "OK" ? "selected" : ""}>OK</option>
-                                </select>
-                                ${isDevol ? '<span class="lav-badge" title="EN LAV (devolucion)">DEVOL.</span>' : ''}
-                            </div>`;
+                        // En Lavanderia: mostrar Lavado como texto (no editable)
+                        let lavHtml = '';
+                        const devolBadge = isDevol ? '<span class="lav-badge" title="EN LAV (devolucion)">DEVOL.</span>' : '';
+                        lavHtml = `<td><span class="${lavClass}">${lavValue}</span> ${devolBadge}</td>`;
                     
                     const ribOriginal = rib || "NO LLEVA";
                     const ribGuardado = getVal(row, "estado_rib");
@@ -5582,7 +5616,7 @@
                                     </select>`;
                     }
 
-                    controlHtml = `<td title="${tipoCert}">${tipoCert}</td><td>${lavSelect}</td><td>${ribSelect}</td>`;
+                    controlHtml = `<td title="${tipoCert}">${tipoCert}</td>${lavHtml}<td>${ribSelect}</td>`;
                 }
 
                 // Usamos title para mostrar el dato completo en hover por si acaso
@@ -5633,27 +5667,27 @@
                     const isHabilitadoView = document.getElementById('view-habilitado') && document.getElementById('view-habilitado').classList.contains('active');
                     const isCorteBloques = document.getElementById('view-corte-bloques') && document.getElementById('view-corte-bloques').classList.contains('active');
                     
-                    // Corte Pzas → Por Programar (X PROG)
-                    if (isCorteView && currentCorteFilter === 'X PROG') useDatePicker = true;
-                    // Corte Bloques → Por Programar (X PROG)
-                    if (isCorteBloques && currentCorteBloquesFilter === 'X PROG') useDatePicker = true;
-                    // Enumerado → Por enumerar (sub-tab activo)
-                    if (isEnumeradoView) useDatePicker = true;
-                    // Transfer → Por Programar (X PROG)
-                    if (isTransferView && currentTransferFilter === 'X PROG') useDatePicker = true;
-                    // Arte (Pzas) → Bordado X PROG o Estampado X PROG
+                    // Corte Pzas → Por Programar (X PROG) - NO ES DATE PICKER
+                    if (isCorteView && currentCorteFilter === 'X PROG') useDatePicker = false;
+                    // Corte Bloques → Por Programar (X PROG) - NO ES DATE PICKER
+                    if (isCorteBloques && currentCorteBloquesFilter === 'X PROG') useDatePicker = false;
+                    // Enumerado → Por enumerar - NO ES DATE PICKER
+                    if (isEnumeradoView) useDatePicker = false;
+                    // Transfer → Por Programar (X PROG) - NO ES DATE PICKER
+                    if (isTransferView && currentTransferFilter === 'X PROG') useDatePicker = false;
+                    // Arte (Pzas) → Bordado X PROG o Estampado X PROG - NO ES DATE PICKER
                     if (isArtesView) {
                         const isBordado = document.getElementById('btn-artes-bordado') && document.getElementById('btn-artes-bordado').classList.contains('active');
                         const isEstampado = document.getElementById('btn-artes-estampado') && document.getElementById('btn-artes-estampado').classList.contains('active');
                         if (isBordado) {
                             // Verificar sub-tab X PROG de Bordado
                             const btnBordadoXProg = document.getElementById('btn-bordado-xprog');
-                            if (btnBordadoXProg && btnBordadoXProg.classList.contains('active')) useDatePicker = true;
+                            if (btnBordadoXProg && btnBordadoXProg.classList.contains('active')) useDatePicker = false;
                         }
                         if (isEstampado) {
                             // Verificar sub-tab X PROG de Estampado
                             const btnEstampadoXProg = document.getElementById('btn-estampado-xprog');
-                            if (btnEstampadoXProg && btnEstampadoXProg.classList.contains('active')) useDatePicker = true;
+                            if (btnEstampadoXProg && btnEstampadoXProg.classList.contains('active')) useDatePicker = false;
                         }
                     }
                     // Habilitado (toda la vista)
@@ -5795,8 +5829,11 @@
                                     if (isEnumeradoView()) return equipoCorte || '';
                                 } catch (e) {}
 
-                                // Si estamos en sub-tab "Por Programar" (X PROG), mostrar select
+                                // Si estamos en sub-tab "Por Programar" (X PROG), mostrar como texto
                                 if (currentCorteFilter === 'X PROG') {
+                                    return equipoCorte || '';
+                                } else {
+                                    // En otros sub-tabs, mostrar select
                                     const currentEquipo = equipoCorte || '';
                                     let optionsHtml = '<option value="">-- Seleccionar --</option>';
                                     equiposCorteData.forEach(eq => {
@@ -5808,9 +5845,6 @@
                                         ${optionsHtml}
                                     </select>
                                 `;
-                                } else {
-                                    // En otros sub-tabs, solo mostrar el texto
-                                    return equipoCorte;
                                 }
                             })()}
                         </td>
@@ -5818,6 +5852,16 @@
                             ${(() => {
                                 const est = (estadoCorte || '').toString();
                                 const estClass = est.toUpperCase().includes('PROG') ? 'sel-PROG' : (est === 'OK' ? 'sel-OK' : '');
+                                
+                                // En la vista Corte y en sub-tab 'Por Programar' (X PROG), mostrar como texto
+                                try {
+                                    const onCorte = document.getElementById('view-corte') && document.getElementById('view-corte').classList.contains('active');
+                                    if (onCorte && currentCorteFilter === 'X PROG') {
+                                        return `<span class="${estClass}">${est}</span>`;
+                                    }
+                                } catch (e) { /* ignore */ }
+                                
+                                // En otros casos, mostrar select
                                 // Ocultar opción OK sólo cuando estamos en la vista Corte y en el sub-tab 'X PROG'
                                 let allowOk = true;
                                 // Ocultar opción X PROG cuando estamos en la vista Corte y en un sub-tab PROG (1T/2T/3T)
@@ -7962,13 +8006,19 @@
                 tdNbd.innerText = valNbd;
                 tr.appendChild(tdNbd);
 
-                // estado_bordado -> select editable (X PROG / PROG)
+                // estado_bordado -> select editable (X PROG / PROG) or text if X PROG
                 const tdEst = document.createElement('td');
-                const selEst = document.createElement('select');
-                selEst.className = 'table-select';
-                selEst.innerHTML = `<option value="X PROG" ${estadoBNorm === 'X PROG' ? 'selected' : ''}>X PROG</option><option value="PROG" ${estadoBNorm.toUpperCase().indexOf('PROG')!==-1 && estadoBNorm.toUpperCase()!=='X PROG' ? 'selected' : ''}>PROG</option>`;
-                selEst.onchange = function(){ updateRow(i, 'estado_bordado', this.value, this); setTimeout(()=>{ renderArtesBordado(); updateCounters(); }, 300); };
-                tdEst.appendChild(selEst);
+                if (window.currentArtesBordadoFilter === 'X PROG') {
+                    // Mostrar como texto (no editable)
+                    tdEst.innerText = estadoBNorm;
+                } else {
+                    // Mostrar como select (editable)
+                    const selEst = document.createElement('select');
+                    selEst.className = 'table-select';
+                    selEst.innerHTML = `<option value="X PROG" ${estadoBNorm === 'X PROG' ? 'selected' : ''}>X PROG</option><option value="PROG" ${estadoBNorm.toUpperCase().indexOf('PROG')!==-1 && estadoBNorm.toUpperCase()!=='X PROG' ? 'selected' : ''}>PROG</option>`;
+                    selEst.onchange = function(){ updateRow(i, 'estado_bordado', this.value, this); setTimeout(()=>{ renderArtesBordado(); updateCounters(); }, 300); };
+                    tdEst.appendChild(selEst);
+                }
                 tr.appendChild(tdEst);
 
                 // Alternar sombreado por OP-PTDA
@@ -8091,12 +8141,19 @@
                 // n.ESTAMPxpda
                 const tdNest = document.createElement('td'); const valNest = getVal(row, 'n.ESTAMPxpda') || getVal(row, 'N.ESTAMPXPDA') || getVal(row, 'n.ESTAMP xpda') || ''; tdNest.innerText = valNest; tr.appendChild(tdNest);
 
-                // estado_estampado -> select editable (X PROG / PROG)
+                // estado_estampado -> select editable (X PROG / PROG) or text if X PROG
                 const tdEst = document.createElement('td');
-                const selEst = document.createElement('select'); selEst.className = 'table-select';
-                selEst.innerHTML = `<option value="X PROG" ${estadoNorm === 'X PROG' ? 'selected' : ''}>X PROG</option><option value="PROG" ${estadoNorm.toUpperCase().indexOf('PROG')!==-1 && estadoNorm.toUpperCase()!=='X PROG' ? 'selected' : ''}>PROG</option>`;
-                selEst.onchange = function(){ updateRow(i, 'estado_estampado', this.value, this); setTimeout(()=>{ renderArtesEstampado(); updateCounters(); }, 300); };
-                tdEst.appendChild(selEst); tr.appendChild(tdEst);
+                if (window.currentArtesEstampadoFilter === 'X PROG') {
+                    // Mostrar como texto (no editable)
+                    tdEst.innerText = estadoNorm;
+                } else {
+                    // Mostrar como select (editable)
+                    const selEst = document.createElement('select'); selEst.className = 'table-select';
+                    selEst.innerHTML = `<option value="X PROG" ${estadoNorm === 'X PROG' ? 'selected' : ''}>X PROG</option><option value="PROG" ${estadoNorm.toUpperCase().indexOf('PROG')!==-1 && estadoNorm.toUpperCase()!=='X PROG' ? 'selected' : ''}>PROG</option>`;
+                    selEst.onchange = function(){ updateRow(i, 'estado_estampado', this.value, this); setTimeout(()=>{ renderArtesEstampado(); updateCounters(); }, 300); };
+                    tdEst.appendChild(selEst);
+                }
+                tr.appendChild(tdEst);
 
                 tbody.appendChild(tr);
             });
@@ -8554,15 +8611,22 @@
                     if (valNorm === 'OK') selectClass = 'sel-OK';
                     
                     const td = document.createElement('td');
-                    // Ocultar la opción OK cuando el sub-tab activo sea 'X PROG' (Por Programar)
-                    const showOkOption = (typeof currentCorteBloquesFilter === 'undefined') ? true : (currentCorteBloquesFilter !== 'X PROG');
-                    td.innerHTML = `
-                        <select class="table-select ${selectClass}" onchange="updateRow(${i}, 'estado_corte_bloques', this.value, this)">
-                            <option value="X PROG" ${valNorm === 'X PROG' ? 'selected' : ''}>X PROG</option>
-                            <option value="PROG" ${valNorm === 'PROG' ? 'selected' : ''}>PROG</option>
-                            ${showOkOption ? `<option value="OK" ${valNorm === 'OK' ? 'selected' : ''}>OK</option>` : ''}
-                        </select>
-                    `;
+                    
+                    // En Corte Bloques → Por Programar (X PROG), mostrar como texto
+                    if (currentCorteBloquesFilter === 'X PROG') {
+                        td.innerText = valNorm;
+                        td.title = valNorm;
+                    } else {
+                        // Ocultar la opción OK cuando el sub-tab activo sea 'X PROG' (Por Programar)
+                        const showOkOption = (typeof currentCorteBloquesFilter === 'undefined') ? true : (currentCorteBloquesFilter !== 'X PROG');
+                        td.innerHTML = `
+                            <select class="table-select ${selectClass}" onchange="updateRow(${i}, 'estado_corte_bloques', this.value, this)">
+                                <option value="X PROG" ${valNorm === 'X PROG' ? 'selected' : ''}>X PROG</option>
+                                <option value="PROG" ${valNorm === 'PROG' ? 'selected' : ''}>PROG</option>
+                                ${showOkOption ? `<option value="OK" ${valNorm === 'OK' ? 'selected' : ''}>OK</option>` : ''}
+                            </select>
+                        `;
+                    }
                     tr.appendChild(td);
                 } catch (e) {}
 
