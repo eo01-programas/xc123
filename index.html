@@ -198,6 +198,18 @@
             table-layout: fixed;
         }
 
+        /* Tabla Habilitado optimizada para 100% zoom */
+        #table-habilitado {
+            min-width: 100%;
+            table-layout: fixed;
+        }
+
+        /* Columnas con letra más pequeña en Habilitado */
+        #table-habilitado td.cell-cert,
+        #table-habilitado td.cell-pda {
+            font-size: 9px;
+        }
+
         thead th {
             background-color: rgb(0,112,192);
             color: #ffffff;
@@ -285,6 +297,43 @@
         input.prioridad-input:focus {
             outline: none;
             border-color: var(--primary);
+        }
+
+        /* Estilos para PLANTA select */
+        select.planta-select {
+            padding: 2px 4px;
+            font-size: 10px;
+            border: 1px solid var(--gray-300);
+            border-radius: 4px;
+            background-color: var(--white);
+            cursor: pointer;
+            min-width: 60px;
+        }
+        select.planta-select:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        /* Estilos para LINEA cell */
+        .linea-cell {
+            cursor: pointer;
+        }
+        .linea-cell:hover {
+            background-color: rgba(37, 99, 235, 0.08);
+        }
+        .linea-display {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+        .linea-input {
+            width: 40px;
+            text-align: center;
+            padding: 2px 4px;
+            border: 1px solid var(--primary);
+            border-radius: 4px;
+            font-size: 11px;
+            outline: none;
         }
 
         select.table-select:disabled {
@@ -1485,26 +1534,28 @@
                         </button>
                     </div>
                     <div class="table-container">
-                        <table>
+                        <table id="table-habilitado">
                             <thead>
                                 <tr>
-                                    <th id="th-habilitado-p" style="width: 30px;">P</th>
-                                    <th style="width: 65px; text-align: center;">HOD</th>
-                                    <th style="width: 80px; text-align: center;">F.ING.COST</th>
-                                    <th style="width: 80px; text-align:center;">STATUS</th>
-                                    <th style="width: 55px; text-align:center;">CLIENTE</th>
-                                    <th style="width: 75px;">OC</th>
-                                    <th style="width: 100px;">COLOR</th>
-                                    <th style="width: 60px; text-align:center;">PDS</th>
-                                    <th style="width: 60px;">PRENDA</th>
-                                    <th style="width: 100px;">CERTIFICADO</th>
-                                    <th style="width: 70px; text-align:center;">RIB</th>
-                                    <th style="width: 70px; text-align:center;">BLOQUES?</th>
-                                    <th style="width: 80px; text-align:center;">COLL o TAP?</th>
-                                    <th style="width: 85px; white-space:nowrap; text-align:center;">TRSF</th>
-                                    <th style="width: 60px; white-space:nowrap; text-align:center;">BORD</th>
-                                    <th style="width: 60px; text-align:center;">ESTMP</th>
-                                    <th style="width: auto; white-space: nowrap;">HABILITADO</th>
+                                    <th id="th-habilitado-p" style="width: 25px;">P</th>
+                                    <th style="width: 62px; text-align: center;">HOD</th>
+                                    <th style="width: 62px; text-align: center;">F.ING</th>
+                                    <th style="width: 55px; text-align:center;">STATUS</th>
+                                    <th style="width: 45px; text-align:center;">CLI</th>
+                                    <th style="width: 65px;">OC</th>
+                                    <th style="width: 80px;">COLOR</th>
+                                    <th style="width: 45px; text-align:center;">PDS</th>
+                                    <th style="width: 45px;" class="col-pda">PDA</th>
+                                    <th style="width: 65px;" class="col-cert">CERT</th>
+                                    <th style="width: 55px; text-align:center;">RIB</th>
+                                    <th style="width: 50px; text-align:center;">BLOQ?</th>
+                                    <th style="width: 55px; text-align:center;">COLL/TAP</th>
+                                    <th style="width: 75px; text-align:center;">TRSF</th>
+                                    <th style="width: 50px; text-align:center;">BORD</th>
+                                    <th style="width: 50px; text-align:center;">ESTM</th>
+                                    <th style="width: 60px; text-align:center;">PLANTA</th>
+                                    <th style="width: 45px; text-align:center;">LINEA</th>
+                                    <th style="width: 65px; text-align:center;">HAB</th>
                                 </tr>
                             </thead>
                             <tbody id="tbody-habilitado"></tbody>
@@ -2760,6 +2811,95 @@
                         value: value
                     })
                 }).catch(e => console.error('Error guardando P fila', i, e));
+            });
+        }
+
+        // --- FUNCIÓN PARA ACTUALIZAR PLANTA EN HABILITADO ---
+        function updatePlanta(rowIndex, value, selectElement) {
+            // Actualizar en rawData
+            const idxPlanta = findHeaderIndexCaseInsensitive('PLANTA');
+            if (idxPlanta !== -1 && rawData[rowIndex]) {
+                rawData[rowIndex][idxPlanta] = value;
+            }
+            
+            // Guardar en el backend
+            updateRow(rowIndex, 'PLANTA', value, selectElement);
+        }
+
+        // --- FUNCIÓN PARA EDITAR LINEA CON DOBLE CLICK ---
+        function editLinea(cell, rowIndex) {
+            // Verificar si ya está en modo edición
+            if (cell.querySelector('input')) return;
+            
+            const currentValue = cell.getAttribute('data-value') || '';
+            const span = cell.querySelector('.linea-display');
+            
+            // Crear input
+            const input = document.createElement('input');
+            input.type = 'number';
+            input.min = '0';
+            input.max = '99';
+            input.maxLength = 2;
+            input.value = currentValue;
+            input.className = 'linea-input';
+            input.style.cssText = 'width: 40px; text-align: center; padding: 2px 4px; border: 1px solid var(--primary); border-radius: 4px; font-size: 11px; outline: none;';
+            
+            // Ocultar span y mostrar input
+            span.style.display = 'none';
+            cell.appendChild(input);
+            input.focus();
+            input.select();
+            
+            // Función para guardar valor
+            const saveValue = () => {
+                let newValue = input.value.trim();
+                
+                // Validar: solo enteros de máximo 2 cifras
+                if (newValue !== '') {
+                    newValue = parseInt(newValue);
+                    if (isNaN(newValue) || newValue < 0 || newValue > 99) {
+                        newValue = currentValue; // Revertir si inválido
+                    } else {
+                        newValue = String(newValue);
+                    }
+                }
+                
+                // Actualizar en rawData
+                const idxLinea = findHeaderIndexCaseInsensitive('LINEA');
+                if (idxLinea !== -1 && rawData[rowIndex]) {
+                    rawData[rowIndex][idxLinea] = newValue;
+                }
+                
+                // Actualizar display
+                cell.setAttribute('data-value', newValue);
+                span.textContent = newValue || 'XASIG';
+                span.style.display = '';
+                input.remove();
+                
+                // Guardar en el backend
+                updateRow(rowIndex, 'LINEA', newValue, null);
+            };
+            
+            // Guardar al presionar Enter
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    saveValue();
+                } else if (e.key === 'Escape') {
+                    // Cancelar edición
+                    span.style.display = '';
+                    input.remove();
+                }
+            });
+            
+            // Guardar al perder foco
+            input.addEventListener('blur', saveValue);
+            
+            // Limitar a 2 dígitos mientras escribe
+            input.addEventListener('input', () => {
+                if (input.value.length > 2) {
+                    input.value = input.value.slice(0, 2);
+                }
             });
         }
 
@@ -4704,6 +4844,14 @@
                         case 'COLOR':
                             fieldValue = (getVal(row, 'COLOR') || '').toString().trim().toUpperCase();
                             break;
+                        case 'PLANTA':
+                            fieldValue = (getVal(row, 'PLANTA') || '').toString().trim().toUpperCase();
+                            if (fieldValue === '') fieldValue = 'XASIG';
+                            break;
+                        case 'LINEA':
+                            fieldValue = (getVal(row, 'LINEA') || '').toString().trim().toUpperCase();
+                            if (fieldValue === '') fieldValue = 'XASIG';
+                            break;
                     }
                     
                     // Si el valor no contiene el filtro, saltarlo
@@ -4722,8 +4870,8 @@
                             headerRow.style.fontWeight = '700';
                             headerRow.style.fontSize = '13px';
                             
-                            // Calcular colspan: 16 columnas en Habilitado
-                            const colspan = '16';
+                            // Calcular colspan: 18 columnas en Habilitado (incluye PLANTA y LINEA)
+                            const colspan = '18';
                             
                             // Calcular suma de PDS para este grupo de TRSF
                             let pdsTrsf = 0;
@@ -5084,6 +5232,27 @@
                         statusHtml = `<td title="${statusValue}">${statusValue}</td>`;
                     }
 
+                    // PLANTA - Obtener valor y generar celda con dropdown
+                    const plantaVal = getVal(row, 'PLANTA') || '';
+                    const plantaDisplay = plantaVal.toString().trim() || 'XASIG';
+                    const plantaHtml = `<td style="text-align:center;">
+                        <select class="table-select planta-select" data-row="${i}" onchange="updatePlanta(${i}, this.value, this)">
+                            <option value="" ${plantaVal === '' ? 'selected' : ''}>XASIG</option>
+                            <option value="COFACO" ${plantaVal === 'COFACO' ? 'selected' : ''}>COFACO</option>
+                            <option value="CITI1" ${plantaVal === 'CITI1' ? 'selected' : ''}>CITI1</option>
+                            <option value="CITI2" ${plantaVal === 'CITI2' ? 'selected' : ''}>CITI2</option>
+                            <option value="CITI3" ${plantaVal === 'CITI3' ? 'selected' : ''}>CITI3</option>
+                            <option value="CITI4" ${plantaVal === 'CITI4' ? 'selected' : ''}>CITI4</option>
+                        </select>
+                    </td>`;
+
+                    // LINEA - Obtener valor y generar celda editable con doble click
+                    const lineaVal = getVal(row, 'LINEA') || '';
+                    const lineaDisplay = lineaVal.toString().trim() || 'XASIG';
+                    const lineaHtml = `<td style="text-align:center;" class="linea-cell" data-row="${i}" data-value="${lineaVal}" ondblclick="editLinea(this, ${i})">
+                        <span class="linea-display">${lineaDisplay}</span>
+                    </td>`;
+
                     tr.innerHTML = `
                         <td class="p-cell">${pCell.innerHTML}</td>
                         <td class="date-cell">${fDesp}</td>
@@ -5093,14 +5262,16 @@
                         ${ocHtml}
                         <td title="${color}">${color}</td>
                         <td class="kg-cell" style="text-align:center;">${pdsStr}</td>
-                        <td title="${prenda}">${prenda}</td>
-                        <td title="${tipoCert}">${tipoCert}</td>
+                        <td class="cell-pda" title="${prenda}">${prenda}</td>
+                        <td class="cell-cert" title="${tipoCert}">${tipoCert}</td>
                         ${ribHtml}
                         ${bloqHtml}
                         ${collHtml}
                         ${trsfHtml}
                         ${bordHtml}
                         ${estampHtml}
+                        ${plantaHtml}
+                        ${lineaHtml}
                         ${habilHtml}
                     `;
 
@@ -5149,7 +5320,7 @@
         }
         
         function initializeHabilitadoHeaderContextMenus() {
-            const allowedFields = ['P', 'HOD', 'F.ING.COST', 'STATUS', 'CLIENTE', 'OP-PTDA', 'OC', 'COLOR'];
+            const allowedFields = ['PLANTA', 'LINEA', 'HOD', 'F.ING.COST', 'F.ING', 'STATUS', 'CLIENTE', 'CLI', 'OP-PTDA', 'OC', 'COLOR', 'P'];
             
             const thead = document.querySelector('#view-habilitado table thead');
             if (!thead) return;
@@ -5158,17 +5329,27 @@
             ths.forEach(th => {
                 th.oncontextmenu = function(event) {
                     // Obtener el texto del encabezado
-                    let headerText = th.textContent.trim();
+                    let headerText = th.textContent.trim().toUpperCase();
                     
                     // Limpiar el texto del encabezado (puede tener espacios extra o caracteres especiales)
                     headerText = headerText.replace(/\s+/g, ' ').trim();
                     
-                    // Verificar si es un campo permitido
+                    // Verificar si es un campo permitido (buscar coincidencia exacta primero)
                     let matchedField = null;
                     for (let field of allowedFields) {
-                        if (headerText.indexOf(field) === 0 || field.indexOf(headerText) === 0) {
+                        if (headerText === field.toUpperCase() || headerText === field) {
                             matchedField = field;
                             break;
+                        }
+                    }
+                    
+                    // Si no hay coincidencia exacta, buscar parcial
+                    if (!matchedField) {
+                        for (let field of allowedFields) {
+                            if (headerText.indexOf(field.toUpperCase()) === 0 || field.toUpperCase().indexOf(headerText) === 0) {
+                                matchedField = field;
+                                break;
+                            }
                         }
                     }
                     
@@ -6826,7 +7007,7 @@
             document.getElementById('habilitado-filter-field').textContent = fieldName;
             
             // Campos que usan dropdown
-            const dropdownFields = ['HOD', 'F.ING.COST', 'STATUS', 'CLIENTE'];
+            const dropdownFields = ['HOD', 'F.ING.COST', 'STATUS', 'CLIENTE', 'PLANTA', 'LINEA'];
             
             if (dropdownFields.includes(fieldName)) {
                 // Mostrar select y poblar con valores únicos
@@ -6844,7 +7025,14 @@
             }
             
             menu.classList.add('active');
-            menu.style.left = habilitadoContextMenuX + 'px';
+            
+            // Para PLANTA y LINEA, posicionar el menú hacia la izquierda
+            if (fieldName === 'PLANTA' || fieldName === 'LINEA') {
+                const menuWidth = 220; // Ancho aproximado del menú
+                menu.style.left = (habilitadoContextMenuX - menuWidth) + 'px';
+            } else {
+                menu.style.left = habilitadoContextMenuX + 'px';
+            }
             menu.style.top = habilitadoContextMenuY + 'px';
         };
         
@@ -6940,6 +7128,14 @@
                     case 'CLIENTE':
                         // Usar normalizeClientName para obtener el nombre corto del cliente
                         fieldValue = normalizeClientName(getVal(row, 'CLIENTE')) || '';
+                        break;
+                    case 'PLANTA':
+                        fieldValue = (getVal(row, 'PLANTA') || '').toString().trim();
+                        if (fieldValue === '') fieldValue = 'XASIG';
+                        break;
+                    case 'LINEA':
+                        fieldValue = (getVal(row, 'LINEA') || '').toString().trim();
+                        if (fieldValue === '') fieldValue = 'XASIG';
                         break;
                 }
                 
@@ -10072,4 +10268,3 @@ NOTA: Por favor adjunte los archivos descargados (${fileName}.xlsx y ${fileName}
 
     </body>
     </html>
-
