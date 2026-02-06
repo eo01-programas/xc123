@@ -1697,7 +1697,7 @@
 
     <script>
         // --- CONFIGURACIÓN ---
-        const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzh8EwM1ijig7PnVrNAln5qRya6aDEhwmW5RCARlPPLqfovnPcIvUDOpnT1zht00oioFA/exec"; 
+        const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbw63hjzuU5uP3bH5i7Nn22Mjfb9TjIW_RjhxZsf09K9HIuA5AEtTDmHU6RULuMJA6_oiA/exec"; 
         const SHEET_ID = "18cQuwqerdMggAeJ8TCUKA7-gujXsA91-CRMUTNpr8aQ";
 
         let rawData = [];
@@ -9477,87 +9477,64 @@
             }
 
             try {
-                // Reemplazar la fila original con el primer tendido
-                const firstTendido = `${corte}01`;
-                const firstPds = pdsValues[0];
+                // Construir array de tendidos para enviar al servidor
+                const tendidosData = [];
+                let alertMsg = 'Se han creado los tendidos:';
                 
-                const newRow1 = [...originalRow];
-                newRow1[corteIdx] = firstTendido;
-                newRow1[pdsIdx] = firstPds;
-                // marcar como recién creado para priorizar su visualización
-                try { newRow1._inserted = Date.now(); } catch(e){}
-                rawData[rowIndex] = newRow1;
-
-                fetch(WEB_APP_URL, {
-                    method: 'POST',
-                    mode: 'no-cors',
-                    body: JSON.stringify({
-                        action: "update",
-                        row: rowIndex,
-                        colName: "CORTE",
-                        value: firstTendido
-                    })
-                }).catch(e => console.error("Error guardando CORTE tendido 1", e));
-
-                fetch(WEB_APP_URL, {
-                    method: 'POST',
-                    mode: 'no-cors',
-                    body: JSON.stringify({
-                        action: "update",
-                        row: rowIndex,
-                        colName: "PDS GIRADAS",
-                        value: firstPds
-                    })
-                }).catch(e => console.error("Error guardando PDS tendido 1", e));
-
-                // Crear tendidos adicionales (si hay más de uno)
-                let alertMsg = `Se han creado los tendidos:\n• ${firstTendido} con ${formatThousands(firstPds, 0)} PDS`;
-                
-                // Insertar tendidos adicionales inmediatamente después de la fila original
-                // para que queden contiguos en la vista.
-                for (let i = 1; i < pdsValues.length; i++) {
+                for (let i = 0; i < pdsValues.length; i++) {
                     const tendidoNum = String(i + 1).padStart(2, '0');
                     const tendido = `${corte}${tendidoNum}`;
                     const pds = pdsValues[i];
-
-                    const newRow = [...originalRow];
-                    newRow[corteIdx] = tendido;
-                    newRow[pdsIdx] = pds;
-                    try { newRow._inserted = Date.now(); } catch(e){}
-
-                    // Insertar en rawData justo después de la fila original y de los tendidos ya insertados
-                    const insertAt = rowIndex + i; // i=1 -> after original, i=2 -> after first inserted, etc.
-                    rawData.splice(insertAt, 0, newRow);
-
-                    fetch(WEB_APP_URL, {
-                        method: 'POST',
-                        mode: 'no-cors',
-                        body: JSON.stringify({
-                            action: "duplicateRow",
-                            sourceRow: rowIndex,
-                            newCorte: tendido,
-                            newPds: pds
-                        })
-                    }).catch(e => console.error(`Error creando tendido ${i + 1}`, e));
-
+                    
+                    tendidosData.push({ corte: tendido, pds: pds });
                     alertMsg += `\n• ${tendido} con ${formatThousands(pds, 0)} PDS`;
                 }
+                
+                // Actualizar rawData localmente
+                // Primer tendido reemplaza la fila original
+                const newRow1 = [...originalRow];
+                newRow1[corteIdx] = tendidosData[0].corte;
+                newRow1[pdsIdx] = tendidosData[0].pds;
+                try { newRow1._inserted = Date.now(); } catch(e){}
+                rawData[rowIndex] = newRow1;
+                
+                // Tendidos adicionales se insertan después
+                for (let i = 1; i < tendidosData.length; i++) {
+                    const newRow = [...originalRow];
+                    newRow[corteIdx] = tendidosData[i].corte;
+                    newRow[pdsIdx] = tendidosData[i].pds;
+                    try { newRow._inserted = Date.now(); } catch(e){}
+                    
+                    const insertAt = rowIndex + i;
+                    rawData.splice(insertAt, 0, newRow);
+                }
+
+                // Enviar todos los tendidos al servidor en UNA SOLA llamada atómica
+                fetch(WEB_APP_URL, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    body: JSON.stringify({
+                        action: "createTendidos",
+                        sourceRow: rowIndex,
+                        tendidos: tendidosData
+                    })
+                }).catch(e => console.error("Error guardando tendidos", e));
+
+                // Registrar la base como creada para que se muestre priorizada
+                try { addCreatedTendidoBase(corte); } catch(e) {}
+
+                // Cerrar modal y re-renderizar
+                cerrarModalTendido();
+                updateCounters();
+                renderCorte();
+
+                alert(alertMsg);
 
             } catch (e) {
                 console.error('Error guardando tendidos:', e);
                 alert('Error al guardar los tendidos.');
                 return;
             }
-
-            // Registrar la base como creada para que se muestre priorizada
-            try { addCreatedTendidoBase(corte); } catch(e) {}
-
-            // Cerrar modal y re-renderizar
-            cerrarModalTendido();
-            updateCounters();
-            renderCorte();
-
-            alert(alertMsg);
         };
 
         window.guardarModalTendidoEdicion = function(pdsValues) {
