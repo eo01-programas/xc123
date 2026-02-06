@@ -1697,7 +1697,7 @@
 
     <script>
         // --- CONFIGURACIÓN ---
-        const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbw63hjzuU5uP3bH5i7Nn22Mjfb9TjIW_RjhxZsf09K9HIuA5AEtTDmHU6RULuMJA6_oiA/exec"; 
+        const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxvdE7sEqWt0IsyAs7fY4OBXw4gq3WhtTKMFHoXioLlc1x_byd2mqNvkU8RPZ5gP1SPAw/exec"; 
         const SHEET_ID = "18cQuwqerdMggAeJ8TCUKA7-gujXsA91-CRMUTNpr8aQ";
 
         let rawData = [];
@@ -9509,15 +9509,22 @@
                     rawData.splice(insertAt, 0, newRow);
                 }
 
+                // Obtener el estado_corte actual de la fila para preservarlo en los tendidos
+                const estadoCorteIdx = colMap["estado_corte"] ?? colMap["ESTADO_CORTE"] ?? colMap["STATUS_CORTE"] ?? colMap["STATUS"] ?? colMap["status"] ?? -1;
+                const estadoCorteVal = (estadoCorteIdx !== -1 && originalRow[estadoCorteIdx]) ? String(originalRow[estadoCorteIdx]) : null;
+
                 // Enviar todos los tendidos al servidor en UNA SOLA llamada atómica
+                const payload = {
+                    action: "createTendidos",
+                    sourceRow: rowIndex,
+                    tendidos: tendidosData
+                };
+                if (estadoCorteIdx !== -1) payload.estadoCorte = estadoCorteVal || '';
+
                 fetch(WEB_APP_URL, {
                     method: 'POST',
                     mode: 'no-cors',
-                    body: JSON.stringify({
-                        action: "createTendidos",
-                        sourceRow: rowIndex,
-                        tendidos: tendidosData
-                    })
+                    body: JSON.stringify(payload)
                 }).catch(e => console.error("Error guardando tendidos", e));
 
                 // Registrar la base como creada para que se muestre priorizada
@@ -9586,8 +9593,16 @@
 
                 // Crear nuevos tendidos si hay más valores que filas existentes
                 if (pdsValues.length > tendidoRows.length) {
-                    const sourceRowIdx = tendidoRows[0];
+                    // Usar la fila que el usuario clickeó (modalTendidoData.rowIndex) como fuente,
+                    // NO tendidoRows[0], ya que ese puede tener un estado_corte diferente (ej. OK)
+                    const clickedRowIdx = modalTendidoData.rowIndex;
+                    const sourceRowIdx = (clickedRowIdx && rawData[clickedRowIdx]) ? clickedRowIdx : tendidoRows[0];
                     const sourceRow = rawData[sourceRowIdx];
+                    
+                    // Obtener el estado_corte de la fila clickeada para preservarlo en las nuevas filas
+                    const ecIdx = colMap["estado_corte"] ?? colMap["ESTADO_CORTE"] ?? colMap["STATUS_CORTE"] ?? colMap["STATUS"] ?? colMap["status"] ?? -1;
+                    const ecVal = (ecIdx !== -1 && sourceRow[ecIdx]) ? String(sourceRow[ecIdx]) : null;
+                    
                     // Insertar nuevos tendidos justo después del último tendido existente
                     const lastExisting = tendidoRows[tendidoRows.length - 1];
                     let inserted = 0;
@@ -9605,15 +9620,19 @@
                         rawData.splice(insertAt, 0, newRow);
                         inserted++;
 
+                        const dupPayload = {
+                            action: "duplicateRow",
+                            sourceRow: sourceRowIdx,
+                            newCorte: tendido,
+                            newPds: pds
+                        };
+                        // Siempre enviar estadoCorte para forzar el valor correcto en la nueva fila
+                        if (ecIdx !== -1) dupPayload.estadoCorte = ecVal || '';
+
                         fetch(WEB_APP_URL, {
                             method: 'POST',
                             mode: 'no-cors',
-                            body: JSON.stringify({
-                                action: "duplicateRow",
-                                sourceRow: sourceRowIdx,
-                                newCorte: tendido,
-                                newPds: pds
-                            })
+                            body: JSON.stringify(dupPayload)
                         }).catch(e => console.error(`Error creando tendido ${i + 1}`, e));
 
                         alertMsg += `\n• ${tendido} con ${formatThousands(pds, 0)} PDS`;
