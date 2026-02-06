@@ -3939,25 +3939,10 @@
                 } catch (e) { /* ignore */ }
 
                 validIndices.sort((a, b) => {
-                    // 1. Primero ordenar por columna P (valores numéricos primero, luego vacíos)
-                    const idxP = findHeaderIndexCaseInsensitive('P');
-                    let pA = '';
-                    let pB = '';
-                    if (idxP !== -1) {
-                        pA = String(rawData[a][idxP] || '').trim();
-                        pB = String(rawData[b][idxP] || '').trim();
-                    }
-                    
-                    const pNumA = pA === '' ? Infinity : parseInt(pA) || Infinity;
-                    const pNumB = pB === '' ? Infinity : parseInt(pB) || Infinity;
-                    
-                    if (pNumA !== pNumB) return pNumA - pNumB;
-                    
-                    // 2. Luego por equipo_corte
+                    // 1. Primero agrupar por equipo_corte (según orden EQ de equiposCorteData)
                     const equipoA = String(rawData[a][colMap["EQUIPO CORTE"]] || rawData[a][colMap["EQUIPO_CORTE"]] || rawData[a][colMap["equipo_corte"]] || "").trim();
                     const equipoB = String(rawData[b][colMap["EQUIPO CORTE"]] || rawData[b][colMap["EQUIPO_CORTE"]] || rawData[b][colMap["equipo_corte"]] || "").trim();
 
-                    // Encontrar el orden EQ de cada equipo
                     const findEqOrder = (nombre) => {
                         const equipo = equiposCorteData.find(eq => eq.nombre === nombre);
                         return equipo ? (parseInt(equipo.eq) || 999) : 999;
@@ -3967,7 +3952,18 @@
                     const orderB = findEqOrder(equipoB);
                     if (orderA !== orderB) return orderA - orderB;
 
-                    // Si pertenecen al mismo equipo, ordenar por base de CORTE y sufijo (tendido)
+                    // 2. Dentro de cada equipo, ordenar por OP-PTDA
+                    const opTelaA = String(rawData[a][colMap["OP TELA"]] || '').trim();
+                    const partidaA = String(rawData[a][colMap["PARTIDA"]] || '').trim();
+                    const opPtdaA = opTelaA + '-' + partidaA;
+
+                    const opTelaB = String(rawData[b][colMap["OP TELA"]] || '').trim();
+                    const partidaB = String(rawData[b][colMap["PARTIDA"]] || '').trim();
+                    const opPtdaB = opTelaB + '-' + partidaB;
+
+                    if (opPtdaA !== opPtdaB) return opPtdaA.localeCompare(opPtdaB);
+
+                    // 3. Dentro del mismo OP-PTDA, ordenar por base de CORTE y sufijo (tendido)
                     const corteIdx = colMap["CORTE"];
                     const rawA = String(rawData[a][corteIdx] || '').trim();
                     const rawB = String(rawData[b][corteIdx] || '').trim();
@@ -3984,7 +3980,7 @@
                     const pa = parseCorte(rawA);
                     const pb = parseCorte(rawB);
 
-                    // Priorizar bases que tengan tendidos creados: aparecerán primero dentro del mismo equipo
+                    // Priorizar bases que tengan tendidos creados
                     const baseA = pa.base || '';
                     const baseB = pb.base || '';
                     const aHas = baseHasInserted[baseA] || false;
