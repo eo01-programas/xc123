@@ -5146,8 +5146,13 @@
                     
                     let habilHtml = '';
                     if (currentHabilitadoFilter === 'X PROG') {
-                        // Mostrar estado_habilitado como texto (no editable) en X PROG
-                        habilHtml = `<td>${habilValNorm || 'X PROG'}</td>`;
+                        // Mostrar estado_habilitado como dropdown con opciones X PROG y OK en X PROG
+                        habilHtml = `<td>
+                            <select class="table-select ${habilClass}" onchange="if(this.value === 'OK') { abrirModalIngresoCostura(${i}); this.value = '${habilValNorm || 'X PROG'}'; } else { updateRow(${i}, 'estado_habilitado', this.value, this); setTimeout(renderHabilitado, 300); }">
+                                <option value="X PROG" ${habilValNorm === 'X PROG' || habilValNorm === '' ? 'selected' : ''}>X PROG</option>
+                                <option value="OK" ${habilValNorm === 'OK' ? 'selected' : ''}>OK</option>
+                            </select>
+                        </td>`;
                     } else {
                         // Mostrar como select (editable) en otros sub-tabs
                         habilHtml = `<td>
@@ -10268,5 +10273,4 @@ NOTA: Por favor adjunte los archivos descargados (${fileName}.xlsx y ${fileName}
 
     </body>
     </html>
-
 
