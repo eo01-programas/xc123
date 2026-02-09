@@ -10,15 +10,35 @@
         #loader{display:flex;align-items:center;gap:10px}
         .spinner{width:18px;height:18px;border:3px solid #e5e7eb;border-top-color:#2563eb;border-radius:50%;animation:spin 1s linear infinite}
         @keyframes spin{to{transform:rotate(360deg)}}
-        #chart-wrap{margin-top:18px;max-width:900px}
-        .bars{display:flex;align-items:flex-end;gap:18px;padding:18px;border:1px solid #e6e7ec;background:#fff;border-radius:8px;flex-wrap:nowrap;overflow-x:auto}
+        #chart-wrap{margin-top:18px;max-width:954px}
+        .chart-title{font-size:15px;font-weight:700;color:#1e293b;margin:0 0 8px;padding-left:4px}
+        .bars{display:flex;align-items:flex-end;gap:18px;padding:18px;border:1px solid #e6e7ec;background:#fff;border-radius:8px;flex-wrap:nowrap;overflow-x:auto;position:relative;padding-top:36px}
+        /* Horizontal breakdown chart */
+        #chart2-wrap{margin-top:24px;max-width:954px}
+        .hbar-container{padding:18px;border:1px solid #e6e7ec;background:#fff;border-radius:8px;position:relative;padding-top:36px}
+        .hbar-row{display:flex;align-items:center;margin-bottom:14px}
+        .hbar-row:last-child{margin-bottom:0}
+        .hbar-label{width:80px;font-size:13px;font-weight:700;color:#374151;flex-shrink:0;text-align:right;padding-right:10px}
+        .hbar-track{flex:1;display:flex;height:36px;border-radius:5px;overflow:hidden;background:#f1f5f9}
+        .hbar-seg{display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#fff;white-space:nowrap;padding:0 6px;min-width:0}
+        .hbar-seg.lavada{background:#8b5cf6}
+        .hbar-seg.acabada{background:#14b8a6}
+        .hbar-total{width:80px;font-size:15px;font-weight:700;color:#0f172a;text-align:left;padding-left:8px;flex-shrink:0}
+        .legend2{display:flex;gap:14px;align-items:center;margin-top:10px}
+        .legend2 .legend-item{display:inline-flex;gap:6px;align-items:center;font-size:13px;color:#374151}
+        .legend2 .legend-swatch{width:14px;height:14px;border-radius:3px;display:inline-block}
+        .legend-inside{position:absolute;top:8px;left:12px;display:flex;gap:12px;align-items:center;z-index:2}
+        .legend-inside .legend-item{display:inline-flex;gap:6px;align-items:center;font-size:12px;color:#374151}
+        .legend-inside .legend-swatch{width:12px;height:12px;border-radius:3px;display:inline-block}
+        .sw-lavada{background:#8b5cf6}
+        .sw-acabada{background:#14b8a6}
         .bar-item{display:flex;flex-direction:column;align-items:center;flex:0 0 110px;min-width:90px}
         .bar{width:100%;background:transparent;border-radius:6px 6px 0 0;display:flex;flex-direction:column;justify-content:flex-end;color:#fff;font-weight:700;overflow:hidden}
-        .segment{width:100%;display:flex;align-items:flex-end;justify-content:center;color:#fff;font-weight:700}
+        .segment{width:100%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:13px}
         .seg-prog{background:#2563eb}
         .seg-xprog{background:#fb923c}
-        .label{margin-top:8px;font-size:12px;text-align:center;color:#374151}
-        .value{font-size:12px;color:#0f172a;margin-bottom:6px}
+        .label{margin-top:8px;font-size:12px;text-align:center;color:#374151;font-weight:700}
+        .value{font-size:15px;color:#0f172a;margin-bottom:6px;font-weight:700}
         #no-data{color:#6b7280}
         .controls{display:flex;gap:8px;align-items:center}
         .legend{display:flex;gap:12px;align-items:center;margin-left:12px}
@@ -35,29 +55,50 @@
         .switch label{font-weight:600;color:#374151}
         button{background:#2563eb;color:#fff;border:none;padding:8px 12px;border-radius:6px;cursor:pointer}
         button:disabled{opacity:0.6;cursor:not-allowed}
+        .btn-refresh-circle{display:none;width:36px;height:36px;border-radius:50%;background:#2563eb;color:#fff;border:none;cursor:pointer;padding:0;align-items:center;justify-content:center;flex-shrink:0;transition:transform 0.2s}
+        .btn-refresh-circle:hover{transform:rotate(90deg)}
+        .btn-refresh-circle svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+        .switch-active input[type="checkbox"]{background:#2563eb !important}
+        .switch-active input[type="checkbox"]:before{transform:translateX(18px) !important}
     </style>
 </head>
 <body>
-    <div class="header-row" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-        <h1>STOCK</h1>
-        <a href="index.html" aria-label="volver a inicio"><button id="btn-volver" type="button">volver</button></a>
-    </div>
-    <div class="controls">
-        <div id="loader"><div class="spinner"></div><div>Cargando datos desde Google Sheets...</div></div>
-        <button id="btn-refresh" onclick="reloadData()" style="display:none">Refrescar</button>
-        <div class="switch" title="Ver KG en vez de PDS">
-            <input id="chk-kg" type="checkbox" onchange="toggleKg(this)">
+    <div class="header-row" style="display:flex;align-items:center;gap:14px;margin-bottom:12px;flex-wrap:wrap">
+        <h1 style="margin:0">STOCK</h1>
+        <div id="loader" style="display:flex;align-items:center;gap:8px"><div class="spinner"></div><span style="font-size:13px">Cargando...</span></div>
+        <button id="btn-refresh" class="btn-refresh-circle" onclick="reloadData()" title="Refrescar datos">
+            <svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-2.63-6.36"/><polyline points="21 3 21 9 15 9"/></svg>
+        </button>
+        <div class="switch switch-active" title="Ver Prendas">
+            <input id="chk-pds" type="checkbox" checked onchange="toggleUnit('pds')">
+            <label for="chk-pds">Prendas</label>
+        </div>
+        <div class="switch" title="Ver KG">
+            <input id="chk-kg" type="checkbox" onchange="toggleUnit('kg')">
             <label for="chk-kg">kg</label>
         </div>
-        <div class="legend" id="legend">
-            <div class="legend-item"><span class="legend-swatch sw-prog" aria-hidden="true"></span><span>PROG</span></div>
-            <div class="legend-item"><span class="legend-swatch sw-xprog" aria-hidden="true"></span><span>X PROG</span></div>
-        </div>
+        <a href="index.html" aria-label="volver a inicio" style="margin-left:auto"><button id="btn-volver" type="button">volver</button></a>
     </div>
 
     <div id="chart-wrap">
+        <div id="chart-title" class="chart-title">Stock de prendas Corte/Habilitado</div>
         <div id="no-data" style="display:none">No hay datos que cumplan el filtro.</div>
-        <div id="chart" class="bars" aria-live="polite"></div>
+        <div id="chart" class="bars" aria-live="polite">
+            <div class="legend-inside" id="legend">
+                <div class="legend-item"><span class="legend-swatch sw-prog" aria-hidden="true"></span><span>PROG</span></div>
+                <div class="legend-item"><span class="legend-swatch sw-xprog" aria-hidden="true"></span><span>X PROG</span></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="chart2-wrap">
+        <div id="chart2-title" class="chart-title" style="margin-top:8px">Desglose CORTE PZAS por Ruta Tela (Prendas)</div>
+        <div id="chart2" class="hbar-container" aria-live="polite">
+            <div class="legend-inside">
+                <div class="legend-item"><span class="legend-swatch sw-lavada" aria-hidden="true"></span><span>LAVADA</span></div>
+                <div class="legend-item"><span class="legend-swatch sw-acabada" aria-hidden="true"></span><span>ACABADA</span></div>
+            </div>
+        </div>
     </div>
 
 <script>
@@ -71,7 +112,7 @@ let useKg = false; // false => use PDS GIRADAS, true => use KG GIRADOS
 function reloadData(){
     document.getElementById('btn-refresh').style.display='none';
     document.getElementById('loader').style.display='flex';
-    document.getElementById('chart').innerHTML='';
+    clearChartKeepLegend('chart');
     document.getElementById('no-data').style.display='none';
     // Insert gviz script
     const scr = document.createElement('script');
@@ -110,7 +151,7 @@ window.loadStockData = function(jsonResponse){
 
 function showError(msg){
     document.getElementById('loader').style.display='none';
-    document.getElementById('btn-refresh').style.display='inline-block';
+    document.getElementById('btn-refresh').style.display='inline-flex';
     document.getElementById('no-data').style.display='block';
     document.getElementById('no-data').innerText = 'Error: ' + msg;
 }
@@ -159,6 +200,12 @@ function processAndRender(){
     // y las clasificamos por estado_corte en PROG (PROG 1T/2T/3T) o X PROG (no OK ni PROGs)
     let sumCortePROG = 0;
     let sumCorteXPROG = 0;
+
+    // Desglose CORTE PZAS por RUTA TELA
+    let cortePROG_lavada = 0;
+    let cortePROG_acabada = 0;
+    let corteXPROG_lavada = 0;
+    let corteXPROG_acabada = 0;
     
     // Calculamos CORTE BLOQ: estado_corte = OK AND estado_bloques = 'Ok corte' AND estado_corte_bloques != OK
     // Clasificamos PROG cuando estado_corte_bloques == 'PROG', X PROG otherwise
@@ -173,6 +220,10 @@ function processAndRender(){
     let sumTransferPROG = 0;
     let sumTransferXPROG = 0;
 
+    // HABILITADO: filas con estado_enumerado = 'OK ENM'|'OK S/ENM'|'OK PAQUETEO' y estado_habilitado != 'OK'
+    let sumHabPROG = 0;
+    let sumHabXPROG = 0;
+
     // índices auxiliares
     const idxEstadoLav = getColIndexFlexible(['estado_lavada','ESTADO_LAVADA','estado_lavado','ESTADO_LAVADO']);
     const idxEstadoCorte = getColIndexFlexible(['estado_corte','STATUS_CORTE','STATUS','ESTADO CORTE','ESTADO_CORTE','estado corte']);
@@ -181,6 +232,7 @@ function processAndRender(){
     const idxEstadoEnumerado = getColIndexFlexible(['estado_enumerado','ESTADO_ENUMERADO','estado enumerado']);
     const idxTipoTransfer = getColIndexFlexible(['tipo-transfer','TIPO-TRANSFER','TIPO_TRANSFER','tipo transfer','TIPO TRANSFER']);
     const idxEstadoTransfer = getColIndexFlexible(['estado_transfer','estado-transfer','ESTADO_TRANSFER','ESTADO-TRANSFER','estado transfer']);
+    const idxEstadoHabilitado = getColIndexFlexible(['estado_habilitado','ESTADO_HABILITADO','estado habilitado']);
 
     for(let i=1;i<rawData.length;i++){
         const row = rawData[i];
@@ -225,9 +277,13 @@ function processAndRender(){
             // PROG: exact matches 'PROG 1T','PROG 2T','PROG 3T'
             if(estadoCorteVal === 'PROG 1T' || estadoCorteVal === 'PROG 2T' || estadoCorteVal === 'PROG 3T'){
                 sumCortePROG += val;
+                if(rutaVal === 'LAVADA') cortePROG_lavada += val;
+                else if(rutaVal === 'ACABADA') cortePROG_acabada += val;
             } else if(estadoCorteVal !== 'OK'){
                 // X PROG: diferente a OK y a los PROG definidos
                 sumCorteXPROG += val;
+                if(rutaVal === 'LAVADA') corteXPROG_lavada += val;
+                else if(rutaVal === 'ACABADA') corteXPROG_acabada += val;
             }
         }
 
@@ -254,6 +310,19 @@ function processAndRender(){
             if(estadoCorteBloquesRow === 'PROG') sumCorteBloqPROG += val;
             else sumCorteBloqXPROG += val;
         }
+
+        // HABILITADO: estado_enumerado IN ('OK ENM','OK S/ENM','OK PAQUETEO') y estado_habilitado != 'OK'
+        const estadoHabRow = (idxEstadoHabilitado !== -1) ? String(getVal(row, idxEstadoHabilitado) || '').toUpperCase().trim() : '';
+        if(estadoEnumeradoRow === 'OK ENM' || estadoEnumeradoRow === 'OK S/ENM' || estadoEnumeradoRow === 'OK PAQUETEO' || estadoEnumeradoRow === 'OK PAQUETO'){
+            if(estadoHabRow !== 'OK'){
+                if(estadoHabRow === 'PROG 1T' || estadoHabRow === 'PROG 2T' || estadoHabRow === 'PROG 3T'){
+                    sumHabPROG += val;
+                } else {
+                    // vacío, 'X PROG', u otro → X PROG
+                    sumHabXPROG += val;
+                }
+            }
+        }
     }
 
     // Renderizar varias barras: BLOQUEO, LAVANDERIA y CORTE PZAS
@@ -263,13 +332,20 @@ function processAndRender(){
         { label: 'CORTE PZAS', prog: sumCortePROG, xprog: sumCorteXPROG },
         { label: 'CORTE BLOQ', prog: sumCorteBloqPROG, xprog: sumCorteBloqXPROG },
         { label: 'ENUMERADO', prog: sumEnumeradoPROG, xprog: 0 },
-        { label: 'TRANSFER', prog: sumTransferPROG, xprog: sumTransferXPROG }
+        { label: 'TRANSFER', prog: sumTransferPROG, xprog: sumTransferXPROG },
+        { label: 'HABILITADO', prog: sumHabPROG, xprog: sumHabXPROG }
     ]);
+
+    // Renderizar gráfico horizontal de desglose CORTE PZAS
+    renderCorteBreakdown({
+        prog:  { lavada: cortePROG_lavada,  acabada: cortePROG_acabada  },
+        xprog: { lavada: corteXPROG_lavada, acabada: corteXPROG_acabada }
+    });
 }
 
 function renderChartFromAgg(agg){
     document.getElementById('loader').style.display='none';
-    document.getElementById('btn-refresh').style.display='inline-block';
+    document.getElementById('btn-refresh').style.display='inline-flex';
     const chart = document.getElementById('chart');
     chart.innerHTML = '';
 
@@ -314,9 +390,9 @@ function renderChartFromAgg(agg){
 
 function renderMultipleBars(bars){
     document.getElementById('loader').style.display='none';
-    document.getElementById('btn-refresh').style.display='inline-block';
+    document.getElementById('btn-refresh').style.display='inline-flex';
     const chart = document.getElementById('chart');
-    chart.innerHTML = '';
+    clearChartKeepLegend('chart');
 
     // calcular totales y max para escalar alturas
     const totals = bars.map(b => (b.prog || 0) + (b.xprog || 0));
@@ -374,30 +450,125 @@ function renderMultipleBars(bars){
     });
 }
 
-function toggleKg(checkbox){
-    useKg = !!checkbox.checked;
+function renderCorteBreakdown(data){
+    const chart2 = document.getElementById('chart2');
+    clearChartKeepLegend('chart2');
+
+    const rows = [
+        { label: 'PROG',   lavada: data.prog.lavada,   acabada: data.prog.acabada   },
+        { label: 'X PROG', lavada: data.xprog.lavada,   acabada: data.xprog.acabada  }
+    ];
+
+    const maxVal = Math.max(...rows.map(r => r.lavada + r.acabada), 1);
+
+    rows.forEach(r => {
+        const total = r.lavada + r.acabada;
+        const pctLav  = total > 0 ? ((r.lavada  / total) * 100).toFixed(1) : '0.0';
+        const pctAcab = total > 0 ? ((r.acabada / total) * 100).toFixed(1) : '0.0';
+
+        const rowDiv = document.createElement('div');
+        rowDiv.className = 'hbar-row';
+
+        // Label
+        const lbl = document.createElement('div');
+        lbl.className = 'hbar-label';
+        lbl.innerText = r.label;
+        rowDiv.appendChild(lbl);
+
+        // Track
+        const track = document.createElement('div');
+        track.className = 'hbar-track';
+        const widthPct = total > 0 ? Math.max(4, (total / maxVal) * 100) : 0;
+        track.style.width = widthPct + '%';
+
+        if(r.lavada > 0){
+            const seg = document.createElement('div');
+            seg.className = 'hbar-seg lavada';
+            seg.style.flex = r.lavada;
+            seg.innerText = formatNumber(r.lavada) + ' [' + pctLav + '%]';
+            seg.title = 'LAVADA: ' + formatNumber(r.lavada);
+            track.appendChild(seg);
+        }
+        if(r.acabada > 0){
+            const seg = document.createElement('div');
+            seg.className = 'hbar-seg acabada';
+            seg.style.flex = r.acabada;
+            seg.innerText = formatNumber(r.acabada) + ' [' + pctAcab + '%]';
+            seg.title = 'ACABADA: ' + formatNumber(r.acabada);
+            track.appendChild(seg);
+        }
+
+        rowDiv.appendChild(track);
+
+        // Total
+        const tot = document.createElement('div');
+        tot.className = 'hbar-total';
+        tot.innerText = formatNumber(total);
+        rowDiv.appendChild(tot);
+
+        chart2.appendChild(rowDiv);
+    });
+}
+
+function toggleUnit(unit){
+    const chkPds = document.getElementById('chk-pds');
+    const chkKg = document.getElementById('chk-kg');
+    if(unit === 'kg'){
+        useKg = true;
+        chkKg.checked = true;
+        chkPds.checked = false;
+        chkKg.parentElement.classList.add('switch-active');
+        chkPds.parentElement.classList.remove('switch-active');
+    } else {
+        useKg = false;
+        chkPds.checked = true;
+        chkKg.checked = false;
+        chkPds.parentElement.classList.add('switch-active');
+        chkKg.parentElement.classList.remove('switch-active');
+    }
+    // Actualizar título del gráfico
+    updateChartTitle();
     // si ya cargamos datos, re-renderizamos inmediatamente
     if(rawData && rawData.length>1){
-        // ocultar mensaje de no-data antes
         document.getElementById('no-data').style.display='none';
         processAndRender();
     } else {
-        // aún no hay datos; al toggle cambiará la próxima carga
-        document.getElementById('btn-refresh').style.display='inline-block';
+        document.getElementById('btn-refresh').style.display='inline-flex';
+    }
+}
+
+function updateChartTitle(){
+    const titleEl = document.getElementById('chart-title');
+    if(titleEl){
+        titleEl.innerText = useKg
+            ? 'Stock de Kilogramos Corte/Habilitado'
+            : 'Stock de prendas Corte/Habilitado';
+    }
+    const title2El = document.getElementById('chart2-title');
+    if(title2El){
+        title2El.innerText = useKg
+            ? 'Desglose CORTE PZAS por Ruta Tela (Kilogramos)'
+            : 'Desglose CORTE PZAS por Ruta Tela (Prendas)';
     }
 }
 
 function formatNumber(n){
-    // entero si es entero, sino con 2 dec
-    if(Number.isInteger(n)) return n.toString();
-    return n.toFixed(2);
+    // entero => separador de miles con coma; decimal => 2 dec con separador de miles
+    if(Number.isInteger(n)) return n.toLocaleString('en-US');
+    return n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+}
+
+function clearChartKeepLegend(id){
+    const el = document.getElementById(id);
+    const children = Array.from(el.children);
+    children.forEach(child => {
+        if(!child.classList.contains('legend-inside')) el.removeChild(child);
+    });
 }
 
 // Inicializar carga
 reloadData();
 </script>
 </body>
-
 </html>
-
 
