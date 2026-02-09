@@ -2323,6 +2323,8 @@
                     /* Estado de artes */
                         "estado_bordado", "ESTADO_BORDADO", "estado_estampado", "ESTADO_ESTAMPADO"
                 , "tipo-transfer", "TIPO-TRANSFER", "tipo_transfer"
+                , "estado_enumerado", "ESTADO_ENUMERADO"
+                , "estado_habilitado", "ESTADO_HABILITADO"
             ];
             
             knownColumns.forEach(col => {
@@ -4353,8 +4355,17 @@
 
                 const evNorm = (ev || '').toString().toUpperCase().trim();
                 
-                // Solo mostrar filas con estado_enumerado = 'OK ENM', 'OK S/ENM' o 'OK PAQUETEO'
-                if (evNorm === 'OK ENM' || evNorm === 'OK S/ENM' || evNorm === 'OK PAQUETEO') {
+                // Determinar filtro principal según sub-tab activo
+                let passMainFilter = false;
+                if (currentTransferFilter === 'X PROG') {
+                    // Por Programar: estado_corte = OK
+                    const estadoCorteVal = (row[colMap["STATUS_CORTE"]] || row[colMap["STATUS"]] || row[colMap["status"]] || row[colMap["estado_corte"]] || row[colMap["ESTADO CORTE"]] || row[colMap["ESTADO_CORTE"]]) || "";
+                    passMainFilter = String(estadoCorteVal).toUpperCase() === 'OK';
+                } else {
+                    // Otros sub-tabs: estado_enumerado = 'OK ENM', 'OK S/ENM' o 'OK PAQUETEO'
+                    passMainFilter = (evNorm === 'OK ENM' || evNorm === 'OK S/ENM' || evNorm === 'OK PAQUETEO');
+                }
+                if (passMainFilter) {
                     // Si la fila indica NO LLEVA en n.transfxpda, no mostrarla en Transfer
                     const rawNTrans = getVal(row, 'n.transfxpda');
                     let nTransfValCheck = '';
@@ -4373,7 +4384,14 @@
                     estadoTransfer = (!estadoTransfer || estadoTransfer === '') ? 'X PROG' : estadoTransfer;
                     
                     // Filtrar según el sub-tab activo
-                    if (estadoTransfer === currentTransferFilter) {
+                    let passSubFilter = false;
+                    if (currentTransferFilter === 'X PROG') {
+                        // Por Programar: estado_transfer diferente a OK
+                        passSubFilter = String(estadoTransfer).toUpperCase().trim() !== 'OK';
+                    } else {
+                        passSubFilter = (estadoTransfer === currentTransferFilter);
+                    }
+                    if (passSubFilter) {
                         count++;
                         
                         // Crear fila
@@ -5982,9 +6000,9 @@
                                     if (ribOriginal === 'NO LLEVA') {
                                         return `<span class="pill pill-rib-no-lleva" title="NO LLEVA">NO LLEVA</span>`;
                                     } else {
-                                        // SI LLEVA: mostrar desplegable con estado_rib
+                                        // SI LLEVA: mostrar desplegable con estado_rib (propaga a filas con mismo OP-PTDA)
                                         return `
-                                            <select class="table-select ${ribClass}" onchange="updateRow(${rowIndex}, 'estado_rib', this.value, this)">
+                                            <select class="table-select ${ribClass}" onchange="handleRibChangeCorte(${rowIndex}, this.value, this)">
                                                 <option value="SI LLEVA" ${ribValue === "SI LLEVA" ? "selected" : ""}>SI LLEVA</option>
                                                 <option value="NO PASO" ${ribValue === "NO PASO" ? "selected" : ""}>NO PASO</option>
                                                 <option value="EN CORTE" ${ribValue === "EN CORTE" ? "selected" : ""}>EN CORTE</option>
@@ -6097,7 +6115,7 @@
                             } else {
                                 bloqCell = `
                                     <td>
-                                        <select class="table-select" onchange="updateRow(${rowIndex}, 'ESTADO_BLOQUES', this.value, this)">
+                                        <select class="table-select" onchange="handleBloquesChangeCorte(${rowIndex}, this.value, this)">
                                             <option value="LLEVA?" ${( !bloqVal || bloqVal === 'LLEVA?' ) ? 'selected' : ''}>LLEVA?</option>
                                             <option value="Ok corte" ${bloqVal === 'Ok corte' ? 'selected' : ''}>Ok corte</option>
                                             <option value="NO LLEVA" ${bloqVal === 'NO LLEVA' ? 'selected' : ''}>NO LLEVA</option>
@@ -6112,7 +6130,7 @@
                             let collSelect = '';
                             const fullCollSelectHtml = `
                                     <td>
-                                        <select class="table-select" onchange="updateRow(${rowIndex}, 'ESTADO_COLL_TAP', this.value, this)">
+                                        <select class="table-select" onchange="handleCollTapChangeCorte(${rowIndex}, this.value, this)">
                                             <option value="LLEVA?" ${(!collVal || collVal === 'LLEVA?') ? 'selected' : ''}>LLEVA?</option>
                                             <option value="Coll en Hab" ${collVal === 'Coll en Hab' ? 'selected' : ''}>Coll en Hab</option>
                                             <option value="Tap en Hab" ${collVal === 'Tap en Hab' ? 'selected' : ''}>Tap en Hab</option>
@@ -6419,6 +6437,120 @@
             }
         }
 
+        // =============================================
+        // PROPAGACIÓN DE RIB EN CORTE PZAS PROG 1T/2T/3T
+        // Al cambiar RIB, replicar a todas las filas con mismo OP-PTDA
+        // =============================================
+        window.handleRibChangeCorte = function(rowIndex, value, selectElement) {
+            // 1. Actualizar la fila actual
+            updateRow(rowIndex, 'estado_rib', value, selectElement);
+
+            // 2. Solo propagar en sub-tabs PROG 1T/2T/3T de la vista Corte
+            const isProgSubtab = (currentCorteFilter === 'PROG 1T' || currentCorteFilter === 'PROG 2T' || currentCorteFilter === 'PROG 3T');
+            if (!isProgSubtab) return;
+
+            // 3. Obtener OP-PTDA de la fila actual
+            const currentRow = rawData[rowIndex];
+            if (!currentRow) return;
+            const opTela = String(getVal(currentRow, 'OP TELA') || '').trim();
+            const partida = String(getVal(currentRow, 'PARTIDA') || '').trim();
+            const currentOpPtda = opTela + '-' + partida;
+            if (!currentOpPtda || currentOpPtda === '-') return;
+
+            // 4. Buscar todas las filas visibles en tbody-corte con mismo OP-PTDA
+            const tbody = document.getElementById('tbody-corte');
+            if (!tbody) return;
+            const allRows = tbody.querySelectorAll('tr[data-row-index]');
+            allRows.forEach(tr => {
+                const idx = parseInt(tr.getAttribute('data-row-index'));
+                if (idx === rowIndex || isNaN(idx)) return; // saltar la fila actual
+                const r = rawData[idx];
+                if (!r) return;
+                const ot = String(getVal(r, 'OP TELA') || '').trim();
+                const pt = String(getVal(r, 'PARTIDA') || '').trim();
+                const opPtda = ot + '-' + pt;
+                if (opPtda !== currentOpPtda) return; // diferente OP-PTDA
+
+                // Verificar que esta fila no sea NO LLEVA
+                const ribOriginal = getVal(r, 'RIB') || 'NO LLEVA';
+                if (ribOriginal === 'NO LLEVA') return;
+
+                // Buscar el select de RIB en esta fila y actualizar
+                const ribSelect = tr.querySelector('select[onchange*="estado_rib"]');
+                if (ribSelect) {
+                    ribSelect.value = value;
+                    // Actualizar en rawData y guardar en servidor
+                    updateRow(idx, 'estado_rib', value, ribSelect);
+                }
+            });
+        };
+
+        // =============================================
+        // PROPAGACIÓN DE BLOQUES? EN CORTE PZAS PROG 1T/2T/3T
+        // Al cambiar BLOQUES?, replicar a todas las filas con mismo OP-PTDA
+        // =============================================
+        window.handleBloquesChangeCorte = function(rowIndex, value, selectElement) {
+            updateRow(rowIndex, 'ESTADO_BLOQUES', value, selectElement);
+            const isProgSubtab = (currentCorteFilter === 'PROG 1T' || currentCorteFilter === 'PROG 2T' || currentCorteFilter === 'PROG 3T');
+            if (!isProgSubtab) return;
+            const currentRow = rawData[rowIndex];
+            if (!currentRow) return;
+            const opTela = String(getVal(currentRow, 'OP TELA') || '').trim();
+            const partida = String(getVal(currentRow, 'PARTIDA') || '').trim();
+            const currentOpPtda = opTela + '-' + partida;
+            if (!currentOpPtda || currentOpPtda === '-') return;
+            const tbody = document.getElementById('tbody-corte');
+            if (!tbody) return;
+            const allRows = tbody.querySelectorAll('tr[data-row-index]');
+            allRows.forEach(tr => {
+                const idx = parseInt(tr.getAttribute('data-row-index'));
+                if (idx === rowIndex || isNaN(idx)) return;
+                const r = rawData[idx];
+                if (!r) return;
+                const ot = String(getVal(r, 'OP TELA') || '').trim();
+                const pt = String(getVal(r, 'PARTIDA') || '').trim();
+                if (ot + '-' + pt !== currentOpPtda) return;
+                const sel = tr.querySelector('select[onchange*="ESTADO_BLOQUES"]');
+                if (sel) {
+                    sel.value = value;
+                    updateRow(idx, 'ESTADO_BLOQUES', value, sel);
+                }
+            });
+        };
+
+        // =============================================
+        // PROPAGACIÓN DE COLL o TAP? EN CORTE PZAS PROG 1T/2T/3T
+        // Al cambiar COLL o TAP?, replicar a todas las filas con mismo OP-PTDA
+        // =============================================
+        window.handleCollTapChangeCorte = function(rowIndex, value, selectElement) {
+            updateRow(rowIndex, 'ESTADO_COLL_TAP', value, selectElement);
+            const isProgSubtab = (currentCorteFilter === 'PROG 1T' || currentCorteFilter === 'PROG 2T' || currentCorteFilter === 'PROG 3T');
+            if (!isProgSubtab) return;
+            const currentRow = rawData[rowIndex];
+            if (!currentRow) return;
+            const opTela = String(getVal(currentRow, 'OP TELA') || '').trim();
+            const partida = String(getVal(currentRow, 'PARTIDA') || '').trim();
+            const currentOpPtda = opTela + '-' + partida;
+            if (!currentOpPtda || currentOpPtda === '-') return;
+            const tbody = document.getElementById('tbody-corte');
+            if (!tbody) return;
+            const allRows = tbody.querySelectorAll('tr[data-row-index]');
+            allRows.forEach(tr => {
+                const idx = parseInt(tr.getAttribute('data-row-index'));
+                if (idx === rowIndex || isNaN(idx)) return;
+                const r = rawData[idx];
+                if (!r) return;
+                const ot = String(getVal(r, 'OP TELA') || '').trim();
+                const pt = String(getVal(r, 'PARTIDA') || '').trim();
+                if (ot + '-' + pt !== currentOpPtda) return;
+                const sel = tr.querySelector('select[onchange*="ESTADO_COLL_TAP"]');
+                if (sel) {
+                    sel.value = value;
+                    updateRow(idx, 'ESTADO_COLL_TAP', value, sel);
+                }
+            });
+        };
+
         window.updateRow = function(rowIndex, colName, value, selectElement) {
             // Log para debugging
             console.log('updateRow llamado:', {rowIndex, colName, value});
@@ -6428,7 +6560,7 @@
                 const v = (value || '').toString();
                 // Aplicar clases más flexibles: cualquier variante que contenga 'PROG' se considera programado
                 if (v.toUpperCase().includes('PROG')) selectElement.classList.add("sel-PROG");
-                if (v === "OK") selectElement.classList.add("sel-OK");
+                if (v === "OK" || v === 'OK ENM' || v === 'OK S/ENM' || v === 'OK PAQUETEO') selectElement.classList.add("sel-OK");
                 if (v === "EN LAV") selectElement.classList.add("sel-ENLAV");
             }
 
@@ -6449,7 +6581,7 @@
                 if (found !== -1) colMap[colName] = found;
             }
 
-            const writeIdx = colMap[colName];
+            let writeIdx = colMap[colName];
 
             // Validación específica solicitada:
             // En la vista Corte, cuando estamos en sub-tab PROG (1T/2T/3T) y
