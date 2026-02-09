@@ -1533,6 +1533,8 @@
                             PROG 3T <span class="kg-badge" id="habilitado-pds-3t">[-]</span>
                         </button>
                     </div>
+                    <!-- Badges de filtros activos -->
+                    <div id="habilitado-active-filters" style="display:none; flex-wrap:wrap; gap:6px; margin-bottom:8px; padding:4px 0;"></div>
                     <div class="table-container">
                         <table id="table-habilitado">
                             <thead>
@@ -1709,8 +1711,8 @@
         let corteHeaderFilter = null; // { field: 'CLIENTE', value: 'ABC' }
         // Filtro aplicado desde el encabezado de Enumerado (campo + valor)
         let enumeradoHeaderFilter = null; // { field: 'CLIENTE', value: 'ABC' }
-        // Filtro aplicado desde el encabezado de Habilitado (campo + valor)
-        let habilitadoHeaderFilter = null; // { field: 'CLIENTE', value: 'ABC' }
+        // Filtros aplicados desde el encabezado de Habilitado (acumulativos)
+        let habilitadoHeaderFilters = []; // [{ field: 'CLIENTE', value: 'ABC' }, ...]
         let currentLavadoFilter = 'EN LAV';
         let currentCorteFilter = 'X PROG';
         let currentCorteBloquesFilter = 'X PROG';
@@ -4797,95 +4799,14 @@
                     if (habilValNormFilter !== 'PROG 3T') return;
                 }
                 
-                // Aplicar filtro de encabezado si está configurado (solo en X PROG)
-                if (habilitadoHeaderFilter && currentHabilitadoFilter === 'X PROG') {
-                    let fieldValue = '';
-                    
-                    switch(habilitadoHeaderFilter.field) {
-                        case 'P':
-                            fieldValue = (getVal(row, 'P') || '').toString().trim().toUpperCase();
-                            break;
-                        case 'HOD':
-                            fieldValue = (formatValue(getVal(row, 'HOD'), 'date') || '').toString().trim().toUpperCase();
-                            break;
-                        case 'F.ING.COST':
-                            const rawFIng = getVal(row, 'F.ING.COST');
-                            const dateValue = convertToDateInputFormat(rawFIng);
-                            fieldValue = (formatDateShortFromInput(dateValue) || '').toString().trim().toUpperCase();
-                            break;
-                        case 'STATUS':
-                            // STATUS es un valor CALCULADO basado en RUTA TELA y estados
-                            const rutaTela = (getVal(row, 'RUTA TELA') || getVal(row, 'RUTA_TELA') || getVal(row, 'RUTA') || '').toString().toUpperCase().trim();
-                            const estadoCorte = (getVal(row, 'estado_corte') || getVal(row, 'ESTADO_CORTE') || '').toString().toUpperCase().trim();
-                            const estadoBloqueo = (getVal(row, 'estado_bloqueo') || getVal(row, 'ESTADO_BLOQUEO') || '').toString().toUpperCase().trim();
-                            const estadoLavada = (getVal(row, 'estado_lavada') || getVal(row, 'ESTADO_LAVADA') || '').toString().toUpperCase().trim();
-                            
-                            if (rutaTela === 'ACABADA') {
-                                if (estadoCorte === '' || estadoCorte === 'X PROG') {
-                                    fieldValue = 'X CORTAR';
-                                } else if (estadoCorte === 'PROG') {
-                                    fieldValue = 'PROC CORTE';
-                                } else if (estadoCorte === 'OK') {
-                                    if (evNorm === '' || evNorm === 'X PROG') {
-                                        fieldValue = 'X ENM';
-                                    } else if (evNorm === 'OK ENM' || evNorm === 'OK PAQUETEO') {
-                                        fieldValue = 'X HAB';
-                                    } else {
-                                        fieldValue = 'X ENM';
-                                    }
-                                }
-                            } else if (rutaTela === 'LAVADA') {
-                                if (estadoBloqueo === '' || estadoBloqueo === 'X PROG') {
-                                    fieldValue = 'X BLOQ';
-                                } else if (estadoBloqueo === 'PROG') {
-                                    fieldValue = 'X BLOQ';
-                                } else if (estadoBloqueo === 'OK') {
-                                    if (estadoLavada !== 'OK') {
-                                        fieldValue = 'X LAVAR';
-                                    } else {
-                                        if (estadoCorte === '' || estadoCorte === 'X PROG') {
-                                            fieldValue = 'X CORTAR';
-                                        } else if (estadoCorte === 'PROG 1T' || estadoCorte === 'PROG 2T' || estadoCorte === 'PROG 3T') {
-                                            fieldValue = 'PROC CORTE';
-                                        } else if (estadoCorte === 'OK') {
-                                            if (evNorm === 'OK ENM' || evNorm === 'OK PAQUETEO') {
-                                                fieldValue = 'X HAB';
-                                            } else {
-                                                fieldValue = 'X ENM';
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                            break;
-                        case 'CLIENTE':
-                            fieldValue = (normalizeClientName(getVal(row, 'CLIENTE')) || '').toString().trim().toUpperCase();
-                            break;
-                        case 'OP-PTDA':
-                            const opTela = getVal(row, 'OP TELA') || getVal(row, 'OP') || '';
-                            const partida = getVal(row, 'PARTIDA') || getVal(row, 'CORTE') || '';
-                            fieldValue = `${opTela}-${partida}`.toUpperCase();
-                            break;
-                        case 'OC':
-                            const opVal = getVal(row, 'OP') || '';
-                            const corteVal = getVal(row, 'CORTE') || '';
-                            fieldValue = `${opVal}-${corteVal}`.toUpperCase();
-                            break;
-                        case 'COLOR':
-                            fieldValue = (getVal(row, 'COLOR') || '').toString().trim().toUpperCase();
-                            break;
-                        case 'PLANTA':
-                            fieldValue = (getVal(row, 'PLANTA') || '').toString().trim().toUpperCase();
-                            if (fieldValue === '') fieldValue = 'XASIG';
-                            break;
-                        case 'LINEA':
-                            fieldValue = (getVal(row, 'LINEA') || '').toString().trim().toUpperCase();
-                            if (fieldValue === '') fieldValue = 'XASIG';
-                            break;
+                // Aplicar filtros de encabezado si están configurados (solo en X PROG)
+                if (habilitadoHeaderFilters.length > 0 && currentHabilitadoFilter === 'X PROG') {
+                    for (let fi = 0; fi < habilitadoHeaderFilters.length; fi++) {
+                        const hFilter = habilitadoHeaderFilters[fi];
+                        let fieldValue = getHabilitadoFieldValue(row, hFilter.field, evNorm);
+                        // Si el valor no contiene el filtro, saltarlo
+                        if (fieldValue.indexOf(hFilter.value) === -1) return;
                     }
-                    
-                    // Si el valor no contiene el filtro, saltarlo
-                    if (fieldValue.indexOf(habilitadoHeaderFilter.value) === -1) return;
                 }
                     
                 // Si estamos en PROG 1T/2T/3T, agrupar por TRSF
@@ -7139,12 +7060,107 @@
             return date1 - date2;
         }
         
+        // Función auxiliar para obtener el valor de un campo de una fila para filtrado Habilitado
+        function getHabilitadoFieldValue(row, fieldName, evNorm) {
+            let fieldValue = '';
+            switch(fieldName) {
+                case 'P':
+                    fieldValue = (getVal(row, 'P') || '').toString().trim().toUpperCase();
+                    break;
+                case 'HOD':
+                    fieldValue = (formatValue(getVal(row, 'HOD'), 'date') || '').toString().trim().toUpperCase();
+                    break;
+                case 'F.ING.COST':
+                    const rawFIng = getVal(row, 'F.ING.COST');
+                    const dateValue = convertToDateInputFormat(rawFIng);
+                    fieldValue = (formatDateShortFromInput(dateValue) || '').toString().trim().toUpperCase();
+                    break;
+                case 'STATUS':
+                    const rutaTela = (getVal(row, 'RUTA TELA') || getVal(row, 'RUTA_TELA') || getVal(row, 'RUTA') || '').toString().toUpperCase().trim();
+                    const estadoCorte = (getVal(row, 'estado_corte') || getVal(row, 'ESTADO_CORTE') || '').toString().toUpperCase().trim();
+                    const estadoBloqueo = (getVal(row, 'estado_bloqueo') || getVal(row, 'ESTADO_BLOQUEO') || '').toString().toUpperCase().trim();
+                    const estadoLavada = (getVal(row, 'estado_lavada') || getVal(row, 'ESTADO_LAVADA') || '').toString().toUpperCase().trim();
+                    if (rutaTela === 'ACABADA') {
+                        if (estadoCorte === '' || estadoCorte === 'X PROG') {
+                            fieldValue = 'X CORTAR';
+                        } else if (estadoCorte === 'PROG') {
+                            fieldValue = 'PROC CORTE';
+                        } else if (estadoCorte === 'OK') {
+                            if (evNorm === '' || evNorm === 'X PROG') {
+                                fieldValue = 'X ENM';
+                            } else if (evNorm === 'OK ENM' || evNorm === 'OK PAQUETEO') {
+                                fieldValue = 'X HAB';
+                            } else {
+                                fieldValue = 'X ENM';
+                            }
+                        }
+                    } else if (rutaTela === 'LAVADA') {
+                        if (estadoBloqueo === '' || estadoBloqueo === 'X PROG') {
+                            fieldValue = 'X BLOQ';
+                        } else if (estadoBloqueo === 'PROG') {
+                            fieldValue = 'X BLOQ';
+                        } else if (estadoBloqueo === 'OK') {
+                            if (estadoLavada !== 'OK') {
+                                fieldValue = 'X LAVAR';
+                            } else {
+                                if (estadoCorte === '' || estadoCorte === 'X PROG') {
+                                    fieldValue = 'X CORTAR';
+                                } else if (estadoCorte === 'PROG 1T' || estadoCorte === 'PROG 2T' || estadoCorte === 'PROG 3T') {
+                                    fieldValue = 'PROC CORTE';
+                                } else if (estadoCorte === 'OK') {
+                                    if (evNorm === 'OK ENM' || evNorm === 'OK PAQUETEO') {
+                                        fieldValue = 'X HAB';
+                                    } else {
+                                        fieldValue = 'X ENM';
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    break;
+                case 'CLIENTE':
+                    fieldValue = (normalizeClientName(getVal(row, 'CLIENTE')) || '').toString().trim().toUpperCase();
+                    break;
+                case 'OP-PTDA':
+                    const opTela = getVal(row, 'OP TELA') || getVal(row, 'OP') || '';
+                    const partida = getVal(row, 'PARTIDA') || getVal(row, 'CORTE') || '';
+                    fieldValue = `${opTela}-${partida}`.toUpperCase();
+                    break;
+                case 'OC':
+                    const opVal = getVal(row, 'OP') || '';
+                    const corteVal = getVal(row, 'CORTE') || '';
+                    fieldValue = `${opVal}-${corteVal}`.toUpperCase();
+                    break;
+                case 'COLOR':
+                    fieldValue = (getVal(row, 'COLOR') || '').toString().trim().toUpperCase();
+                    break;
+                case 'PLANTA':
+                    fieldValue = (getVal(row, 'PLANTA') || '').toString().trim().toUpperCase();
+                    if (fieldValue === '') fieldValue = 'XASIG';
+                    break;
+                case 'LINEA':
+                    fieldValue = (getVal(row, 'LINEA') || '').toString().trim().toUpperCase();
+                    if (fieldValue === '') fieldValue = 'XASIG';
+                    break;
+                case 'F.ING':
+                    const rawFIngH = getVal(row, 'F.ING.COST');
+                    const dateValH = convertToDateInputFormat(rawFIngH);
+                    fieldValue = (formatDateShortFromInput(dateValH) || '').toString().trim().toUpperCase();
+                    break;
+                case 'CLI':
+                    fieldValue = (normalizeClientName(getVal(row, 'CLIENTE')) || '').toString().trim().toUpperCase();
+                    break;
+            }
+            return fieldValue;
+        }
+        
         window.filterHabilitado = function(filterState, btn) {
             currentHabilitadoFilter = filterState;
             document.querySelectorAll('#view-habilitado .sub-tab').forEach(el => el.classList.remove('active'));
             if (btn) btn.classList.add('active');
-            // Limpiar filtro de encabezado cuando se cambia de sub-tab
-            habilitadoHeaderFilter = null;
+            // Limpiar filtros de encabezado cuando se cambia de sub-tab
+            habilitadoHeaderFilters = [];
+            renderHabilitadoActiveFilters();
             renderHabilitado();
         };
         
@@ -7175,23 +7191,12 @@
             // Mostrar el menú
             document.getElementById('habilitado-filter-field').textContent = fieldName;
             
-            // Campos que usan dropdown
-            const dropdownFields = ['HOD', 'F.ING.COST', 'STATUS', 'CLIENTE', 'PLANTA', 'LINEA'];
-            
-            if (dropdownFields.includes(fieldName)) {
-                // Mostrar select y poblar con valores únicos
-                input.style.display = 'none';
-                select.style.display = 'block';
-                select.value = '';
-                populateHabilitadoFilterSelect(fieldName);
-                select.focus();
-            } else {
-                // Mostrar input de texto
-                select.style.display = 'none';
-                input.style.display = 'block';
-                input.value = '';
-                input.focus();
-            }
+            // Todos los campos usan dropdown con valores ordenados
+            input.style.display = 'none';
+            select.style.display = 'block';
+            select.value = '';
+            populateHabilitadoFilterSelect(fieldName);
+            select.focus();
             
             menu.classList.add('active');
             
@@ -7230,6 +7235,26 @@
                 const habilNorm = (habilVal || '').toString().toUpperCase().trim();
                 
                 if (habilNorm !== '' && habilNorm !== 'X PROG') continue;
+                
+                // Verificar que la fila pase los filtros activos (excepto el campo que se está poblando)
+                let passesOtherFilters = true;
+                let evNormForFilter = '';
+                try {
+                    if (idxEv !== -1 && row[idxEv] !== undefined) evNormForFilter = row[idxEv];
+                    else evNormForFilter = getVal(row, 'estado_enumerado') || '';
+                } catch (e) { evNormForFilter = ''; }
+                evNormForFilter = (evNormForFilter || '').toString().toUpperCase().trim();
+                
+                for (let fi = 0; fi < habilitadoHeaderFilters.length; fi++) {
+                    const hf = habilitadoHeaderFilters[fi];
+                    if (hf.field === fieldName) continue; // Excluir el campo actual
+                    const fv = getHabilitadoFieldValue(row, hf.field, evNormForFilter);
+                    if (fv.indexOf(hf.value) === -1) {
+                        passesOtherFilters = false;
+                        break;
+                    }
+                }
+                if (!passesOtherFilters) continue;
                 
                 let fieldValue = '';
                 
@@ -7306,6 +7331,30 @@
                         fieldValue = (getVal(row, 'LINEA') || '').toString().trim();
                         if (fieldValue === '') fieldValue = 'XASIG';
                         break;
+                    case 'F.ING':
+                        const rawFIngPop = getVal(row, 'F.ING.COST');
+                        const dateValPop = convertToDateInputFormat(rawFIngPop);
+                        fieldValue = formatDateShortFromInput(dateValPop) || '';
+                        break;
+                    case 'CLI':
+                        fieldValue = normalizeClientName(getVal(row, 'CLIENTE')) || '';
+                        break;
+                    case 'OC':
+                        const opValPop = getVal(row, 'OP') || '';
+                        const corteValPop = getVal(row, 'CORTE') || '';
+                        fieldValue = `${opValPop}-${corteValPop}`.trim();
+                        break;
+                    case 'COLOR':
+                        fieldValue = (getVal(row, 'COLOR') || '').toString().trim();
+                        break;
+                    case 'P':
+                        fieldValue = (getVal(row, 'P') || '').toString().trim();
+                        break;
+                    case 'OP-PTDA':
+                        const opTelaPop = getVal(row, 'OP TELA') || getVal(row, 'OP') || '';
+                        const partidaPop = getVal(row, 'PARTIDA') || getVal(row, 'CORTE') || '';
+                        fieldValue = `${opTelaPop}-${partidaPop}`.trim();
+                        break;
                 }
                 
                 if (fieldValue) {
@@ -7314,10 +7363,15 @@
             }
             
             // Agregar opciones al select, ordenadas
-            // Si es fecha (HOD o F.ING.COST), ordenar por fecha; si no, alfabético
+            // Si es fecha (HOD, F.ING.COST o F.ING), ordenar por fecha; P numérico; resto alfabético
             const sortedValues = Array.from(values).sort((a, b) => {
-                if (fieldName === 'HOD' || fieldName === 'F.ING.COST') {
+                if (fieldName === 'HOD' || fieldName === 'F.ING.COST' || fieldName === 'F.ING') {
                     return compareDates(a, b);
+                }
+                if (fieldName === 'P') {
+                    const na = parseInt(a) || Infinity;
+                    const nb = parseInt(b) || Infinity;
+                    return na - nb;
                 }
                 return a.localeCompare(b);
             });
@@ -7336,10 +7390,43 @@
         };
         
         window.clearHabilitadoFilter = function() {
-            habilitadoHeaderFilter = null;
+            habilitadoHeaderFilters = [];
+            renderHabilitadoActiveFilters();
             hideHabilitadoContextMenu();
             renderHabilitado();
         };
+
+        window.removeHabilitadoFilter = function(index) {
+            habilitadoHeaderFilters.splice(index, 1);
+            renderHabilitadoActiveFilters();
+            renderHabilitado();
+        };
+
+        // Renderiza los badges de filtros activos
+        function renderHabilitadoActiveFilters() {
+            const container = document.getElementById('habilitado-active-filters');
+            if (!container) return;
+            container.innerHTML = '';
+            if (habilitadoHeaderFilters.length === 0) {
+                container.style.display = 'none';
+                return;
+            }
+            container.style.display = 'flex';
+            habilitadoHeaderFilters.forEach((f, idx) => {
+                const badge = document.createElement('span');
+                badge.style.cssText = 'display:inline-flex;align-items:center;gap:4px;background:#dbeafe;color:#1e40af;border:1px solid #93c5fd;border-radius:12px;padding:3px 10px;font-size:11px;font-weight:600;cursor:default;';
+                badge.innerHTML = `${f.field}: ${f.value} <span onclick="removeHabilitadoFilter(${idx})" style="cursor:pointer;color:#ef4444;font-size:14px;font-weight:700;margin-left:2px;" title="Quitar filtro">&times;</span>`;
+                container.appendChild(badge);
+            });
+            // Botón limpiar todo
+            if (habilitadoHeaderFilters.length > 1) {
+                const clearAll = document.createElement('span');
+                clearAll.style.cssText = 'display:inline-flex;align-items:center;gap:4px;background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;border-radius:12px;padding:3px 10px;font-size:11px;font-weight:600;cursor:pointer;';
+                clearAll.textContent = 'Limpiar todo';
+                clearAll.onclick = function() { clearHabilitadoFilter(); };
+                container.appendChild(clearAll);
+            }
+        }
         
         window.applyHabilitadoFilter = function() {
             if (!habilitadoContextMenuField) {
@@ -7364,11 +7451,18 @@
                 return;
             }
             
-            habilitadoHeaderFilter = {
-                field: habilitadoContextMenuField,
-                value: filterValue
-            };
+            // Reemplazar filtro del mismo campo si ya existe, sino agregar
+            const existingIdx = habilitadoHeaderFilters.findIndex(f => f.field === habilitadoContextMenuField);
+            if (existingIdx !== -1) {
+                habilitadoHeaderFilters[existingIdx].value = filterValue;
+            } else {
+                habilitadoHeaderFilters.push({
+                    field: habilitadoContextMenuField,
+                    value: filterValue
+                });
+            }
             
+            renderHabilitadoActiveFilters();
             hideHabilitadoContextMenu();
             renderHabilitado();
         };
@@ -10374,7 +10468,7 @@ NOTA: Por favor adjunte los archivos descargados (${fileName}.xlsx y ${fileName}
         </div>
         <div class="context-menu-buttons">
             <button class="context-menu-btn cancel" onclick="hideHabilitadoContextMenu()">Cancelar</button>
-            <button class="context-menu-btn cancel" onclick="clearHabilitadoFilter()" style="background: #ef4444; color: white;">Limpiar</button>
+            <button class="context-menu-btn cancel" onclick="clearHabilitadoFilter()" style="background: #ef4444; color: white;">Limpiar Todo</button>
             <button class="context-menu-btn apply" onclick="applyHabilitadoFilter()">Aplicar</button>
         </div>
     </div>
