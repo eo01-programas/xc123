@@ -4988,11 +4988,11 @@
                     // CLIENTE
                     const cliente = normalizeClientName(getVal(row, 'CLIENTE')) || '';
 
-                    // OC (concatenado OP - CORTE) con hipervínculo/abrir modal
+                    // OC (concatenado OP - CORTE) sin hipervínculo en Habilitado
                     const op = getVal(row, 'OP') || '';
                     const corte = getVal(row, 'CORTE') || '';
                     const oc = (op || corte) ? `${op}-${corte}` : '';
-                    const ocHtml = `<td class="op-cell" title="${oc}"><span class="oc-link" onclick="abrirModalOC(${i});">${oc}</span></td>`;
+                    const ocHtml = `<td class="op-cell" title="${oc}">${oc}</td>`;
 
                     // COLOR
                     const color = abbreviateHeather(getVal(row, 'COLOR')) || '';
@@ -5297,7 +5297,7 @@
                         ${ocHtml}
                         <td title="${color}">${color}</td>
                         <td class="kg-cell" style="text-align:center;">${pdsStr}</td>
-                        <td class="cell-pda" title="${prenda}">${prenda}</td>
+                        <td class="cell-pda" title="${prenda}"><span class="oc-link" onclick="abrirModalOC(${i});">${prenda}</span></td>
                         <td class="cell-cert" title="${tipoCert}">${tipoCert}</td>
                         ${ribHtml}
                         ${bloqHtml}
