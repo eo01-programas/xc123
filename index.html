@@ -4174,7 +4174,15 @@
                     else ocVal = (getVal(row, 'OC') || '').toString();
                 } catch (e) { ocVal = (getVal(row, 'OC') || '').toString(); }
 
-                items.push({ row, i, oc: (ocVal || '').toString().trim() });
+                // Obtener OP TELA y PARTIDA para agrupar filas
+                let opTelaVal = '';
+                let partidaVal = '';
+                try {
+                    opTelaVal = String(getVal(row, 'OP TELA') || '').trim();
+                    partidaVal = String(getVal(row, 'PARTIDA') || '').trim();
+                } catch (e) {}
+
+                items.push({ row, i, oc: (ocVal || '').toString().trim(), opTelaPartida: opTelaVal + '|' + partidaVal });
                 count++;
             }
 
@@ -4224,11 +4232,11 @@
                 }
             } catch (e) { console.error('Error applying enumeradoHeaderFilter', e); }
 
-            // Ordenar por OC (comparación natural numérica si aplica)
-            items.sort((a, b) => (a.oc || '').localeCompare(b.oc || '', undefined, { numeric: true, sensitivity: 'base' }));
+            // Ordenar por OP TELA + PARTIDA (comparación natural numérica si aplica)
+            items.sort((a, b) => (a.opTelaPartida || '').localeCompare(b.opTelaPartida || '', undefined, { numeric: true, sensitivity: 'base' }));
 
-            // Pintar filas alternando por grupos de OC (cada vez que cambia OC se invierte color)
-            let lastOc = null;
+            // Pintar filas alternando por grupos de OP TELA + PARTIDA
+            let lastOpTelaPartida = null;
             let groupToggle = false;
             items.forEach(item => {
                 const tr = createRow(item.row, item.i, "corte");
@@ -4295,10 +4303,10 @@
                 `;
                 tr.appendChild(estadoEnumCell);
 
-                const ocNow = (item.oc || '').toString();
-                if (ocNow !== lastOc) {
+                const opTelaPartidaNow = (item.opTelaPartida || '').toString();
+                if (opTelaPartidaNow !== lastOpTelaPartida) {
                     groupToggle = !groupToggle;
-                    lastOc = ocNow;
+                    lastOpTelaPartida = opTelaPartidaNow;
                 }
                 tr.classList.add(groupToggle ? 'group-a' : 'group-b');
                 
@@ -4659,32 +4667,12 @@
                 }
             }
             
-            // Ordenar índices válidos por columna P
+            // Ordenar índices válidos: primero por OP TELA+PARTIDA (agrupar juntos), luego por P y HOD
             validIndices.sort((a, b) => {
                 const rowA = rawData[a];
                 const rowB = rawData[b];
                 
-                // 1. Ordenar por columna P primero (valores numéricos primero, luego vacíos)
-                const idxP = findHeaderIndexCaseInsensitive('P');
-                let pA = '';
-                let pB = '';
-                if (idxP !== -1) {
-                    pA = String(rowA[idxP] || '').trim();
-                    pB = String(rowB[idxP] || '').trim();
-                }
-                
-                // Convertir a número para comparación (vacío = Infinity para que vaya al final)
-                const pNumA = pA === '' ? Infinity : parseInt(pA) || Infinity;
-                const pNumB = pB === '' ? Infinity : parseInt(pB) || Infinity;
-                
-                if (pNumA !== pNumB) return pNumA - pNumB;
-                
-                // 2. Luego ordenar por fecha de despacho (más reciente primero)
-                const dateA = rowA[colMap["HOD"]] || 0;
-                const dateB = rowB[colMap["HOD"]] || 0;
-                if (dateA !== dateB) return dateB - dateA;
-                
-                // 3. Finalmente por OP-PTDA para mantener agrupación
+                // 1. Primero agrupar por OP TELA + PARTIDA
                 const opTelaA = String(rowA[colMap["OP TELA"]] || "").trim();
                 const partidaA = String(rowA[colMap["PARTIDA"]] || "").trim();
                 const opPtdaA = (opTelaA + "-" + partidaA).toLowerCase();
@@ -4693,7 +4681,25 @@
                 const partidaB = String(rowB[colMap["PARTIDA"]] || "").trim();
                 const opPtdaB = (opTelaB + "-" + partidaB).toLowerCase();
                 
-                return opPtdaA.localeCompare(opPtdaB, undefined, { numeric: true, sensitivity: 'base' });
+                const cmpOpPtda = opPtdaA.localeCompare(opPtdaB, undefined, { numeric: true, sensitivity: 'base' });
+                if (cmpOpPtda !== 0) return cmpOpPtda;
+                
+                // 2. Dentro del mismo grupo, ordenar por columna P
+                const idxP = findHeaderIndexCaseInsensitive('P');
+                let pA = '';
+                let pB = '';
+                if (idxP !== -1) {
+                    pA = String(rowA[idxP] || '').trim();
+                    pB = String(rowB[idxP] || '').trim();
+                }
+                const pNumA = pA === '' ? Infinity : parseInt(pA) || Infinity;
+                const pNumB = pB === '' ? Infinity : parseInt(pB) || Infinity;
+                if (pNumA !== pNumB) return pNumA - pNumB;
+                
+                // 3. Luego por fecha de despacho (más reciente primero)
+                const dateA = rowA[colMap["HOD"]] || 0;
+                const dateB = rowB[colMap["HOD"]] || 0;
+                return dateB - dateA;
             });
             
             // Función auxiliar para extraer el valor TRSF de una fila (para agrupamiento)
@@ -4713,7 +4719,7 @@
             // Verificar si estamos en un sub-tab PROG (1T/2T/3T)
             const isProgSubtab = (currentHabilitadoFilter === 'PROG 1T' || currentHabilitadoFilter === 'PROG 2T' || currentHabilitadoFilter === 'PROG 3T');
             
-            // En PROG 1T/2T/3T, ordenar también por TRSF (Pza primero, luego Otros)
+            // En PROG 1T/2T/3T, ordenar también por TRSF (Pza primero, luego Otros), luego OP TELA+PARTIDA
             if (isProgSubtab) {
                 validIndices.sort((a, b) => {
                     const rowA = rawData[a];
@@ -4723,13 +4729,22 @@
                     const groupA = getTrsfGroupValue(rowA);
                     const groupB = getTrsfGroupValue(rowB);
                     if (groupA !== groupB) {
-                        // "Pza" (0) primero, "Otros" (1) después
                         const orderA = groupA === 'Pza' ? 0 : 1;
                         const orderB = groupB === 'Pza' ? 0 : 1;
                         return orderA - orderB;
                     }
                     
-                    // 2. Luego mantener orden por P
+                    // 2. Agrupar por OP TELA + PARTIDA
+                    const opTelaA = String(rowA[colMap["OP TELA"]] || "").trim();
+                    const partidaA = String(rowA[colMap["PARTIDA"]] || "").trim();
+                    const opPtdaA = (opTelaA + "-" + partidaA).toLowerCase();
+                    const opTelaB = String(rowB[colMap["OP TELA"]] || "").trim();
+                    const partidaB = String(rowB[colMap["PARTIDA"]] || "").trim();
+                    const opPtdaB = (opTelaB + "-" + partidaB).toLowerCase();
+                    const cmpOpPtda = opPtdaA.localeCompare(opPtdaB, undefined, { numeric: true, sensitivity: 'base' });
+                    if (cmpOpPtda !== 0) return cmpOpPtda;
+                    
+                    // 3. Dentro del mismo grupo, ordenar por P
                     const idxP = findHeaderIndexCaseInsensitive('P');
                     let pA = '';
                     let pB = '';
@@ -4741,19 +4756,10 @@
                     const pNumB = pB === '' ? Infinity : parseInt(pB) || Infinity;
                     if (pNumA !== pNumB) return pNumA - pNumB;
                     
-                    // 3. Luego por fecha
+                    // 4. Luego por fecha
                     const dateA = rowA[colMap["HOD"]] || 0;
                     const dateB = rowB[colMap["HOD"]] || 0;
-                    if (dateA !== dateB) return dateB - dateA;
-                    
-                    // 4. Finalmente por OP-PTDA
-                    const opTelaA = String(rowA[colMap["OP TELA"]] || "").trim();
-                    const partidaA = String(rowA[colMap["PARTIDA"]] || "").trim();
-                    const opPtdaA = (opTelaA + "-" + partidaA).toLowerCase();
-                    const opTelaB = String(rowB[colMap["OP TELA"]] || "").trim();
-                    const partidaB = String(rowB[colMap["PARTIDA"]] || "").trim();
-                    const opPtdaB = (opTelaB + "-" + partidaB).toLowerCase();
-                    return opPtdaA.localeCompare(opPtdaB, undefined, { numeric: true, sensitivity: 'base' });
+                    return dateB - dateA;
                 });
             }
             
@@ -6490,15 +6496,22 @@
         // Al cambiar BLOQUES?, replicar a todas las filas con mismo OP-PTDA
         // =============================================
         window.handleBloquesChangeCorte = function(rowIndex, value, selectElement) {
+            // 1. Actualizar la fila actual
             updateRow(rowIndex, 'ESTADO_BLOQUES', value, selectElement);
+
+            // 2. Solo propagar en sub-tabs PROG 1T/2T/3T de la vista Corte
             const isProgSubtab = (currentCorteFilter === 'PROG 1T' || currentCorteFilter === 'PROG 2T' || currentCorteFilter === 'PROG 3T');
             if (!isProgSubtab) return;
+
+            // 3. Obtener OP-PTDA de la fila actual
             const currentRow = rawData[rowIndex];
             if (!currentRow) return;
             const opTela = String(getVal(currentRow, 'OP TELA') || '').trim();
             const partida = String(getVal(currentRow, 'PARTIDA') || '').trim();
             const currentOpPtda = opTela + '-' + partida;
             if (!currentOpPtda || currentOpPtda === '-') return;
+
+            // 4. Buscar todas las filas visibles en tbody-corte con mismo OP-PTDA
             const tbody = document.getElementById('tbody-corte');
             if (!tbody) return;
             const allRows = tbody.querySelectorAll('tr[data-row-index]');
@@ -6509,11 +6522,14 @@
                 if (!r) return;
                 const ot = String(getVal(r, 'OP TELA') || '').trim();
                 const pt = String(getVal(r, 'PARTIDA') || '').trim();
-                if (ot + '-' + pt !== currentOpPtda) return;
-                const sel = tr.querySelector('select[onchange*="ESTADO_BLOQUES"]');
-                if (sel) {
-                    sel.value = value;
-                    updateRow(idx, 'ESTADO_BLOQUES', value, sel);
+                const opPtda = ot + '-' + pt;
+                if (opPtda !== currentOpPtda) return;
+
+                // Buscar el select de BLOQUES en esta fila y actualizar
+                const bloqSelect = tr.querySelector('select[onchange*="ESTADO_BLOQUES"]');
+                if (bloqSelect) {
+                    bloqSelect.value = value;
+                    updateRow(idx, 'ESTADO_BLOQUES', value, bloqSelect);
                 }
             });
         };
@@ -6523,15 +6539,22 @@
         // Al cambiar COLL o TAP?, replicar a todas las filas con mismo OP-PTDA
         // =============================================
         window.handleCollTapChangeCorte = function(rowIndex, value, selectElement) {
+            // 1. Actualizar la fila actual
             updateRow(rowIndex, 'ESTADO_COLL_TAP', value, selectElement);
+
+            // 2. Solo propagar en sub-tabs PROG 1T/2T/3T de la vista Corte
             const isProgSubtab = (currentCorteFilter === 'PROG 1T' || currentCorteFilter === 'PROG 2T' || currentCorteFilter === 'PROG 3T');
             if (!isProgSubtab) return;
+
+            // 3. Obtener OP-PTDA de la fila actual
             const currentRow = rawData[rowIndex];
             if (!currentRow) return;
             const opTela = String(getVal(currentRow, 'OP TELA') || '').trim();
             const partida = String(getVal(currentRow, 'PARTIDA') || '').trim();
             const currentOpPtda = opTela + '-' + partida;
             if (!currentOpPtda || currentOpPtda === '-') return;
+
+            // 4. Buscar todas las filas visibles en tbody-corte con mismo OP-PTDA
             const tbody = document.getElementById('tbody-corte');
             if (!tbody) return;
             const allRows = tbody.querySelectorAll('tr[data-row-index]');
@@ -6542,11 +6565,14 @@
                 if (!r) return;
                 const ot = String(getVal(r, 'OP TELA') || '').trim();
                 const pt = String(getVal(r, 'PARTIDA') || '').trim();
-                if (ot + '-' + pt !== currentOpPtda) return;
-                const sel = tr.querySelector('select[onchange*="ESTADO_COLL_TAP"]');
-                if (sel) {
-                    sel.value = value;
-                    updateRow(idx, 'ESTADO_COLL_TAP', value, sel);
+                const opPtda = ot + '-' + pt;
+                if (opPtda !== currentOpPtda) return;
+
+                // Buscar el select de COLL_TAP en esta fila y actualizar
+                const collSelect = tr.querySelector('select[onchange*="ESTADO_COLL_TAP"]');
+                if (collSelect) {
+                    collSelect.value = value;
+                    updateRow(idx, 'ESTADO_COLL_TAP', value, collSelect);
                 }
             });
         };
@@ -9067,9 +9093,8 @@
 
             const tbody = document.getElementById('modal-tendido-tbody');
             const tendido1 = `${corte}01`;
-            const tendido2 = `${corte}02`;
 
-            modalTendidoData.tendidos = [tendido1, tendido2];
+            modalTendidoData.tendidos = [tendido1];
 
             let html = '';
             for (let i = 0; i < modalTendidoData.tendidos.length; i++) {
@@ -9077,11 +9102,14 @@
                 const isLast = (i === modalTendidoData.tendidos.length - 1);
                 const btnHTML = isLast ? `<button class="btn-tendido" onclick="agregarTendidoModal()" style="margin-right: 6px;" title="Agregar tendido">+</button>` : '';
                 
-                if (isLast) {
-                    // Último tendido: editable manualmente sin recálculo automático
+                if (modalTendidoData.tendidos.length === 1) {
+                    // Solo 1 tendido: editable libremente sin recálculo
+                    html += `<tr><td style="font-weight: 600; text-align: center;">${btnHTML}${tendido}</td><td><input type="number" id="pds-tendido-${i}" placeholder="Ingrese PDS" min="0" max="${pdsTotal}"></td></tr>`;
+                } else if (isLast) {
+                    // Último tendido (cuando hay más de 1): editable manualmente sin recálculo automático
                     html += `<tr><td style="font-weight: 600; text-align: center;">${btnHTML}${tendido}</td><td><input type="number" id="pds-tendido-${i}" placeholder="Ingrese PDS (diferencia)" min="0" max="${pdsTotal}"></td></tr>`;
                 } else {
-                    html += `<tr><td style="font-weight: 600; text-align: center;">${tendido}</td><td><input type="number" id="pds-tendido-${i}" placeholder="Ingrese PDS" oninput="recalcularTendidosModal()" min="0" max="${pdsTotal}"></td></tr>`;
+                    html += `<tr><td style="font-weight: 600; text-align: center;">${btnHTML}${tendido}</td><td><input type="number" id="pds-tendido-${i}" placeholder="Ingrese PDS" oninput="recalcularTendidosModal()" min="0" max="${pdsTotal}"></td></tr>`;
                 }
             }
             tbody.innerHTML = html;
