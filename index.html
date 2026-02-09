@@ -4235,6 +4235,16 @@
                     const tendidoBtn = tr.querySelector('button.btn-tendido');
                     if (tendidoBtn) tendidoBtn.remove();
                 } catch (e) {}
+                // Quitar hipervínculo de OC en la vista Enumerado
+                try {
+                    const ocLinks = tr.querySelectorAll('.oc-link');
+                    ocLinks.forEach(link => {
+                        link.classList.remove('oc-link');
+                        link.style.cursor = 'default';
+                        link.onclick = null;
+                        link.removeAttribute('onclick');
+                    });
+                } catch (e) {}
                 try {
                     // La fila de createRow tipo "corte" genera columnas en este orden:
                     // 0:RSV, 1:F.GIRADO, 2:HOD, 3:F.ING.COST, 4:CLIENTE, 5:RUTA, 6:OC, 7:COLOR,
@@ -10265,4 +10275,3 @@ NOTA: Por favor adjunte los archivos descargados (${fileName}.xlsx y ${fileName}
 
     </body>
     </html>
-
