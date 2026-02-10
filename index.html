@@ -5129,7 +5129,7 @@
                         // RUTA TELA = ACABADA
                         if (estadoCorte === '' || estadoCorte === 'X PROG') {
                             statusValue = 'x cortar';
-                        } else if (estadoCorte === 'PROG') {
+                        } else if (estadoCorte === 'PROG' || estadoCorte === 'PROG 1T' || estadoCorte === 'PROG 2T' || estadoCorte === 'PROG 3T') {
                             statusValue = 'Proc Corte';
                         } else if (estadoCorte === 'OK') {
                             // Verificar estado_enumerado
@@ -7083,7 +7083,7 @@
                     if (rutaTela === 'ACABADA') {
                         if (estadoCorte === '' || estadoCorte === 'X PROG') {
                             fieldValue = 'X CORTAR';
-                        } else if (estadoCorte === 'PROG') {
+                        } else if (estadoCorte === 'PROG' || estadoCorte === 'PROG 1T' || estadoCorte === 'PROG 2T' || estadoCorte === 'PROG 3T') {
                             fieldValue = 'PROC CORTE';
                         } else if (estadoCorte === 'OK') {
                             if (evNorm === '' || evNorm === 'X PROG') {
@@ -7284,7 +7284,7 @@
                         if (rutaTela === 'ACABADA') {
                             if (estadoCorte === '' || estadoCorte === 'X PROG') {
                                 fieldValue = 'x cortar';
-                            } else if (estadoCorte === 'PROG') {
+                            } else if (estadoCorte === 'PROG' || estadoCorte === 'PROG 1T' || estadoCorte === 'PROG 2T' || estadoCorte === 'PROG 3T') {
                                 fieldValue = 'Proc Corte';
                             } else if (estadoCorte === 'OK') {
                                 if (evNorm === '' || evNorm === 'X PROG') {
