@@ -6403,11 +6403,11 @@
                 if (ribOriginal === 'NO LLEVA') return;
 
                 // Buscar el select de RIB en esta fila y actualizar
-                const ribSelect = tr.querySelector('select[onchange*="estado_rib"]');
+                const ribSelect = tr.querySelector('select[onchange*="handleRibChangeCorte"]');
                 if (ribSelect) {
                     ribSelect.value = value;
                     // Actualizar en rawData y guardar en servidor
-                    updateRow(idx, 'estado_rib', value, ribSelect);
+                    updateRow(idx, 'estado_rib', value, ribSelect, true);
                 }
             });
         };
@@ -6447,10 +6447,10 @@
                 if (opPtda !== currentOpPtda) return;
 
                 // Buscar el select de BLOQUES en esta fila y actualizar
-                const bloqSelect = tr.querySelector('select[onchange*="ESTADO_BLOQUES"]');
+                const bloqSelect = tr.querySelector('select[onchange*="handleBloquesChangeCorte"]');
                 if (bloqSelect) {
                     bloqSelect.value = value;
-                    updateRow(idx, 'ESTADO_BLOQUES', value, bloqSelect);
+                    updateRow(idx, 'ESTADO_BLOQUES', value, bloqSelect, true);
                 }
             });
         };
@@ -6490,17 +6490,17 @@
                 if (opPtda !== currentOpPtda) return;
 
                 // Buscar el select de COLL_TAP en esta fila y actualizar
-                const collSelect = tr.querySelector('select[onchange*="ESTADO_COLL_TAP"]');
+                const collSelect = tr.querySelector('select[onchange*="handleCollTapChangeCorte"]');
                 if (collSelect) {
                     collSelect.value = value;
-                    updateRow(idx, 'ESTADO_COLL_TAP', value, collSelect);
+                    updateRow(idx, 'ESTADO_COLL_TAP', value, collSelect, true);
                 }
             });
         };
 
-        window.updateRow = function(rowIndex, colName, value, selectElement) {
+        window.updateRow = function(rowIndex, colName, value, selectElement, skipPropagation) {
             // Log para debugging
-            console.log('updateRow llamado:', {rowIndex, colName, value});
+            console.log('updateRow llamado:', {rowIndex, colName, value, skipPropagation: !!skipPropagation});
             
             if (colName.includes('estado_') || (typeof colName === 'string' && colName.toUpperCase() === 'STATUS')) {
                 selectElement.className = "table-select";
@@ -6762,9 +6762,9 @@
                     const onCorteView = document.getElementById('view-corte') && document.getElementById('view-corte').classList.contains('active');
                     const isProgSubtab = (currentCorteFilter && currentCorteFilter.toString().toUpperCase().startsWith('PROG ') && currentCorteFilter !== 'X PROG');
                     
-                    console.log('Vista Corte activa:', onCorteView, 'Sub-tab PROG:', isProgSubtab, 'Filter:', currentCorteFilter);
+                    console.log('Vista Corte activa:', onCorteView, 'Sub-tab PROG:', isProgSubtab, 'Filter:', currentCorteFilter, 'skipPropagation:', !!skipPropagation);
                     
-                    if (onCorteView && isProgSubtab) {
+                    if (onCorteView && isProgSubtab && !skipPropagation) {
                         console.log('Llamando a propagateToSameOPAndCorteSeries para ESTADO_BLOQUES');
                         propagateToSameOPAndCorteSeries(rowIndex, colName, value);
                         // Re-renderizar la vista después de propagar
@@ -6780,9 +6780,9 @@
                     const onCorteView = document.getElementById('view-corte') && document.getElementById('view-corte').classList.contains('active');
                     const isProgSubtab = (currentCorteFilter && currentCorteFilter.toString().toUpperCase().startsWith('PROG ') && currentCorteFilter !== 'X PROG');
                     
-                    console.log('Vista Corte activa:', onCorteView, 'Sub-tab PROG:', isProgSubtab, 'Filter:', currentCorteFilter);
+                    console.log('Vista Corte activa:', onCorteView, 'Sub-tab PROG:', isProgSubtab, 'Filter:', currentCorteFilter, 'skipPropagation:', !!skipPropagation);
                     
-                    if (onCorteView && isProgSubtab) {
+                    if (onCorteView && isProgSubtab && !skipPropagation) {
                         console.log('Llamando a propagateToSameOPAndCorteSeries para ESTADO_COLL_TAP');
                         propagateToSameOPAndCorteSeries(rowIndex, colName, value);
                         // Re-renderizar la vista después de propagar
