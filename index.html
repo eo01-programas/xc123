@@ -10527,6 +10527,73 @@ NOTA: Por favor adjunte los archivos descargados (${fileName}.xlsx y ${fileName}
         </div>
     </div>
 
+    <!-- AUTO-REFRESH TIMER -->
+    <div id="auto-refresh-badge" title="Auto-refresh" style="position:fixed;bottom:6px;left:6px;z-index:9999;display:flex;align-items:center;gap:5px;background:rgba(30,41,59,.82);color:#e2e8f0;font-family:'Inter',sans-serif;font-size:10px;font-weight:600;padding:3px 8px;border-radius:20px;backdrop-filter:blur(4px);user-select:none;cursor:default;transition:opacity .3s;opacity:.55;">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+        <span id="ar-seconds">30</span>s
+        <span id="ar-paused-icon" style="display:none;color:#fbbf24;font-size:9px;">&#9646;&#9646;</span>
+    </div>
+    <script>
+    (function(){
+        var INTERVAL = 30;
+        var IDLE_DELAY = 3000;
+        var secs = INTERVAL;
+        var paused = false;
+        var idleTimer = null;
+        var badge = document.getElementById('auto-refresh-badge');
+        var secSpan = document.getElementById('ar-seconds');
+        var pauseIcon = document.getElementById('ar-paused-icon');
+
+        function setPaused(v){
+            if(paused === v) return;
+            paused = v;
+            pauseIcon.style.display = v ? 'inline' : 'none';
+            badge.style.opacity = v ? '0.9' : '0.55';
+        }
+
+        function onActivity(){
+            setPaused(true);
+            clearTimeout(idleTimer);
+            idleTimer = setTimeout(function(){ setPaused(false); }, IDLE_DELAY);
+        }
+
+        function hasOpenModal(){
+            var modals = document.querySelectorAll('.modal-overlay.active');
+            return modals.length > 0;
+        }
+
+        function hasFocusedInput(){
+            var ae = document.activeElement;
+            if(!ae) return false;
+            var tag = ae.tagName;
+            return tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA' || ae.isContentEditable;
+        }
+
+        ['mousemove','mousedown','keydown','scroll','touchstart','wheel'].forEach(function(ev){
+            document.addEventListener(ev, onActivity, {passive:true});
+        });
+
+        setInterval(function(){
+            if(paused || hasOpenModal() || hasFocusedInput() || document.hidden){
+                secSpan.textContent = secs;
+                return;
+            }
+            secs--;
+            if(secs <= 0){
+                location.reload();
+                return;
+            }
+            secSpan.textContent = secs;
+        }, 1000);
+
+        document.addEventListener('visibilitychange', function(){
+            if(!document.hidden){ secs = INTERVAL; }
+        });
+
+        badge.addEventListener('mouseenter', function(){ badge.style.opacity='1'; });
+        badge.addEventListener('mouseleave', function(){ badge.style.opacity = paused ? '0.9' : '0.55'; });
+    })();
+    </script>
+
     </body>
     </html>
-
