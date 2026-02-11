@@ -6610,12 +6610,16 @@
             }
             
             if (colName.includes('estado_') || (typeof colName === 'string' && colName.toUpperCase() === 'STATUS')) {
-                selectElement.className = "table-select";
-                const v = (value || '').toString();
-                // Aplicar clases más flexibles: cualquier variante que contenga 'PROG' se considera programado
-                if (v.toUpperCase().includes('PROG')) selectElement.classList.add("sel-PROG");
-                if (v === "OK" || v === 'OK ENM' || v === 'OK S/ENM' || v === 'OK PAQUETEO') selectElement.classList.add("sel-OK");
-                if (v === "EN LAV") selectElement.classList.add("sel-ENLAV");
+                try {
+                    if (selectElement) {
+                        selectElement.className = "table-select";
+                        const v = (value || '').toString();
+                        // Aplicar clases más flexibles: cualquier variante que contenga 'PROG' se considera programado
+                        if (v.toUpperCase().includes('PROG')) selectElement.classList.add("sel-PROG");
+                        if (v === "OK" || v === 'OK ENM' || v === 'OK S/ENM' || v === 'OK PAQUETEO') selectElement.classList.add("sel-OK");
+                        if (v === "EN LAV") selectElement.classList.add("sel-ENLAV");
+                    }
+                } catch (e) { console.error('Error actualizando clase del select:', e); }
             }
 
             // Asegurar que colMap tiene el índice correcto para colName; intentar variantes normalizadas si es necesario
@@ -6743,7 +6747,7 @@
             }
 
             if (writeIdx !== undefined && writeIdx !== -1) rawData[rowIndex][writeIdx] = value;
-            updateCounters();
+            try { updateCounters(); } catch (e) { console.error('Error en updateCounters:', e); }
 
             // --- FIX: asegurar que 'estado_enumerado' se actualiza en rawData aunque colMap falle ---
             try {
@@ -6759,6 +6763,18 @@
                     }
                 }
             } catch (e) { console.error('Error asegurando rawData para estado_enumerado', e); }
+
+            // --- FIX: asegurar writeIdx para cualquier columna si aún no se resolvió ---
+            try {
+                if (writeIdx === undefined || writeIdx === -1) {
+                    const idxFallback = findHeaderIndexCaseInsensitive(colName);
+                    if (idxFallback !== -1) {
+                        writeIdx = idxFallback;
+                        colMap[colName] = idxFallback;
+                        rawData[rowIndex][idxFallback] = value;
+                    }
+                }
+            } catch (e) { console.error('Error en fallback writeIdx:', e); }
 
             // Loguear intento de guardado para depuración (ver Network/Console)
             try {
@@ -7080,20 +7096,28 @@
                 if (writeIdx !== undefined && writeIdx !== -1 && rawData[0] && rawData[0][writeIdx]) {
                     sendColName = rawData[0][writeIdx];
                 } else {
-                    // intentar resolver por normalización
-                    const found = (function(name){
-                        if (!rawData || rawData.length === 0) return -1;
-                        const headers = rawData[0];
-                        const norm = s => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-                        const target = norm(name);
-                        for (let i = 0; i < headers.length; i++) {
-                            if (norm(headers[i]) === target) return i;
-                        }
-                        return -1;
-                    })(colName);
-                    if (found !== -1 && rawData[0] && rawData[0][found]) sendColName = rawData[0][found];
+                    // intentar resolver por normalización usando findHeaderIndexCaseInsensitive
+                    const found = findHeaderIndexCaseInsensitive(colName);
+                    if (found !== -1 && rawData[0] && rawData[0][found]) {
+                        sendColName = rawData[0][found];
+                        writeIdx = found;
+                    } else {
+                        // último intento: búsqueda inline normalizada
+                        const foundInline = (function(name){
+                            if (!rawData || rawData.length === 0) return -1;
+                            const headers = rawData[0];
+                            const norm = s => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+                            const target = norm(name);
+                            for (let i = 0; i < headers.length; i++) {
+                                if (norm(headers[i]) === target) return i;
+                            }
+                            return -1;
+                        })(colName);
+                        if (foundInline !== -1 && rawData[0] && rawData[0][foundInline]) sendColName = rawData[0][foundInline];
+                    }
                 }
 
+                console.log('Guardando en backend:', { row: rowIndex, colName: sendColName, value: value, writeIdx: writeIdx });
                 fetch(WEB_APP_URL, {
                     method: 'POST',
                     mode: 'no-cors',
@@ -7106,6 +7130,19 @@
                 }).catch(e => console.error("Error guardando", e));
             } catch (e) {
                 console.error('Error preparando guardado:', e);
+                // Intento de emergencia: enviar con colName original
+                try {
+                    fetch(WEB_APP_URL, {
+                        method: 'POST',
+                        mode: 'no-cors',
+                        body: JSON.stringify({
+                            action: "update",
+                            row: rowIndex,
+                            colName: colName,
+                            value: value
+                        })
+                    }).catch(e2 => console.error("Error guardando (emergencia)", e2));
+                } catch (e2) { console.error('Error total guardando:', e2); }
             }
         };
 
