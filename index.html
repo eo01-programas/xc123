@@ -2548,10 +2548,13 @@
                 const ev = (row && (row[ findHeaderIndexCaseInsensitive('estado_enumerado') ])) || '';
                 const evNorm = (ev || '').toString().toUpperCase().trim();
 
-                // Contar Habilitado y Transfer: ambos usan el mismo criterio base
+                // Contar Habilitado: estado_enumerado = 'OK ENM', 'OK S/ENM' o 'OK PAQUETEO'
                 if (evNorm === 'OK ENM' || evNorm === 'OK S/ENM' || evNorm === 'OK PAQUETEO') {
                     habilitadoCount++;
+                }
 
+                // Contar Transfer: estado_enumerado diferente a vacío
+                if (evNorm !== '') {
                     // Si n.transfxpda indica NO LLEVA no considerar la fila en el contador/badges de Transfer
                     const rawNTrans = getVal(row, 'n.transfxpda');
                     let nTransfValCheck = '';
@@ -2568,15 +2571,25 @@
                         // skip counting for Transfer
                         continue;
                     }
-
-                    transferCount++;
+                    // Si tipo-transfer indica NO LLEVA, no considerar la fila
+                    const tipoTransferBadge = (getVal(row, 'tipo-transfer') || '').toString().toUpperCase().trim();
+                    if (tipoTransferBadge === 'NO LLEVA') {
+                        continue;
+                    }
 
                     // Sumar pds para Transfer según estado_transfer
-                    const estadoTransfer = (row && (row[ findHeaderIndexCaseInsensitive('estado_transfer') ])) || 'X PROG';
-                    const estadoTransferNorm = (!estadoTransfer || estadoTransfer === '') ? 'X PROG' : estadoTransfer;
-                    if (transfer_pds.hasOwnProperty(estadoTransferNorm)) {
+                    const estadoTransfer = (row && (row[ findHeaderIndexCaseInsensitive('estado_transfer') ])) || '';
+                    const estadoTransferNorm = (!estadoTransfer || estadoTransfer.toString().trim() === '') ? 'X PROG' : estadoTransfer.toString().toUpperCase().trim();
+                    // Por Programar (X PROG): estado_transfer diferente a OK
+                    if (estadoTransferNorm !== 'OK') {
                         const pds = parseFloat(row[colMap["PDS GIRADAS"]]) || 0;
-                        transfer_pds[estadoTransferNorm] += pds;
+                        transfer_pds['X PROG'] += pds;
+                        transferCount++;
+                    }
+                    // Programado (PROG): estado_transfer = PROG
+                    if (estadoTransferNorm === 'PROG') {
+                        const pds = parseFloat(row[colMap["PDS GIRADAS"]]) || 0;
+                        transfer_pds['PROG'] += pds;
                     }
                 }
             }
@@ -4409,9 +4422,8 @@
                 // Determinar filtro principal según sub-tab activo
                 let passMainFilter = false;
                 if (currentTransferFilter === 'X PROG') {
-                    // Por Programar: estado_corte = OK
-                    const estadoCorteVal = (row[colMap["STATUS_CORTE"]] || row[colMap["STATUS"]] || row[colMap["status"]] || row[colMap["estado_corte"]] || row[colMap["ESTADO CORTE"]] || row[colMap["ESTADO_CORTE"]]) || "";
-                    passMainFilter = String(estadoCorteVal).toUpperCase() === 'OK';
+                    // Por Programar: estado_enumerado diferente a vacío
+                    passMainFilter = evNorm !== '';
                 } else {
                     // Otros sub-tabs: estado_enumerado = 'OK ENM', 'OK S/ENM' o 'OK PAQUETEO'
                     passMainFilter = (evNorm === 'OK ENM' || evNorm === 'OK S/ENM' || evNorm === 'OK PAQUETEO');
@@ -4430,6 +4442,9 @@
                     }
                     nTransfValCheck = nTransfValCheck.toUpperCase().trim();
                     if (nTransfValCheck === 'NO LLEVA') continue;
+                    // Si la fila indica NO LLEVA en tipo-transfer, no mostrarla en Transfer
+                    const tipoTransferVal = (getVal(row, 'tipo-transfer') || '').toString().toUpperCase().trim();
+                    if (tipoTransferVal === 'NO LLEVA') continue;
                     // Obtener estado_transfer (por defecto 'X PROG' si está vacío)
                     let estadoTransfer = getVal(row, 'estado_transfer') || 'X PROG';
                     estadoTransfer = (!estadoTransfer || estadoTransfer === '') ? 'X PROG' : estadoTransfer;
