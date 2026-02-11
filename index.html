@@ -969,6 +969,15 @@
         #modal-loading-artes.active ~ * {
             pointer-events: none;
         }
+
+        /* --- INDICADOR VISUAL DE COLUMNA FILTRADA --- */
+        thead th.column-filtered {
+            background: linear-gradient(180deg, #f59e0b 0%, #d97706 100%) !important;
+            color: #1e293b !important;
+            font-weight: 700 !important;
+            box-shadow: inset 0 0 0 2px #fbbf24, 0 2px 8px rgba(245, 158, 11, 0.4) !important;
+            border-bottom: 3px solid #b45309 !important;
+        }
     </style>
 </head>
 <body>
@@ -1704,6 +1713,10 @@
 
         let rawData = [];
         let colMap = {};
+        // Offset para corregir índices de fila al escribir en el backend.
+        // En la carga normal (gvizHeaders incluye 'OP TELA'): offset = 0
+        // En la carga fallback: offset = headerRowIndex + 1 (para alinear rawData indices con sheet rows)
+        let rawDataRowOffset = 0;
         let currentBloqueoFilter = 'X PROG';
         // Filtro aplicado desde el encabezado de Bloqueo (campo + valor)
         let bloqueoHeaderFilter = null; // { field: 'CLIENTE', value: 'ABC' }
@@ -2255,6 +2268,7 @@
                 
                 if (gvizHeaders.includes("OP TELA")) {
                     rawData = [gvizHeaders, ...rowsRaw];
+                    rawDataRowOffset = 0;
                 } else {
                     for(let i=0; i<rowsRaw.length; i++) {
                         if (rowsRaw[i].includes("OP TELA")) {
@@ -2263,9 +2277,16 @@
                         }
                     }
                     if (headerRowIndex !== -1) {
-                        rawData = rowsRaw.slice(headerRowIndex);
+                        // FIX: Usar los headers reales (de rowsRaw[headerRowIndex]) como rawData[0]
+                        // pero mantener TODOS los rows de gviz para que rawData[n] → sheet row n+1
+                        // (misma alineación que la carga normal)
+                        const actualHeaders = rowsRaw[headerRowIndex];
+                        rawData = [actualHeaders, ...rowsRaw];
+                        rawDataRowOffset = 0;
+                        console.warn('FALLBACK loading path usado. Headers encontrados en rowsRaw[' + headerRowIndex + ']. Alineación corregida.');
                     } else {
                         rawData = [gvizHeaders, ...rowsRaw];
+                        rawDataRowOffset = 0;
                     }
                 }
                 
@@ -2709,6 +2730,11 @@
         }
 
         function handleDateChange(inputEl, rowIndex, colName) {
+            // PROTECCIÓN: No permitir escritura en encabezados
+            if (rowIndex < 1 || !rawData[rowIndex]) {
+                console.error('PROTECCIÓN handleDateChange: rowIndex inválido=' + rowIndex);
+                return;
+            }
             try { updateShortYearDisplay(inputEl); } catch(e){}
             // Convertir fecha ISO (YYYY-MM-DD) a formato dd/mmm/yy para enviar al Sheet
             let valueToSend = inputEl.value;
@@ -2756,6 +2782,11 @@
 
         // --- FUNCIÓN PARA ACTUALIZAR PRIORIDAD Y PROPAGAR A MISMO OP-PTDA ---
         function updatePrioridad(rowIndex, value, selectElement) {
+            // PROTECCIÓN: No permitir escritura en encabezados
+            if (rowIndex < 1 || !rawData[rowIndex]) {
+                console.error('PROTECCIÓN updatePrioridad: rowIndex inválido=' + rowIndex);
+                return;
+            }
             // Determinar vista actual
             const isBloqueoView = document.getElementById('view-bloqueo') && document.getElementById('view-bloqueo').classList.contains('active');
             const isLavadoView = document.getElementById('view-lavado') && document.getElementById('view-lavado').classList.contains('active');
@@ -2820,6 +2851,11 @@
 
         // --- FUNCIÓN PARA ACTUALIZAR PLANTA EN HABILITADO ---
         function updatePlanta(rowIndex, value, selectElement) {
+            // PROTECCIÓN: No permitir escritura en encabezados
+            if (rowIndex < 1 || !rawData[rowIndex]) {
+                console.error('PROTECCIÓN updatePlanta: rowIndex inválido=' + rowIndex);
+                return;
+            }
             // Actualizar en rawData
             const idxPlanta = findHeaderIndexCaseInsensitive('PLANTA');
             if (idxPlanta !== -1 && rawData[rowIndex]) {
@@ -2832,6 +2868,11 @@
 
         // --- FUNCIÓN PARA EDITAR LINEA CON DOBLE CLICK ---
         function editLinea(cell, rowIndex) {
+            // PROTECCIÓN: No permitir escritura en encabezados
+            if (rowIndex < 1 || !rawData[rowIndex]) {
+                console.error('PROTECCIÓN editLinea: rowIndex inválido=' + rowIndex);
+                return;
+            }
             // Verificar si ya está en modo edición
             if (cell.querySelector('input')) return;
             
@@ -4799,14 +4840,22 @@
                     if (habilValNormFilter !== 'PROG 3T') return;
                 }
                 
-                // Aplicar filtros de encabezado si están configurados (solo en X PROG)
-                if (habilitadoHeaderFilters.length > 0 && currentHabilitadoFilter === 'X PROG') {
-                    for (let fi = 0; fi < habilitadoHeaderFilters.length; fi++) {
-                        const hFilter = habilitadoHeaderFilters[fi];
-                        let fieldValue = getHabilitadoFieldValue(row, hFilter.field, evNorm);
-                        // Si el valor no contiene el filtro, saltarlo
-                        if (fieldValue.indexOf(hFilter.value) === -1) return;
+                // Aplicar filtros de encabezado si están configurados (soporta múltiples)
+                const habFiltersToApply = habilitadoHeaderFilters && habilitadoHeaderFilters.length > 0 
+                    ? habilitadoHeaderFilters 
+                    : [];
+                if (habFiltersToApply.length > 0) {
+                  for (let hfi = 0; hfi < habFiltersToApply.length; hfi++) {
+                    const currentHF = habFiltersToApply[hfi];
+                    let fieldValue = getHabilitadoFieldValue(row, currentHF.field, evNorm);
+                    // Si el valor no contiene el filtro, saltarlo
+                    const filterValue = (currentHF.value || '').trim().toUpperCase();
+                    if (filterValue === '') {
+                        if (fieldValue !== '') return;
+                    } else {
+                        if (fieldValue.indexOf(filterValue) === -1) return;
                     }
+                  }
                 }
                     
                 // Si estamos en PROG 1T/2T/3T, agrupar por TRSF
@@ -5273,8 +5322,60 @@
             if (currentHabilitadoFilter === 'X PROG') {
                 initializeHabilitadoHeaderContextMenus();
             }
+            
+            // Marcar columnas filtradas visualmente
+            markFilteredColumns('view-habilitado', habilitadoHeaderFilters.length > 0 ? habilitadoHeaderFilters : []);
         }
         
+        function markFilteredColumns(viewId, filters) {
+            const view = document.getElementById(viewId);
+            if (!view) return;
+            const thead = view.querySelector('thead');
+            if (!thead) return;
+            thead.querySelectorAll('th.column-filtered').forEach(th => {
+                th.classList.remove('column-filtered');
+            });
+            if (!filters || !Array.isArray(filters) || filters.length === 0) return;
+            const fieldMappings = {
+                'CLIENTE': ['CLIENTE', 'CLI'],
+                'HOD': ['HOD'],
+                'F.ING.COST': ['F.ING.COST', 'FING.COST', 'F. ING. COST', 'F.ING'],
+                'F.ING': ['F.ING', 'F.ING.COST'],
+                'OP-PTDA': ['OP-PTDA', 'OP PTDA'],
+                'OC': ['OC'],
+                'COLOR': ['COLOR'],
+                'RSV': ['RSV'],
+                'RUTA': ['RUTA'],
+                'P': ['P'],
+                'STATUS': ['STATUS', 'STATUS_CORTE', 'ESTADO'],
+                'PLANTA': ['PLANTA'],
+                'LINEA': ['LINEA'],
+                'CLI': ['CLI', 'CLIENTE']
+            };
+            const filteredFields = filters.map(f => f.field.toUpperCase().trim());
+            thead.querySelectorAll('th').forEach(th => {
+                const headerText = th.textContent.trim().replace(/\s+/g, ' ').toUpperCase();
+                for (const fieldUpper of filteredFields) {
+                    let match = (headerText === fieldUpper);
+                    if (!match && fieldMappings[fieldUpper]) {
+                        match = fieldMappings[fieldUpper].some(m => headerText === m.toUpperCase());
+                    }
+                    if (!match && fieldUpper.length <= 2) {
+                        match = (headerText === fieldUpper);
+                    }
+                    if (!match && fieldUpper.length > 2) {
+                        if (headerText === fieldUpper || (fieldMappings[fieldUpper] && fieldMappings[fieldUpper].includes(headerText))) {
+                            match = true;
+                        }
+                    }
+                    if (match) {
+                        th.classList.add('column-filtered');
+                        break;
+                    }
+                }
+            });
+        }
+
         function initializeHabilitadoHeaderContextMenus() {
             const allowedFields = ['PLANTA', 'LINEA', 'HOD', 'F.ING.COST', 'F.ING', 'STATUS', 'CLIENTE', 'CLI', 'OP-PTDA', 'OC', 'COLOR', 'P'];
             
@@ -6502,6 +6603,12 @@
             // Log para debugging
             console.log('updateRow llamado:', {rowIndex, colName, value, skipPropagation: !!skipPropagation});
             
+            // PROTECCIÓN: No permitir escritura en la fila de encabezados (rawData[0])
+            if (rowIndex < 1 || !rawData[rowIndex]) {
+                console.error('PROTECCIÓN: Intento de escribir en fila inválida o encabezados. rowIndex=' + rowIndex + ', colName=' + colName + ', value=' + value);
+                return;
+            }
+            
             if (colName.includes('estado_') || (typeof colName === 'string' && colName.toUpperCase() === 'STATUS')) {
                 selectElement.className = "table-select";
                 const v = (value || '').toString();
@@ -7170,11 +7277,6 @@
         let habilitadoContextMenuY = 0;
         
         window.showHabilitadoContextMenu = function(event, fieldName) {
-            // Solo permitir en sub-tab "Por Programar" (X PROG)
-            if (currentHabilitadoFilter !== 'X PROG') {
-                return;
-            }
-            
             event.preventDefault();
             event.stopPropagation();
             
@@ -7191,18 +7293,29 @@
             // Mostrar el menú
             document.getElementById('habilitado-filter-field').textContent = fieldName;
             
-            // Todos los campos usan dropdown con valores ordenados
-            input.style.display = 'none';
-            select.style.display = 'block';
-            select.value = '';
-            populateHabilitadoFilterSelect(fieldName);
-            select.focus();
+            // Campos que usan dropdown
+            const dropdownFields = ['HOD', 'F.ING.COST', 'STATUS', 'CLIENTE', 'PLANTA', 'LINEA'];
+            
+            if (dropdownFields.includes(fieldName)) {
+                // Mostrar select y poblar con valores únicos
+                input.style.display = 'none';
+                select.style.display = 'block';
+                select.value = '';
+                populateHabilitadoFilterSelect(fieldName);
+                select.focus();
+            } else {
+                // Mostrar input de texto
+                select.style.display = 'none';
+                input.style.display = 'block';
+                input.value = '';
+                input.focus();
+            }
             
             menu.classList.add('active');
             
             // Para PLANTA y LINEA, posicionar el menú hacia la izquierda
             if (fieldName === 'PLANTA' || fieldName === 'LINEA') {
-                const menuWidth = 220; // Ancho aproximado del menú
+                const menuWidth = 220;
                 menu.style.left = (habilitadoContextMenuX - menuWidth) + 'px';
             } else {
                 menu.style.left = habilitadoContextMenuX + 'px';
@@ -7438,28 +7551,32 @@
             const select = document.getElementById('habilitado-filter-select');
             
             let filterValue = '';
+            let isFromSelect = false;
             
             // Obtener valor del input o select según cuál esté visible
             if (input.style.display !== 'none') {
                 filterValue = input.value.trim().toUpperCase();
             } else if (select.style.display !== 'none') {
-                filterValue = select.value.trim().toUpperCase();
+                filterValue = select.value.trim();
+                isFromSelect = true;
             }
             
-            if (!filterValue) {
+            if (!filterValue && !isFromSelect) {
                 alert('Por favor seleccione o ingrese un valor para filtrar');
+                return;
+            }
+            if (isFromSelect && select.selectedIndex === 0) {
+                alert('Por favor seleccione un valor para filtrar');
                 return;
             }
             
             // Reemplazar filtro del mismo campo si ya existe, sino agregar
-            const existingIdx = habilitadoHeaderFilters.findIndex(f => f.field === habilitadoContextMenuField);
+            const existingIdx = habilitadoHeaderFilters.findIndex(f => f.field.toUpperCase() === habilitadoContextMenuField.toUpperCase());
+            const newFilter = { field: habilitadoContextMenuField, value: filterValue };
             if (existingIdx !== -1) {
-                habilitadoHeaderFilters[existingIdx].value = filterValue;
+                habilitadoHeaderFilters[existingIdx] = newFilter;
             } else {
-                habilitadoHeaderFilters.push({
-                    field: habilitadoContextMenuField,
-                    value: filterValue
-                });
+                habilitadoHeaderFilters.push(newFilter);
             }
             
             renderHabilitadoActiveFilters();
@@ -9607,6 +9724,13 @@
                 // Enviar datos al backend para guardar todos de una vez
                 const rowIndex = currentIngresoCosturaRowIndex;
                 
+                // PROTECCIÓN: Verificar que el rowIndex sea válido
+                if (rowIndex < 1 || !rawData[rowIndex]) {
+                    console.error('PROTECCIÓN confirmarIngresoCostura: rowIndex inválido=' + rowIndex);
+                    alert('Error: índice de fila inválido. Recargue la página e intente de nuevo.');
+                    return;
+                }
+                
                 // Crear array de actualizaciones incluyendo PLANTA
                 const updates = [
                     { colName: 'PLANTA', value: planta },
@@ -9626,14 +9750,40 @@
 
         window.guardarVariosDatosIngresoCostura = function(rowIndex, updates) {
             try {
+                // PROTECCIÓN: No permitir escritura en encabezados
+                if (rowIndex < 1 || !rawData[rowIndex]) {
+                    console.error('PROTECCIÓN guardarVariosDatosIngresoCostura: rowIndex inválido=' + rowIndex);
+                    alert('Error: índice de fila inválido. Recargue la página.');
+                    return;
+                }
+                
+                // Actualizar rawData localmente para mantener consistencia
+                updates.forEach(update => {
+                    try {
+                        const idx = findHeaderIndexCaseInsensitive(update.colName);
+                        if (idx !== -1 && rawData[rowIndex]) {
+                            rawData[rowIndex][idx] = update.value;
+                        }
+                    } catch(e) { console.error('Error actualizando rawData local:', e); }
+                });
+                
                 let completadas = 0;
                 const total = updates.length;
                 
                 updates.forEach(update => {
+                    // Resolver nombre de columna correcto del encabezado
+                    let sendColName = update.colName;
+                    try {
+                        const idx = findHeaderIndexCaseInsensitive(update.colName);
+                        if (idx !== -1 && rawData[0] && rawData[0][idx]) {
+                            sendColName = rawData[0][idx];
+                        }
+                    } catch(e) {}
+                    
                     const params = {
                         action: 'update',
                         row: rowIndex,
-                        colName: update.colName,
+                        colName: sendColName,
                         value: update.value
                     };
                     
