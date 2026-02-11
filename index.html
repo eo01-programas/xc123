@@ -7378,13 +7378,19 @@
             for (let i = 1; i < rawData.length; i++) {
                 const row = rawData[i];
                 
-                // Filtrar solo filas que sean X PROG
+                // Filtrar según el sub-tab actual
                 let habilVal = '';
                 if (idxHabil !== -1 && row[idxHabil] !== undefined) habilVal = row[idxHabil];
                 else habilVal = getVal(row, 'estado_habilitado') || getVal(row, 'ESTADO_HABILITADO') || '';
                 const habilNorm = (habilVal || '').toString().toUpperCase().trim();
                 
-                if (habilNorm !== '' && habilNorm !== 'X PROG') continue;
+                // Filtrar según el sub-tab seleccionado
+                if (currentHabilitadoFilter === 'X PROG') {
+                    if (habilNorm !== '' && habilNorm !== 'X PROG') continue;
+                } else {
+                    // Para otros sub-tabs (PROG 1T, 2T, 3T), filtrar por ese estado
+                    if (habilNorm !== currentHabilitadoFilter) continue;
+                }
                 
                 // Verificar que la fila pase los filtros activos (excepto el campo que se está poblando)
                 let passesOtherFilters = true;
@@ -7399,7 +7405,7 @@
                     const hf = habilitadoHeaderFilters[fi];
                     if (hf.field === fieldName) continue; // Excluir el campo actual
                     const fv = getHabilitadoFieldValue(row, hf.field, evNormForFilter);
-                    if (fv.indexOf(hf.value) === -1) {
+                    if (fv.toUpperCase().indexOf(hf.value.toUpperCase()) === -1) {
                         passesOtherFilters = false;
                         break;
                     }
