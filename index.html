@@ -2413,21 +2413,26 @@
                     else ev = getVal(row, 'estado_enumerado') || getVal(row, 'ESTADO ENUMERADO') || '';
                 } catch (e) { ev = getVal(row, 'estado_enumerado') || ''; }
                 const evNorm = (ev || '').toString().toUpperCase().trim();
-                if (!(evNorm === 'OK PAQUETEO' || evNorm === 'OK ENM' || evNorm === 'OK S/ENM')) continue;
+                if (evNorm === '') continue; // estado_enumerado diferente de vacío
+
+                // estado_habilitado diferente de OK
+                const rawHabil = getVal(row, 'estado_habilitado') || getVal(row, 'ESTADO_HABILITADO') || '';
+                const habilNorm = (rawHabil || '').toString().toUpperCase().trim();
+                if (habilNorm === 'OK') continue;
 
                 // Bordado
                 try {
+                    const rawNbordado = getVal(row, 'n.bordadoxpda') || getVal(row, 'N.BORDADOXPDA') || '';
+                    const nbordadoNorm = (rawNbordado || '').toString().toUpperCase().trim();
                     const rawNbd = getVal(row, 'n.BDxpda') || getVal(row, 'N.BDXPDA') || getVal(row, 'n.BDxpda ') || '';
                     const nbdNorm = (rawNbd || '').toString().toUpperCase().trim();
-                    if (nbdNorm.indexOf('NO LLEVA') === -1) {
-                        if (nbdNorm === '' || ['1','2','3','4'].indexOf(nbdNorm) !== -1) {
-                            let rawEstadoB = getVal(row, 'estado_bordado') || '';
-                            let estadoBNorm = (rawEstadoB || '').toString().trim();
-                            if (estadoBNorm === '') estadoBNorm = 'X PROG';
-                            const pdsVal = parseFloat(getVal(row, 'PDS') || getVal(row, 'PDS GIRADAS') || 0) || 0;
-                            if (estadoBNorm.toUpperCase().indexOf('PROG') !== -1 && estadoBNorm.toUpperCase() !== 'X PROG') b_pdsProg += pdsVal;
-                            else b_pdsX += pdsVal;
-                        }
+                    if (nbordadoNorm.indexOf('NO LLEVA') === -1 && nbdNorm.indexOf('NO LLEVA') === -1) {
+                        let rawEstadoB = getVal(row, 'estado_bordado') || '';
+                        let estadoBNorm = (rawEstadoB || '').toString().trim();
+                        if (estadoBNorm === '') estadoBNorm = 'X PROG';
+                        const pdsVal = parseFloat(getVal(row, 'PDS') || getVal(row, 'PDS GIRADAS') || 0) || 0;
+                        if (estadoBNorm.toUpperCase().indexOf('PROG') !== -1 && estadoBNorm.toUpperCase() !== 'X PROG') b_pdsProg += pdsVal;
+                        else b_pdsX += pdsVal;
                     }
                 } catch(e) {}
 
@@ -2436,14 +2441,12 @@
                     const rawNest = getVal(row, 'n.ESTAMPxpda') || getVal(row, 'N.ESTAMPXPDA') || getVal(row, 'n.ESTAMP xpda') || '';
                     const nestNorm = (rawNest || '').toString().toUpperCase().trim();
                     if (nestNorm.indexOf('NO LLEVA') === -1) {
-                        if (nestNorm === '' || ['1','2','3','4'].indexOf(nestNorm) !== -1) {
-                            let rawEstadoE = getVal(row, 'estado_estampado') || '';
-                            let estadoENorm = (rawEstadoE || '').toString().trim();
-                            if (estadoENorm === '') estadoENorm = 'X PROG';
-                            const pdsVal2 = parseFloat(getVal(row, 'PDS') || getVal(row, 'PDS GIRADAS') || 0) || 0;
-                            if (estadoENorm.toUpperCase().indexOf('PROG') !== -1 && estadoENorm.toUpperCase() !== 'X PROG') e_pdsProg += pdsVal2;
-                            else e_pdsX += pdsVal2;
-                        }
+                        let rawEstadoE = getVal(row, 'estado_estampado') || '';
+                        let estadoENorm = (rawEstadoE || '').toString().trim();
+                        if (estadoENorm === '') estadoENorm = 'X PROG';
+                        const pdsVal2 = parseFloat(getVal(row, 'PDS') || getVal(row, 'PDS GIRADAS') || 0) || 0;
+                        if (estadoENorm.toUpperCase().indexOf('PROG') !== -1 && estadoENorm.toUpperCase() !== 'X PROG') e_pdsProg += pdsVal2;
+                        else e_pdsX += pdsVal2;
                     }
                 } catch(e) {}
             }
@@ -8553,13 +8556,22 @@
                     else ev = getVal(row, 'estado_enumerado') || getVal(row, 'ESTADO ENUMERADO') || getVal(row, 'ESTADO_ENumerado') || '';
                 } catch (e) { ev = getVal(row, 'estado_enumerado') || '' }
                 const evNorm = (ev || '').toString().toUpperCase().trim();
-                if (!(evNorm === 'OK PAQUETEO' || evNorm === 'OK ENM' || evNorm === 'OK S/ENM')) continue;
+                if (evNorm === '') continue; // estado_enumerado diferente de vacío
 
-                // Filtrar por n.BDxpda: mostrar solo si es vacío o 1-4; excluir si indica NO LLEVA
+                // estado_habilitado diferente de OK
+                const rawHabil = getVal(row, 'estado_habilitado') || getVal(row, 'ESTADO_HABILITADO') || '';
+                const habilNorm = (rawHabil || '').toString().toUpperCase().trim();
+                if (habilNorm === 'OK') continue;
+
+                // Filtrar por n.bordadoxpda: diferente a NO LLEVA
+                const rawNbordado = getVal(row, 'n.bordadoxpda') || getVal(row, 'N.BORDADOXPDA') || '';
+                const nbordadoNorm = (rawNbordado || '').toString().toUpperCase().trim();
+                if (nbordadoNorm.indexOf('NO LLEVA') !== -1) continue;
+
+                // Filtrar por n.BDxpda: diferente a NO LLEVA
                 const rawNbd = getVal(row, 'n.BDxpda') || getVal(row, 'N.BDXPDA') || getVal(row, 'n.BDxpda ') || '';
                 const nbdNorm = (rawNbd || '').toString().toUpperCase().trim();
                 if (nbdNorm.indexOf('NO LLEVA') !== -1) continue;
-                if (nbdNorm !== '' && ['1','2','3','4'].indexOf(nbdNorm) === -1) continue;
 
                 // determinar estado_bordado normalizado (vacío => 'X PROG')
                 let rawEstadoB = getVal(row, 'estado_bordado') || '';
@@ -8693,12 +8705,16 @@
                     else ev = getVal(row, 'estado_enumerado') || getVal(row, 'ESTADO ENUMERADO') || getVal(row, 'ESTADO_ENumerado') || '';
                 } catch (e) { ev = getVal(row, 'estado_enumerado') || '' }
                 const evNorm = (ev || '').toString().toUpperCase().trim();
-                if (!(evNorm === 'OK PAQUETEO' || evNorm === 'OK ENM' || evNorm === 'OK S/ENM')) continue;
+                if (evNorm === '') continue; // estado_enumerado diferente de vacío
+
+                // estado_habilitado diferente de OK
+                const rawHabil = getVal(row, 'estado_habilitado') || getVal(row, 'ESTADO_HABILITADO') || '';
+                const habilNorm = (rawHabil || '').toString().toUpperCase().trim();
+                if (habilNorm === 'OK') continue;
 
                 const rawNest = getVal(row, 'n.ESTAMPxpda') || getVal(row, 'N.ESTAMPXPDA') || getVal(row, 'n.ESTAMP xpda') || '';
                 const nestNorm = (rawNest || '').toString().toUpperCase().trim();
                 if (nestNorm.indexOf('NO LLEVA') !== -1) continue;
-                if (nestNorm !== '' && ['1','2','3','4'].indexOf(nestNorm) === -1) continue;
 
                 let rawEstado = getVal(row, 'estado_estampado') || '';
                 let estadoNorm = (rawEstado || '').toString().trim();
