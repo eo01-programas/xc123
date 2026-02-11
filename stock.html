@@ -60,6 +60,24 @@
         .btn-refresh-circle svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
         .switch-active input[type="checkbox"]{background:#2563eb !important}
         .switch-active input[type="checkbox"]:before{transform:translateX(18px) !important}
+        /* 2-column layout */
+        .main-columns{display:flex;gap:24px;align-items:flex-start;flex-wrap:wrap}
+        .col-left{flex:0 0 auto;max-width:960px;min-width:600px}
+        .col-right{flex:1 1 400px;min-width:350px}
+        /* Chart 3 - Monthly dispatch */
+        #chart3-wrap{margin-top:0}
+        .chart3-container{padding:18px;border:1px solid #e6e7ec;background:#fff;border-radius:8px;position:relative;padding-top:36px;overflow-y:auto;max-height:700px}
+        .month-group{margin-bottom:18px;border-bottom:1px solid #f1f5f9;padding-bottom:14px}
+        .month-group:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}
+        .month-label{font-size:14px;font-weight:700;color:#0f172a;margin-bottom:8px}
+        .month-row{display:flex;align-items:center;margin-bottom:6px}
+        .month-row:last-child{margin-bottom:0}
+        .month-row-label{width:100px;font-size:12px;font-weight:700;color:#374151;flex-shrink:0;text-align:right;padding-right:10px}
+        .month-bar-track{flex:1;display:flex;height:26px;border-radius:4px;overflow:hidden;background:#f1f5f9}
+        .month-bar-seg{display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;white-space:nowrap;padding:0 4px;min-width:0}
+        .month-bar-seg.m-prog{background:#2563eb}
+        .month-bar-seg.m-xprog{background:#fb923c}
+        .month-bar-total{width:70px;font-size:13px;font-weight:700;color:#0f172a;text-align:left;padding-left:6px;flex-shrink:0}
     </style>
 </head>
 <body>
@@ -77,9 +95,12 @@
             <input id="chk-kg" type="checkbox" onchange="toggleUnit('kg')">
             <label for="chk-kg">kg</label>
         </div>
-        <a href="index.html" aria-label="volver a inicio" style="margin-left:auto"><button id="btn-volver" type="button">volver</button></a>
+        <a href="tabla_dinamica.html" style="margin-left:auto"><button type="button">Tabla dinámica</button></a>
+        <a href="index.html" aria-label="volver a inicio"><button id="btn-volver" type="button">volver</button></a>
     </div>
 
+    <div class="main-columns">
+    <div class="col-left">
     <div id="chart-wrap">
         <div id="chart-title" class="chart-title">Stock de prendas Corte/Habilitado</div>
         <div id="no-data" style="display:none">No hay datos que cumplan el filtro.</div>
@@ -100,6 +121,19 @@
             </div>
         </div>
     </div>
+    </div><!-- col-left -->
+    <div class="col-right">
+    <div id="chart3-wrap">
+        <div id="chart3-title" class="chart-title">Stock por Mes de Despacho (Prendas)</div>
+        <div id="chart3" class="chart3-container" aria-live="polite">
+            <div class="legend-inside">
+                <div class="legend-item"><span class="legend-swatch sw-prog" aria-hidden="true"></span><span>PROG</span></div>
+                <div class="legend-item"><span class="legend-swatch sw-xprog" aria-hidden="true"></span><span>X PROG</span></div>
+            </div>
+        </div>
+    </div>
+    </div><!-- col-right -->
+    </div><!-- main-columns -->
 
 <script>
 // Copiamos la configuración del proyecto (usar la misma web app y sheet id que en index.html)
@@ -113,6 +147,7 @@ function reloadData(){
     document.getElementById('btn-refresh').style.display='none';
     document.getElementById('loader').style.display='flex';
     clearChartKeepLegend('chart');
+    if(document.getElementById('chart3')) clearChartKeepLegend('chart3');
     document.getElementById('no-data').style.display='none';
     // Insert gviz script
     const scr = document.createElement('script');
@@ -232,7 +267,12 @@ function processAndRender(){
     const idxEstadoEnumerado = getColIndexFlexible(['estado_enumerado','ESTADO_ENUMERADO','estado enumerado']);
     const idxTipoTransfer = getColIndexFlexible(['tipo-transfer','TIPO-TRANSFER','TIPO_TRANSFER','tipo transfer','TIPO TRANSFER']);
     const idxEstadoTransfer = getColIndexFlexible(['estado_transfer','estado-transfer','ESTADO_TRANSFER','ESTADO-TRANSFER','estado transfer']);
+    const idxNTransfxpda = getColIndexFlexible(['n.transfxpda','N.TRANSFXPDA','n_transfxpda','N_TRANSFXPDA']);
     const idxEstadoHabilitado = getColIndexFlexible(['estado_habilitado','ESTADO_HABILITADO','estado habilitado']);
+    const idxFDespacho = getColIndexFlexible(['F. DESPACHO','F.DESPACHO','FDESPACHO','F DESPACHO','F. DESPACHO ']);
+
+    // Monthly data by F. DESPACHO: { 'YYYY-MM': { bloqueo:{prog,xprog}, corte:{prog,xprog}, hab:{prog,xprog} } }
+    const monthlyData = {};
 
     for(let i=1;i<rawData.length;i++){
         const row = rawData[i];
@@ -298,12 +338,15 @@ function processAndRender(){
                 sumEnumeradoPROG += val;
             }
 
-            // TRANSFER: tipo-transfer = EN PIEZA | EN PRENDA  AND estado_enumerado = OK ENM | OK PAQUETEO
+            // TRANSFER: estado_enumerado != vacío, n.transfxpda != NO LLEVA, tipo-transfer != NO LLEVA, estado_transfer != OK
             const tipoTransferRow = (idxTipoTransfer !== -1) ? String(getVal(row, idxTipoTransfer) || '').toUpperCase().trim() : '';
-            if((tipoTransferRow === 'EN PIEZA' || tipoTransferRow === 'EN PRENDA') && (estadoEnumeradoRow === 'OK ENM' || estadoEnumeradoRow === 'OK PAQUETEO' || estadoEnumeradoRow === 'OK PAQUETO')){
+            const nTransfxpdaRow = (idxNTransfxpda !== -1) ? String(getVal(row, idxNTransfxpda) || '').toUpperCase().trim() : '';
+            if(estadoEnumeradoRow !== '' && tipoTransferRow !== 'NO LLEVA' && nTransfxpdaRow !== 'NO LLEVA'){
                 const estadoTransferRow = (idxEstadoTransfer !== -1) ? String(getVal(row, idxEstadoTransfer) || '').toUpperCase().trim() : '';
-                if(estadoTransferRow === 'PROG') sumTransferPROG += val;
-                else sumTransferXPROG += val;
+                if(estadoTransferRow !== 'OK'){
+                    if(estadoTransferRow === 'PROG') sumTransferPROG += val;
+                    else sumTransferXPROG += val;
+                }
             }
 
         if(estadoCorteRow === 'OK' && estadoBloquesRow === 'OK CORTE' && estadoCorteBloquesRow !== 'OK'){
@@ -320,6 +363,42 @@ function processAndRender(){
                 } else {
                     // vacío, 'X PROG', u otro → X PROG
                     sumHabXPROG += val;
+                }
+            }
+        }
+
+        // ── Monthly F. DESPACHO tracking for chart3 ──
+        if(idxFDespacho !== -1){
+            const rawDespacho = getVal(row, idxFDespacho);
+            const mKey = parseMonthKey(rawDespacho) || 'SIN-FECHA';
+            {
+                if(!monthlyData[mKey]) monthlyData[mKey] = {
+                    bloqueo:{prog:0,xprog:0}, corte:{prog:0,xprog:0}, hab:{prog:0,xprog:0}
+                };
+                const md = monthlyData[mKey];
+                // BLOQUEO
+                if(rutaVal === 'LAVADA' && estadoBloqUpper2 !== 'OK'){
+                    if(estadoBloqVal2 === '') md.bloqueo.xprog += val;
+                    else md.bloqueo.prog += val;
+                }
+                // CORTE PZAS
+                const inclCorteM = (rutaVal === 'ACABADA') || (rutaVal === 'LAVADA' && estadoLavVal === 'OK');
+                if(inclCorteM){
+                    if(estadoCorteRow === 'PROG 1T' || estadoCorteRow === 'PROG 2T' || estadoCorteRow === 'PROG 3T'){
+                        md.corte.prog += val;
+                    } else if(estadoCorteRow !== 'OK'){
+                        md.corte.xprog += val;
+                    }
+                }
+                // HABILITADO
+                if(estadoEnumeradoRow === 'OK ENM' || estadoEnumeradoRow === 'OK S/ENM' || estadoEnumeradoRow === 'OK PAQUETEO' || estadoEnumeradoRow === 'OK PAQUETO'){
+                    if(estadoHabRow !== 'OK'){
+                        if(estadoHabRow === 'PROG 1T' || estadoHabRow === 'PROG 2T' || estadoHabRow === 'PROG 3T'){
+                            md.hab.prog += val;
+                        } else {
+                            md.hab.xprog += val;
+                        }
+                    }
                 }
             }
         }
@@ -341,6 +420,9 @@ function processAndRender(){
         prog:  { lavada: cortePROG_lavada,  acabada: cortePROG_acabada  },
         xprog: { lavada: corteXPROG_lavada, acabada: corteXPROG_acabada }
     });
+
+    // Renderizar gráfico mensual por F. DESPACHO
+    renderMonthlyChart(monthlyData);
 }
 
 function renderChartFromAgg(agg){
@@ -510,6 +592,145 @@ function renderCorteBreakdown(data){
     });
 }
 
+function parseMonthKey(val){
+    if(val === null || val === undefined || val === '') return null;
+    let d = null;
+
+    // 1) Ya es un Date object (gviz JSONP puede devolver Date objects reales)
+    if(val instanceof Date && !isNaN(val.getTime())){
+        d = val;
+    }
+
+    // 2) Número serial de Excel (> 30000) — igual que index.html
+    if(!d && typeof val === 'number' && val > 30000){
+        d = new Date(Math.round((val - 25569) * 86400 * 1000));
+    }
+
+    // 3) String "Date(year,month,day)" de gviz (month es 0-based)
+    if(!d && typeof val === 'string'){
+        const gm = val.match(/Date\((\d+),\s*(\d+),\s*(\d+)\)/);
+        if(gm){
+            d = new Date(parseInt(gm[1]), parseInt(gm[2]), parseInt(gm[3]));
+        }
+    }
+
+    // 4) String "DD/Mon/YY" o "DD/Mon/YYYY" o "DD/MM/YYYY"
+    if(!d && typeof val === 'string'){
+        const s = val.trim();
+        const parts = s.split('/');
+        if(parts.length === 3){
+            const meses = {ene:0,feb:1,mar:2,abr:3,may:4,jun:5,jul:6,ago:7,sep:8,oct:9,nov:10,dic:11};
+            const mp = parts[1].toLowerCase().trim();
+            let year = parseInt(parts[2]);
+            if(!isNaN(year) && year < 100) year += 2000; // Fix año de 2 dígitos: 26 → 2026
+            const day = parseInt(parts[0]);
+            if(!isNaN(year) && !isNaN(day)){
+                if(meses[mp] !== undefined){
+                    d = new Date(year, meses[mp], day);
+                } else {
+                    const mn = parseInt(parts[1]);
+                    if(mn >= 1 && mn <= 12) d = new Date(year, mn - 1, day);
+                }
+            }
+        }
+    }
+
+    if(!d || isNaN(d.getTime())) return null;
+    return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
+}
+
+function monthKeyToLabel(key){
+    if(key === 'SIN-FECHA') return 'Sin F.Despacho';
+    const names = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+    const [y,m] = key.split('-');
+    return names[parseInt(m)-1] + '/' + y;
+}
+
+function renderMonthlyChart(monthlyData){
+    const chart3 = document.getElementById('chart3');
+    if(!chart3) return;
+    clearChartKeepLegend('chart3');
+
+    const keys = Object.keys(monthlyData).sort((a,b) => {
+        if(a === 'SIN-FECHA') return 1;
+        if(b === 'SIN-FECHA') return -1;
+        return a.localeCompare(b);
+    });
+    if(keys.length === 0) return;
+
+    // Max value for scaling
+    let maxVal = 0;
+    keys.forEach(k => {
+        const d = monthlyData[k];
+        ['bloqueo','corte','hab'].forEach(cat => {
+            const t = d[cat].prog + d[cat].xprog;
+            if(t > maxVal) maxVal = t;
+        });
+    });
+    if(maxVal === 0) return;
+
+    keys.forEach(k => {
+        const d = monthlyData[k];
+        const group = document.createElement('div');
+        group.className = 'month-group';
+
+        const label = document.createElement('div');
+        label.className = 'month-label';
+        label.innerText = monthKeyToLabel(k);
+        group.appendChild(label);
+
+        const categories = [
+            { label: 'BLOQUEO',    data: d.bloqueo },
+            { label: 'CORTE PZAS', data: d.corte },
+            { label: 'HABILITADO', data: d.hab }
+        ];
+
+        categories.forEach(cat => {
+            const total = cat.data.prog + cat.data.xprog;
+            if(total === 0) return; // skip empty bars
+            const row = document.createElement('div');
+            row.className = 'month-row';
+
+            const lbl = document.createElement('div');
+            lbl.className = 'month-row-label';
+            lbl.innerText = cat.label;
+            row.appendChild(lbl);
+
+            const track = document.createElement('div');
+            track.className = 'month-bar-track';
+            track.style.width = Math.max(3, (total / maxVal) * 100) + '%';
+
+            if(cat.data.prog > 0){
+                const seg = document.createElement('div');
+                seg.className = 'month-bar-seg m-prog';
+                seg.style.flex = cat.data.prog;
+                seg.innerText = total > maxVal * 0.04 ? formatNumber(cat.data.prog) : '';
+                seg.title = 'PROG: ' + formatNumber(cat.data.prog);
+                track.appendChild(seg);
+            }
+            if(cat.data.xprog > 0){
+                const seg = document.createElement('div');
+                seg.className = 'month-bar-seg m-xprog';
+                seg.style.flex = cat.data.xprog;
+                seg.innerText = total > maxVal * 0.04 ? formatNumber(cat.data.xprog) : '';
+                seg.title = 'X PROG: ' + formatNumber(cat.data.xprog);
+                track.appendChild(seg);
+            }
+
+            row.appendChild(track);
+
+            const tot = document.createElement('div');
+            tot.className = 'month-bar-total';
+            tot.innerText = formatNumber(total);
+            row.appendChild(tot);
+
+            group.appendChild(row);
+        });
+
+        chart3.appendChild(group);
+    });
+}
+
 function toggleUnit(unit){
     const chkPds = document.getElementById('chk-pds');
     const chkKg = document.getElementById('chk-kg');
@@ -550,6 +771,12 @@ function updateChartTitle(){
             ? 'Desglose CORTE PZAS por Ruta Tela (Kilogramos)'
             : 'Desglose CORTE PZAS por Ruta Tela (Prendas)';
     }
+    const title3El = document.getElementById('chart3-title');
+    if(title3El){
+        title3El.innerText = useKg
+            ? 'Stock por Mes de Despacho (Kilogramos)'
+            : 'Stock por Mes de Despacho (Prendas)';
+    }
 }
 
 function formatNumber(n){
@@ -571,5 +798,3 @@ reloadData();
 </script>
 </body>
 </html>
-
-
