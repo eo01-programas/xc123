@@ -1152,22 +1152,7 @@
         </div>
     </div>
 
-    <!-- MODAL CONFIRMACIÓN INGRESO A COSTURA -->
-    <div id="modal-confirm-ingreso-costura" class="modal-overlay" onclick="if(event.target === this) cerrarModalConfirmIngresoCostura()">
-        <div class="modal-content" style="max-width:360px; width:40%;">
-            <div class="modal-header">
-                <div class="modal-title">Confirmar</div>
-                <button class="modal-close" onclick="cerrarModalConfirmIngresoCostura()">&times;</button>
-            </div>
-            <p style="margin: 16px 0; font-size:13px; color:var(--gray-600); line-height:1.5;">
-                ¿Está seguro que desea registrar el ingreso a costura?
-            </p>
-            <div class="modal-buttons">
-                <button class="btn-modal btn-limpiar" onclick="cerrarModalConfirmIngresoCostura()">No</button>
-                <button class="btn-modal btn-guardar" onclick="confirmarIngresoCostura()">Si</button>
-            </div>
-        </div>
-    </div>
+
 
     <!-- MENÚ FLOTANTE CON DESPLEGABLE -->
     <div class="floating-menu-container">
@@ -9701,8 +9686,9 @@
                 const color = getVal(row, 'COLOR') || '';
                 const pds = getVal(row, 'PDS GIRADAS') || '';
                 
-                // Obtener PLANTA
+                // Obtener PLANTA y LINEA
                 const planta = getVal(row, 'PLANTA') || '';
+                const linea = getVal(row, 'LINEA') || '';
                 
                 // Guardar datos actuales
                 currentIngresoCosturaData = {
@@ -9712,7 +9698,8 @@
                     corte: corte,
                     color: color,
                     pds: pds,
-                    planta: planta
+                    planta: planta,
+                    linea: linea
                 };
                 
                 // Llenar el modal
@@ -9720,13 +9707,26 @@
                 
                 // Establecer valor de PLANTA en el select
                 const plantaSelect = document.getElementById('modal-ingreso-planta');
+                // Eliminar opciones dinámicas anteriores
+                plantaSelect.querySelectorAll('option[data-dynamic]').forEach(opt => opt.remove());
                 if (planta) {
+                    // Si el valor del sheet no existe como opción en el select, agregarlo dinámicamente
+                    const existeOpcion = Array.from(plantaSelect.options).some(opt => opt.value === planta);
+                    if (!existeOpcion) {
+                        const newOpt = document.createElement('option');
+                        newOpt.value = planta;
+                        newOpt.textContent = planta;
+                        newOpt.setAttribute('data-dynamic', 'true');
+                        // Insertar después de la primera opción (-- Seleccione --)
+                        plantaSelect.insertBefore(newOpt, plantaSelect.options[1]);
+                    }
                     plantaSelect.value = planta;
                 } else {
                     plantaSelect.value = '';
                 }
                 
-                document.getElementById('modal-ingreso-linea').value = '';
+                // Pre-cargar LINEA existente del sheet (el usuario puede modificarlo)
+                document.getElementById('modal-ingreso-linea').value = linea;
                 
                 // Abrir modal
                 document.getElementById('modal-ingreso-costura').classList.add('active');
@@ -9751,32 +9751,16 @@
         window.guardarModalIngresoCostura = function() {
             try {
                 const linea = document.getElementById('modal-ingreso-linea').value.trim();
+                let planta = document.getElementById('modal-ingreso-planta').value.trim();
                 
                 if (!linea) {
                     alert('Por favor ingrese la línea');
                     return;
                 }
                 
-                // Abrir modal de confirmación
-                document.getElementById('modal-confirm-ingreso-costura').classList.add('active');
-            } catch (e) {
-                console.error('Error en guardarModalIngresoCostura:', e);
-                alert('Error al guardar');
-            }
-        };
-
-        window.cerrarModalConfirmIngresoCostura = function() {
-            document.getElementById('modal-confirm-ingreso-costura').classList.remove('active');
-        };
-
-        window.confirmarIngresoCostura = function() {
-            try {
-                const linea = document.getElementById('modal-ingreso-linea').value.trim();
-                const planta = document.getElementById('modal-ingreso-planta').value.trim();
-                
-                if (!linea) {
-                    alert('Por favor ingrese la línea');
-                    return;
+                // Si no se seleccionó nada del desplegable, usar el valor existente del sheet
+                if (!planta && currentIngresoCosturaData.planta) {
+                    planta = currentIngresoCosturaData.planta;
                 }
                 
                 if (!planta) {
@@ -9800,7 +9784,7 @@
                 
                 // PROTECCIÓN: Verificar que el rowIndex sea válido
                 if (rowIndex < 1 || !rawData[rowIndex]) {
-                    console.error('PROTECCIÓN confirmarIngresoCostura: rowIndex inválido=' + rowIndex);
+                    console.error('PROTECCIÓN guardarModalIngresoCostura: rowIndex inválido=' + rowIndex);
                     alert('Error: índice de fila inválido. Recargue la página e intente de nuevo.');
                     return;
                 }
@@ -9813,12 +9797,15 @@
                     { colName: 'estado_habilitado', value: 'OK' }
                 ];
                 
+                // Cerrar el modal inmediatamente
+                cerrarModalIngresoCostura();
+                
                 // Guardar todos los datos
                 guardarVariosDatosIngresoCostura(rowIndex, updates);
                 
             } catch (e) {
-                console.error('Error en confirmarIngresoCostura:', e);
-                alert('Error al confirmar');
+                console.error('Error en guardarModalIngresoCostura:', e);
+                alert('Error al guardar');
             }
         };
 
