@@ -2480,8 +2480,8 @@
                 const estBloqAllNorm = (!estBloqAll || estBloqAll === "") ? "X PROG" : estBloqAll;
                 if (estBloqAllNorm === "OK") {
                     const estLav = row[colMap["estado_lavada"]];
-                    const estLavNorm = (!estLav || estLav === "" || estLav === "EN LAV") ? "EN LAV" : estLav;
-                    if (estLavNorm === "EN LAV") { l_kgEnLav += kgVal; l_pdsEnLav += pdsVal; }
+                    const estLavUpper = String(estLav || '').toUpperCase().trim();
+                    if (estLavUpper !== 'OK') { l_kgEnLav += kgVal; l_pdsEnLav += pdsVal; }
                 }
 
                 // Contadores para sub-tabs de Corte: tomar STATUS / estado_corte (normalizar vacíos a 'X PROG')
@@ -4692,23 +4692,27 @@
                 else habilVal = getVal(row, 'estado_habilitado') || getVal(row, 'ESTADO_HABILITADO') || '';
                 const habilNorm = (habilVal || '').toString().toUpperCase().trim();
                 
-                // Calcular PDS por sub-tab para los badges
+                // Calcular PDS por sub-tab para los badges (SIEMPRE, independiente del filtro activo)
                 const pdsVal = parseFloat(getVal(row, 'PDS GIRADAS')) || 0;
+                if (habilNorm === '' || habilNorm === 'X PROG') {
+                    pdsXProg += pdsVal;
+                } else if (habilNorm === 'PROG 1T') {
+                    pds1T += pdsVal;
+                } else if (habilNorm === 'PROG 2T') {
+                    pds2T += pdsVal;
+                } else if (habilNorm === 'PROG 3T') {
+                    pds3T += pdsVal;
+                }
                 
-                // Para sub-tab "Por Programar" (X PROG): incluir si estado_habilitado vacío o X PROG
+                // Filtrar filas para el sub-tab activo
                 if (currentHabilitadoFilter === 'X PROG') {
                     if (habilNorm === '' || habilNorm === 'X PROG') {
                         validIndices.push(i);
-                        pdsXProg += pdsVal;
                     }
                 } else {
                     // Para PROG 1T/2T/3T: mantener lógica original (estado_enumerado = OK ENM o OK S/ENM)
                     if (evNorm === 'OK ENM' || evNorm === 'OK S/ENM') {
                         validIndices.push(i);
-                        
-                        if (habilNorm === 'PROG 1T') pds1T += pdsVal;
-                        else if (habilNorm === 'PROG 2T') pds2T += pdsVal;
-                        else if (habilNorm === 'PROG 3T') pds3T += pdsVal;
                     }
                 }
             }
@@ -7373,6 +7377,32 @@
             }
             
             const values = new Set();
+            const dateTimestamps = new Map(); // display -> timestamp para ordenar fechas correctamente
+            
+            // Helper para convertir valor crudo de fecha a timestamp
+            const mesesEs = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+            const parseRawToTimestamp = (raw) => {
+                if (raw === undefined || raw === null || raw === '') return null;
+                if (typeof raw === 'number' && raw > 30000) {
+                    return new Date(Math.round((raw - 25569) * 86400 * 1000)).getTime();
+                }
+                if (typeof raw === 'string') {
+                    const s = raw.trim();
+                    const m = s.match(/Date\((\d+),(\d+),(\d+)\)/);
+                    if (m) return new Date(parseInt(m[1],10), parseInt(m[2],10), parseInt(m[3],10)).getTime();
+                    const m2 = s.match(/(\d{1,2})\/([A-Za-z]{3})\/(\d{2,4})/);
+                    if (m2) {
+                        const day = parseInt(m2[1],10);
+                        const monIdx = mesesEs.findIndex(x => x.toLowerCase() === m2[2].slice(0,3).toLowerCase());
+                        let year = parseInt(m2[3],10);
+                        if (m2[3].length === 2) year = 2000 + year;
+                        if (monIdx !== -1) return new Date(year, monIdx, day).getTime();
+                    }
+                    const tryIso = Date.parse(s);
+                    if (!isNaN(tryIso)) return tryIso;
+                }
+                return null;
+            };
             
             // Iterar sobre los datos válidos (solo X PROG)
             const idxHabil = findHeaderIndexCaseInsensitive('estado_habilitado');
@@ -7419,12 +7449,21 @@
                 
                 switch(fieldName) {
                     case 'HOD':
-                        fieldValue = formatValue(getVal(row, 'HOD'), 'date') || '';
+                        const rawHOD = getVal(row, 'HOD');
+                        fieldValue = formatValue(rawHOD, 'date') || '';
+                        if (fieldValue && !dateTimestamps.has(fieldValue)) {
+                            const ts = parseRawToTimestamp(rawHOD);
+                            if (ts !== null) dateTimestamps.set(fieldValue, ts);
+                        }
                         break;
                     case 'F.ING.COST':
                         const rawFIng = getVal(row, 'F.ING.COST');
                         const dateValue = convertToDateInputFormat(rawFIng);
                         fieldValue = formatDateShortFromInput(dateValue) || '';
+                        if (fieldValue && !dateTimestamps.has(fieldValue)) {
+                            const ts = parseRawToTimestamp(rawFIng);
+                            if (ts !== null) dateTimestamps.set(fieldValue, ts);
+                        }
                         break;
                     case 'STATUS':
                         // STATUS es un valor CALCULADO basado en RUTA TELA y estados
@@ -7522,10 +7561,15 @@
             }
             
             // Agregar opciones al select, ordenadas
-            // Si es fecha (HOD, F.ING.COST o F.ING), ordenar por fecha; P numérico; resto alfabético
+            // Si es fecha (HOD, F.ING.COST o F.ING), ordenar por timestamp real; P numérico; resto alfabético
             const sortedValues = Array.from(values).sort((a, b) => {
                 if (fieldName === 'HOD' || fieldName === 'F.ING.COST' || fieldName === 'F.ING') {
-                    return compareDates(a, b);
+                    const tsA = dateTimestamps.get(a);
+                    const tsB = dateTimestamps.get(b);
+                    if (tsA != null && tsB != null) return tsA - tsB;
+                    if (tsA != null) return -1;
+                    if (tsB != null) return 1;
+                    return a.localeCompare(b);
                 }
                 if (fieldName === 'P') {
                     const na = parseInt(a) || Infinity;
@@ -9818,7 +9862,7 @@
                     return;
                 }
                 
-                // Actualizar rawData localmente para mantener consistencia
+                // 1) Actualizar rawData localmente para mantener consistencia
                 updates.forEach(update => {
                     try {
                         const idx = findHeaderIndexCaseInsensitive(update.colName);
@@ -9828,11 +9872,12 @@
                     } catch(e) { console.error('Error actualizando rawData local:', e); }
                 });
                 
-                let completadas = 0;
-                const total = updates.length;
+                // 2) Re-renderizar inmediatamente para que la fila desaparezca de la vista
+                //    (estado_habilitado = 'OK' ya no cumple el filtro de "Por Programar")
+                renderHabilitado();
                 
-                updates.forEach(update => {
-                    // Resolver nombre de columna correcto del encabezado
+                // 3) Preparar las actualizaciones con nombres de columna reales del encabezado
+                const batchUpdates = updates.map(update => {
                     let sendColName = update.colName;
                     try {
                         const idx = findHeaderIndexCaseInsensitive(update.colName);
@@ -9840,38 +9885,44 @@
                             sendColName = rawData[0][idx];
                         }
                     } catch(e) {}
-                    
-                    const params = {
-                        action: 'update',
-                        row: rowIndex,
-                        colName: sendColName,
-                        value: update.value
-                    };
-                    
-                    fetch(WEB_APP_URL, {
-                        method: 'POST',
-                        mode: 'no-cors',
-                        body: JSON.stringify(params)
-                    })
-                    .then(response => {
-                        completadas++;
-                        if (completadas === total) {
-                            // Todas las actualizaciones completadas
-                            alert('Datos guardados correctamente');
-                            cerrarModalConfirmIngresoCostura();
-                            cerrarModalIngresoCostura();
-                            setTimeout(() => renderHabilitado(), 500);
-                        }
-                    })
-                    .catch(e => {
-                        console.error(`Error guardando ${update.colName}:`, e);
-                    });
+                    return { colName: sendColName, value: update.value };
+                });
+                
+                // 4) Enviar UNA sola solicitud al backend con todas las actualizaciones
+                const params = {
+                    action: 'batchUpdateRow',
+                    row: rowIndex,
+                    updates: batchUpdates
+                };
+                
+                fetch(WEB_APP_URL, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    body: JSON.stringify(params)
+                })
+                .then(() => {
+                    showToast('Datos guardados correctamente', 'success');
+                })
+                .catch(e => {
+                    console.error('Error guardando datos de ingreso costura:', e);
+                    showToast('Error al guardar. Los datos se reintentarán al recargar.', 'error');
                 });
             } catch (e) {
                 console.error('Error en guardarVariosDatosIngresoCostura:', e);
                 alert('Error al guardar los datos');
             }
         };
+        
+        // Notificación tipo toast no bloqueante
+        function showToast(message, type) {
+            const toast = document.createElement('div');
+            toast.textContent = message;
+            const bgColor = type === 'error' ? '#ef4444' : '#22c55e';
+            toast.style.cssText = 'position:fixed;bottom:24px;right:24px;z-index:99999;padding:12px 24px;border-radius:8px;color:#fff;font-size:14px;font-weight:600;box-shadow:0 4px 12px rgba(0,0,0,0.2);transition:opacity 0.4s;opacity:1;background:' + bgColor;
+            document.body.appendChild(toast);
+            setTimeout(() => { toast.style.opacity = '0'; }, 2500);
+            setTimeout(() => { toast.remove(); }, 3000);
+        }
 
         window.guardarDatoIngresoCostura = function(rowIndex, colName, value, callback) {
             try {
