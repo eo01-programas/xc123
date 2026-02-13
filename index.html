@@ -6487,8 +6487,8 @@
         // Al cambiar RIB, replicar a todas las filas con mismo OP-PTDA
         // =============================================
         window.handleRibChangeCorte = function(rowIndex, value, selectElement) {
-            // 1. Actualizar la fila actual
-            updateRow(rowIndex, 'estado_rib', value, selectElement);
+            // 1. Actualizar la fila actual via updateRow (guarda en backend + actualiza rawData)
+            updateRow(rowIndex, 'estado_rib', value, selectElement, true);
 
             // 2. Solo propagar en sub-tabs PROG 1T/2T/3T de la vista Corte
             const isProgSubtab = (currentCorteFilter === 'PROG 1T' || currentCorteFilter === 'PROG 2T' || currentCorteFilter === 'PROG 3T');
@@ -6502,31 +6502,91 @@
             const currentOpPtda = opTela + '-' + partida;
             if (!currentOpPtda || currentOpPtda === '-') return;
 
-            // 4. Buscar todas las filas visibles en tbody-corte con mismo OP-PTDA
-            const tbody = document.getElementById('tbody-corte');
-            if (!tbody) return;
-            const allRows = tbody.querySelectorAll('tr[data-row-index]');
-            allRows.forEach(tr => {
-                const idx = parseInt(tr.getAttribute('data-row-index'));
-                if (idx === rowIndex || isNaN(idx)) return; // saltar la fila actual
-                const r = rawData[idx];
-                if (!r) return;
+            // 4. Encontrar el índice de la columna estado_rib en rawData
+            const findColIdx = function(name) {
+                if (!rawData || rawData.length === 0) return -1;
+                const headers = rawData[0];
+                const norm = s => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+                const target = norm(name);
+                for (let i = 0; i < headers.length; i++) {
+                    if (norm(headers[i]) === target) return i;
+                }
+                return -1;
+            };
+            let ribColIdx = colMap['estado_rib'];
+            if (ribColIdx === undefined || ribColIdx === -1) ribColIdx = findColIdx('estado_rib');
+            if (ribColIdx === -1) { console.warn('No se encontró columna estado_rib'); return; }
+            const sendColName = (rawData[0] && rawData[0][ribColIdx]) ? rawData[0][ribColIdx] : 'estado_rib';
+
+            // 5. Iterar TODOS los rawData (no solo DOM) para encontrar filas con mismo OP-PTDA
+            const rowsToUpdate = [];
+            for (let j = 1; j < rawData.length; j++) {
+                if (j === rowIndex) continue;
+                const r = rawData[j];
+                if (!r) continue;
                 const ot = String(getVal(r, 'OP TELA') || '').trim();
                 const pt = String(getVal(r, 'PARTIDA') || '').trim();
-                const opPtda = ot + '-' + pt;
-                if (opPtda !== currentOpPtda) return; // diferente OP-PTDA
+                if ((ot + '-' + pt) !== currentOpPtda) continue;
 
                 // Verificar que esta fila no sea NO LLEVA
                 const ribOriginal = getVal(r, 'RIB') || 'NO LLEVA';
-                if (ribOriginal === 'NO LLEVA') return;
+                if (ribOriginal === 'NO LLEVA') continue;
 
-                // Buscar el select de RIB en esta fila y actualizar
-                const ribSelect = tr.querySelector('select[onchange*="handleRibChangeCorte"]');
-                if (ribSelect) {
-                    ribSelect.value = value;
-                    // Actualizar en rawData y guardar en servidor
-                    updateRow(idx, 'estado_rib', value, ribSelect, true);
-                }
+                // Solo actualizar si el valor cambió
+                const prevValue = r[ribColIdx];
+                if (String(prevValue || '').trim() === String(value || '').trim()) continue;
+
+                rowsToUpdate.push(j);
+            }
+
+            if (rowsToUpdate.length === 0) {
+                setTimeout(() => { renderCorte(); }, 300);
+                return;
+            }
+
+            // 6. Actualizar rawData y guardar en backend con delays escalonados
+            console.log(`RIB propagación: ${rowsToUpdate.length} filas con OP-PTDA=${currentOpPtda}`);
+            
+            // Mostrar modal de carga
+            const modalPropagacion = document.getElementById('modal-loading-propagacion');
+            const statusText = document.getElementById('propagacion-status');
+            if (modalPropagacion) {
+                modalPropagacion.style.display = 'flex';
+                if (statusText) statusText.textContent = `Guardando RIB en ${rowsToUpdate.length} filas...`;
+            }
+
+            let completed = 0;
+            rowsToUpdate.forEach((j, index) => {
+                rawData[j][ribColIdx] = value;
+                setTimeout(() => {
+                    fetch(WEB_APP_URL, {
+                        method: 'POST',
+                        mode: 'no-cors',
+                        body: JSON.stringify({
+                            action: 'update',
+                            row: j,
+                            colName: sendColName,
+                            value: value
+                        })
+                    }).then(() => {
+                        completed++;
+                        if (statusText) statusText.textContent = `Guardando RIB... (${completed}/${rowsToUpdate.length})`;
+                        if (completed >= rowsToUpdate.length) {
+                            if (statusText) statusText.textContent = '¡Guardado completado!';
+                            setTimeout(() => {
+                                if (modalPropagacion) modalPropagacion.style.display = 'none';
+                                renderCorte();
+                            }, 400);
+                        }
+                    }).catch(e => {
+                        console.error('Error guardando RIB propagado fila ' + j, e);
+                        completed++;
+                        if (completed >= rowsToUpdate.length) {
+                            if (modalPropagacion) modalPropagacion.style.display = 'none';
+                            renderCorte();
+                        }
+                    });
+                }, index * 150); // 150ms entre cada petición para evitar rate-limit
             });
         };
 
@@ -6873,13 +6933,13 @@
 
             if (colName === 'estado_rib') {
                 // Propagar cambios en vista Corte, sub-tabs PROG (1T/2T/3T)
+                // Solo si NO viene de una propagación secundaria (skipPropagation)
                 try {
                     const onCorteView = document.getElementById('view-corte') && document.getElementById('view-corte').classList.contains('active');
                     const isProgSubtab = (currentCorteFilter && currentCorteFilter.toString().toUpperCase().startsWith('PROG ') && currentCorteFilter !== 'X PROG');
                     
-                    if (onCorteView && isProgSubtab) {
-                        propagateToSameOPAndCorteSeries(rowIndex, 'estado_rib', value);
-                        // Re-renderizar la vista después de propagar
+                    if (onCorteView && isProgSubtab && !skipPropagation) {
+                        // La propagación se maneja en handleRibChangeCorte, solo re-renderizar
                         setTimeout(() => { renderCorte(); }, 300);
                     }
                 } catch(e) { console.error('Error propagando estado_rib:', e); }
