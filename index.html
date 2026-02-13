@@ -1268,6 +1268,7 @@
                     Programado <span class="kg-badge" id="kg-prog">[-]</span>
                 </button>
             </div>
+            <div id="bloqueo-active-filters" style="display:none; flex-wrap:wrap; gap:6px; margin-bottom:8px; padding:4px 0;"></div>
             
             <div class="table-container">
                 <table>
@@ -1704,7 +1705,7 @@
         let rawDataRowOffset = 0;
         let currentBloqueoFilter = 'X PROG';
         // Filtro aplicado desde el encabezado de Bloqueo (campo + valor)
-        let bloqueoHeaderFilter = null; // { field: 'CLIENTE', value: 'ABC' }
+        let bloqueoHeaderFilters = []; // [{ field: 'CLIENTE', value: 'ABC' }, ...]
         // Filtro aplicado desde el encabezado de Corte (campo + valor)
         let corteHeaderFilter = null; // { field: 'CLIENTE', value: 'ABC' }
         // Filtro aplicado desde el encabezado de Enumerado (campo + valor)
@@ -3144,47 +3145,50 @@
 
             validIndices = sortBloqueoData(validIndices);
 
-            // Aplicar filtro de encabezado si existe
+            // Aplicar filtros de encabezado acumulativos
             try {
-                if (bloqueoHeaderFilter && bloqueoHeaderFilter.field && bloqueoHeaderFilter.value !== undefined && bloqueoHeaderFilter.value !== null && String(bloqueoHeaderFilter.value).trim() !== '') {
-                    const f = bloqueoHeaderFilter.field;
-                    const v = String(bloqueoHeaderFilter.value).toUpperCase().trim();
-                    validIndices = validIndices.filter(idx => {
-                        const r = rawData[idx] || [];
-                        try {
-                            if (f === 'HOD') {
-                                const cell = formatValue(getVal(r, 'HOD'), 'date') || '';
-                                return String(cell).toUpperCase().indexOf(v) !== -1;
-                            }
-                            if (f === 'F.ING.COST') {
-                                const cell = formatValue(getVal(r, 'F.ING.COST'), 'date') || '';
-                                return String(cell).toUpperCase().indexOf(v) !== -1;
-                            }
-                            if (f === 'CLIENTE') {
-                                const cell = normalizeClientName(getVal(r, 'CLIENTE')) || '';
-                                return String(cell).toUpperCase().indexOf(v) !== -1;
-                            }
-                            if (f === 'OP-PTDA') {
-                                const opTela = String(getVal(r, 'OP TELA') || '').trim();
-                                const partida = String(getVal(r, 'PARTIDA') || '').trim();
-                                const cell = (opTela + '-' + partida) || '';
-                                return String(cell).toUpperCase().indexOf(v) !== -1;
-                            }
-                            if (f === 'OC') {
-                                const op = String(getVal(r, 'OP') || '').trim();
-                                const corte = String(getVal(r, 'CORTE') || '').trim();
-                                const cell = (op + '-' + corte) || '';
-                                return String(cell).toUpperCase().indexOf(v) !== -1;
-                            }
-                            if (f === 'COLOR') {
-                                const cell = String(getVal(r, 'COLOR') || '') || '';
-                                return String(cell).toUpperCase().indexOf(v) !== -1;
-                            }
-                        } catch (e) { return false; }
-                        return false;
+                if (bloqueoHeaderFilters && bloqueoHeaderFilters.length > 0) {
+                    bloqueoHeaderFilters.forEach(bloqueoHeaderFilter => {
+                        if (!bloqueoHeaderFilter || !bloqueoHeaderFilter.field || bloqueoHeaderFilter.value === undefined || bloqueoHeaderFilter.value === null || String(bloqueoHeaderFilter.value).trim() === '') return;
+                        const f = bloqueoHeaderFilter.field;
+                        const v = String(bloqueoHeaderFilter.value).toUpperCase().trim();
+                        validIndices = validIndices.filter(idx => {
+                            const r = rawData[idx] || [];
+                            try {
+                                if (f === 'HOD') {
+                                    const cell = formatValue(getVal(r, 'HOD'), 'date') || '';
+                                    return String(cell).toUpperCase().indexOf(v) !== -1;
+                                }
+                                if (f === 'F.ING.COST') {
+                                    const cell = formatValue(getVal(r, 'F.ING.COST'), 'date') || '';
+                                    return String(cell).toUpperCase().indexOf(v) !== -1;
+                                }
+                                if (f === 'CLIENTE') {
+                                    const cell = normalizeClientName(getVal(r, 'CLIENTE')) || '';
+                                    return String(cell).toUpperCase().indexOf(v) !== -1;
+                                }
+                                if (f === 'OP-PTDA') {
+                                    const opTela = String(getVal(r, 'OP TELA') || '').trim();
+                                    const partida = String(getVal(r, 'PARTIDA') || '').trim();
+                                    const cell = (opTela + '-' + partida) || '';
+                                    return String(cell).toUpperCase().indexOf(v) !== -1;
+                                }
+                                if (f === 'OC') {
+                                    const op = String(getVal(r, 'OP') || '').trim();
+                                    const corte = String(getVal(r, 'CORTE') || '').trim();
+                                    const cell = (op + '-' + corte) || '';
+                                    return String(cell).toUpperCase().indexOf(v) !== -1;
+                                }
+                                if (f === 'COLOR') {
+                                    const cell = String(getVal(r, 'COLOR') || '') || '';
+                                    return String(cell).toUpperCase().indexOf(v) !== -1;
+                                }
+                            } catch (e) { return false; }
+                            return false;
+                        });
                     });
                 }
-            } catch (e) { console.error('Error applying bloqueoHeaderFilter', e); }
+            } catch (e) { console.error('Error applying bloqueoHeaderFilters', e); }
 
             let lastOpPtda = null;
             let currentGroup = 'a'; 
@@ -3229,10 +3233,14 @@
             // Inicializar eventos de los selectores de fecha
             initializeDateInputs();
             
-            // Inicializar menú contextual de filtro en encabezados (solo X PROG)
-            if (currentBloqueoFilter === 'X PROG') {
-                initializeBloqueoHeaderContextMenus();
-            }
+            // Inicializar menú contextual de filtro en encabezados
+            initializeBloqueoHeaderContextMenus();
+            
+            // Marcar columnas filtradas visualmente
+            markFilteredColumns('view-bloqueo', bloqueoHeaderFilters.length > 0 ? bloqueoHeaderFilters : []);
+            
+            // Renderizar badges de filtros activos
+            renderBloqueoActiveFilters();
         }
 
         // Configura menú contextual en el encabezado de la vista Bloqueo
@@ -3369,7 +3377,10 @@
                                 item.style.padding = '4px 6px';
                                 item.innerText = v;
                                 item.onclick = () => {
-                                    bloqueoHeaderFilter = { field: f, value: v };
+                                    const existIdx = bloqueoHeaderFilters.findIndex(x => x.field === f);
+                                    if (existIdx !== -1) bloqueoHeaderFilters[existIdx] = { field: f, value: v };
+                                    else bloqueoHeaderFilters.push({ field: f, value: v });
+                                    renderBloqueoActiveFilters();
                                     renderBloqueo();
                                     hideMenu();
                                 };
@@ -3382,7 +3393,10 @@
                         // campos no fecha: usar prompt simple
                         const val = prompt(`Valor para filtrar ${f}:`, '');
                         if (val !== null) {
-                            bloqueoHeaderFilter = { field: f, value: val };
+                            const existIdx = bloqueoHeaderFilters.findIndex(x => x.field === f);
+                            if (existIdx !== -1) bloqueoHeaderFilters[existIdx] = { field: f, value: val };
+                            else bloqueoHeaderFilters.push({ field: f, value: val });
+                            renderBloqueoActiveFilters();
                             renderBloqueo();
                         }
                         hideMenu();
@@ -3397,7 +3411,8 @@
                 clear.style.marginTop = '6px';
                 clear.innerText = 'Limpiar filtro';
                 clear.onclick = () => {
-                    bloqueoHeaderFilter = null;
+                    bloqueoHeaderFilters = [];
+                    renderBloqueoActiveFilters();
                     renderBloqueo();
                     hideMenu();
                 };
@@ -3410,11 +3425,6 @@
 
             // Mostrar menú al hacer click derecho en la fila de encabezado
             thead.addEventListener('contextmenu', function(e) {
-                // Solo en sub-tab 'Por Programar'
-                const btnX = document.getElementById('btn-xprog');
-                const isXProgActive = btnX && btnX.classList.contains('active');
-                if (!isXProgActive) return; // no mostrar menú si no está en Por Programar
-
                 e.preventDefault();
                 menu.style.left = (e.pageX + 2) + 'px';
                 menu.style.top = (e.pageY + 2) + 'px';
@@ -7695,7 +7705,6 @@
         let bloqueoContextMenuField = null;
         
         window.showBloqueoContextMenu = function(event, fieldName) {
-            if (currentBloqueoFilter !== 'X PROG') return;
             event.preventDefault();
             event.stopPropagation();
             
@@ -7708,9 +7717,10 @@
             
             document.getElementById('bloqueo-filter-field').textContent = fieldName;
             
-            const dropdownFields = ['HOD', 'F.ING.COST', 'CLIENTE'];
+            // OP-PTDA y OC usan cuadro de texto; el resto usa dropdown
+            const textFields = ['OP-PTDA', 'OC'];
             
-            if (dropdownFields.includes(fieldName)) {
+            if (!textFields.includes(fieldName)) {
                 input.style.display = 'none';
                 select.style.display = 'block';
                 select.value = '';
@@ -7735,10 +7745,42 @@
         };
         
         window.clearBloqueoFilter = function() {
-            bloqueoHeaderFilter = null;
+            bloqueoHeaderFilters = [];
+            renderBloqueoActiveFilters();
             hideBloqueoContextMenu();
             renderBloqueo();
         };
+        
+        window.removeBloqueoFilter = function(index) {
+            bloqueoHeaderFilters.splice(index, 1);
+            renderBloqueoActiveFilters();
+            renderBloqueo();
+        };
+        
+        // Renderiza los badges de filtros activos para Bloqueo
+        function renderBloqueoActiveFilters() {
+            const container = document.getElementById('bloqueo-active-filters');
+            if (!container) return;
+            container.innerHTML = '';
+            if (bloqueoHeaderFilters.length === 0) {
+                container.style.display = 'none';
+                return;
+            }
+            container.style.display = 'flex';
+            bloqueoHeaderFilters.forEach((f, idx) => {
+                const badge = document.createElement('span');
+                badge.style.cssText = 'display:inline-flex;align-items:center;gap:4px;background:#dbeafe;color:#1e40af;border:1px solid #93c5fd;border-radius:12px;padding:3px 10px;font-size:11px;font-weight:600;cursor:default;';
+                badge.innerHTML = `${f.field}: ${f.value} <span onclick="removeBloqueoFilter(${idx})" style="cursor:pointer;color:#ef4444;font-size:14px;font-weight:700;margin-left:2px;" title="Quitar filtro">&times;</span>`;
+                container.appendChild(badge);
+            });
+            if (bloqueoHeaderFilters.length > 1) {
+                const clearAll = document.createElement('span');
+                clearAll.style.cssText = 'display:inline-flex;align-items:center;gap:4px;background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;border-radius:12px;padding:3px 10px;font-size:11px;font-weight:600;cursor:pointer;';
+                clearAll.textContent = 'Limpiar todo';
+                clearAll.onclick = function() { clearBloqueoFilter(); };
+                container.appendChild(clearAll);
+            }
+        }
         
         window.applyBloqueoFilter = function() {
             if (!bloqueoContextMenuField) { hideBloqueoContextMenu(); return; }
@@ -7746,16 +7788,55 @@
             const input = document.getElementById('bloqueo-filter-input');
             const select = document.getElementById('bloqueo-filter-select');
             let filterValue = '';
+            let isFromSelect = false;
             
-            if (input.style.display !== 'none') filterValue = input.value.trim().toUpperCase();
-            else if (select.style.display !== 'none') filterValue = select.value.trim().toUpperCase();
+            if (input.style.display !== 'none') {
+                filterValue = input.value.trim().toUpperCase();
+            } else if (select.style.display !== 'none') {
+                filterValue = select.value.trim();
+                isFromSelect = true;
+            }
             
-            if (!filterValue) { alert('Por favor seleccione o ingrese un valor para filtrar'); return; }
+            if (!filterValue && !isFromSelect) { alert('Por favor seleccione o ingrese un valor para filtrar'); return; }
+            if (isFromSelect && select.selectedIndex === 0) { alert('Por favor seleccione un valor para filtrar'); return; }
             
-            bloqueoHeaderFilter = { field: bloqueoContextMenuField, value: filterValue };
+            // Reemplazar filtro del mismo campo si ya existe, sino agregar
+            const existingIdx = bloqueoHeaderFilters.findIndex(f => f.field.toUpperCase() === bloqueoContextMenuField.toUpperCase());
+            const newFilter = { field: bloqueoContextMenuField, value: filterValue };
+            if (existingIdx !== -1) {
+                bloqueoHeaderFilters[existingIdx] = newFilter;
+            } else {
+                bloqueoHeaderFilters.push(newFilter);
+            }
+            
+            renderBloqueoActiveFilters();
             hideBloqueoContextMenu();
             renderBloqueo();
         };
+        
+        // Helper: obtener valor de campo para filtro Bloqueo
+        function getBloqueoFieldValue(row, fieldName) {
+            try {
+                switch(fieldName) {
+                    case 'HOD': return formatValue(getVal(row, 'HOD'), 'date') || '';
+                    case 'F.ING.COST':
+                        const rawFIng = getVal(row, 'F.ING.COST');
+                        const dateValue = convertToDateInputFormat(rawFIng);
+                        return formatDateShortFromInput(dateValue) || '';
+                    case 'CLIENTE': return normalizeClientName(getVal(row, 'CLIENTE')) || '';
+                    case 'COLOR': return String(getVal(row, 'COLOR') || '').trim();
+                    case 'OP-PTDA':
+                        const opTela = String(getVal(row, 'OP TELA') || '').trim();
+                        const partida = String(getVal(row, 'PARTIDA') || '').trim();
+                        return (opTela + '-' + partida);
+                    case 'OC':
+                        const op = String(getVal(row, 'OP') || '').trim();
+                        const corte = String(getVal(row, 'CORTE') || '').trim();
+                        return (op + '-' + corte);
+                }
+            } catch (e) { /* ignore */ }
+            return '';
+        }
         
         function populateBloqueoFilterSelect(fieldName) {
             const select = document.getElementById('bloqueo-filter-select');
@@ -7763,30 +7844,100 @@
             while (select.options.length > 1) select.remove(1);
             
             const values = new Set();
+            const dateTimestamps = new Map();
+            
+            const mesesEs = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+            const parseRawToTimestamp = (raw) => {
+                if (raw === undefined || raw === null || raw === '') return null;
+                if (typeof raw === 'number' && raw > 30000) {
+                    return new Date(Math.round((raw - 25569) * 86400 * 1000)).getTime();
+                }
+                if (typeof raw === 'string') {
+                    const s = raw.trim();
+                    const m = s.match(/Date\((\d+),(\d+),(\d+)\)/);
+                    if (m) return new Date(parseInt(m[1],10), parseInt(m[2],10), parseInt(m[3],10)).getTime();
+                    const m2 = s.match(/(\d{1,2})\/([A-Za-z]{3})\/(\d{2,4})/);
+                    if (m2) {
+                        const day = parseInt(m2[1],10);
+                        const monIdx = mesesEs.findIndex(x => x.toLowerCase() === m2[2].slice(0,3).toLowerCase());
+                        let year = parseInt(m2[3],10);
+                        if (m2[3].length === 2) year = 2000 + year;
+                        if (monIdx !== -1) return new Date(year, monIdx, day).getTime();
+                    }
+                    const tryIso = Date.parse(s);
+                    if (!isNaN(tryIso)) return tryIso;
+                }
+                return null;
+            };
+            
             for (let i = 1; i < rawData.length; i++) {
                 const row = rawData[i];
                 const rutaTela = (getVal(row, 'RUTA TELA') || '').toString().toUpperCase().trim();
                 if (rutaTela !== 'LAVADA') continue;
                 const estadoBloqueo = (getVal(row, 'estado_bloqueo') || '').toString().toUpperCase().trim();
-                if (estadoBloqueo !== '' && estadoBloqueo !== 'X PROG') continue;
+                const expectedState = currentBloqueoFilter || 'X PROG';
+                if (expectedState === 'X PROG') {
+                    if (estadoBloqueo !== '' && estadoBloqueo !== 'X PROG') continue;
+                } else {
+                    if (estadoBloqueo !== expectedState) continue;
+                }
+                
+                // Excluir filas con CORTE >= 9000 (solo para X PROG, misma lógica que renderBloqueo)
+                if (expectedState === 'X PROG') {
+                    try {
+                        const corteRaw = String(row[colMap["CORTE"]] || '').trim();
+                        const corteBase = parseInt((corteRaw.split('-')[0] || '').trim());
+                        if (!isNaN(corteBase) && corteBase >= 9000) continue;
+                    } catch (e) { /* ignore */ }
+                }
+                
+                // Cascading: verificar que la fila pase los filtros activos (excepto el campo actual)
+                let passesOtherFilters = true;
+                for (let fi = 0; fi < bloqueoHeaderFilters.length; fi++) {
+                    const hf = bloqueoHeaderFilters[fi];
+                    if (hf.field === fieldName) continue;
+                    const fv = getBloqueoFieldValue(row, hf.field);
+                    if (fv.toUpperCase().indexOf(hf.value.toUpperCase()) === -1) {
+                        passesOtherFilters = false;
+                        break;
+                    }
+                }
+                if (!passesOtherFilters) continue;
                 
                 let fieldValue = '';
                 switch(fieldName) {
-                    case 'HOD': fieldValue = formatValue(getVal(row, 'HOD'), 'date') || ''; break;
+                    case 'HOD':
+                        const rawHOD = getVal(row, 'HOD');
+                        fieldValue = formatValue(rawHOD, 'date') || '';
+                        if (fieldValue && !dateTimestamps.has(fieldValue)) {
+                            const ts = parseRawToTimestamp(rawHOD);
+                            if (ts !== null) dateTimestamps.set(fieldValue, ts);
+                        }
+                        break;
                     case 'F.ING.COST':
-                        const rawFIng = getVal(row, 'F.ING.COST');
-                        const dateValue = convertToDateInputFormat(rawFIng);
-                        fieldValue = formatDateShortFromInput(dateValue) || '';
+                        const rawFIng2 = getVal(row, 'F.ING.COST');
+                        const dateValue2 = convertToDateInputFormat(rawFIng2);
+                        fieldValue = formatDateShortFromInput(dateValue2) || '';
+                        if (fieldValue && !dateTimestamps.has(fieldValue)) {
+                            const ts = parseRawToTimestamp(rawFIng2);
+                            if (ts !== null) dateTimestamps.set(fieldValue, ts);
+                        }
                         break;
                     case 'CLIENTE': fieldValue = normalizeClientName(getVal(row, 'CLIENTE')) || ''; break;
+                    case 'COLOR': fieldValue = String(getVal(row, 'COLOR') || '').trim(); break;
                 }
                 if (fieldValue) values.add(fieldValue);
             }
             
-            // Si es fecha (HOD o F.ING.COST), ordenar por fecha; si no, alfabético
+            // Ordenar: fechas por timestamp, resto alfabético
             const sortedValues = Array.from(values).sort((a, b) => {
                 if (fieldName === 'HOD' || fieldName === 'F.ING.COST') {
-                    return compareDates(a, b);
+                    const tsA = dateTimestamps.get(a);
+                    const tsB = dateTimestamps.get(b);
+                    if (tsA != null && tsB != null) return tsA - tsB;
+                    if (tsA != null) return -1;
+                    if (tsB != null) return 1;
+                    return a.localeCompare(b);
                 }
                 return a.localeCompare(b);
             });
@@ -8094,7 +8245,8 @@
             currentBloqueoFilter = filterState;
             document.querySelectorAll('#view-bloqueo .sub-tab').forEach(el => el.classList.remove('active'));
             btn.classList.add('active');
-            bloqueoHeaderFilter = null; // Limpiar filtro al cambiar de sub-tab
+            bloqueoHeaderFilters = []; // Limpiar filtros al cambiar de sub-tab
+            renderBloqueoActiveFilters();
             renderBloqueo();
         };
 
@@ -10748,7 +10900,7 @@ NOTA: Por favor adjunte los archivos descargados (${fileName}.xlsx y ${fileName}
         </div>
         <div class="context-menu-buttons">
             <button class="context-menu-btn cancel" onclick="hideBloqueoContextMenu()">Cancelar</button>
-            <button class="context-menu-btn cancel" onclick="clearBloqueoFilter()" style="background: #ef4444; color: white;">Limpiar</button>
+            <button class="context-menu-btn cancel" onclick="clearBloqueoFilter()" style="background: #ef4444; color: white;">Limpiar Todo</button>
             <button class="context-menu-btn apply" onclick="applyBloqueoFilter()">Aplicar</button>
         </div>
     </div>
