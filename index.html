@@ -979,6 +979,178 @@
             border-bottom: 3px solid #b45309 !important;
         }
     </style>
+    <style>
+        /* Botón circular de impresión */
+        .btn-print-circle {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            border: 1px solid var(--primary);
+            background: var(--primary-light);
+            color: var(--primary);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .btn-print-circle:hover {
+            background: var(--primary);
+            color: var(--white);
+        }
+        .btn-print-circle i { font-size: 14px; }
+
+        @media print {
+            @page { margin-top: 5mm; margin-bottom: 5mm; margin-left: 5mm; margin-right: 5mm; }
+            /* --- BLOQUEO PROGRAMADO --- */
+            body.print-bloqueo-prog * { visibility: hidden; }
+            body.print-bloqueo-prog #view-bloqueo,
+            body.print-bloqueo-prog #view-bloqueo * { visibility: visible; }
+            body.print-bloqueo-prog #view-bloqueo .sub-nav { display: none; }
+            body.print-bloqueo-prog #view-bloqueo .table-container { overflow: visible; }
+            body.print-bloqueo-prog #view-bloqueo {
+                position: absolute; left: 0; top: 0; width: 100%;
+            }
+            body.print-bloqueo-prog #print-header-bloqueo {
+                visibility: visible !important; display: block !important;
+                text-align: center; font-size: 18px; font-weight: 700; margin-bottom: 12px; color: #1e293b;
+            }
+            body.print-bloqueo-prog #print-date-bloqueo {
+                visibility: visible !important; display: block !important;
+                text-align: right; font-size: 11px; font-weight: 500; margin-bottom: 4px; color: #64748b;
+            }
+            body.print-bloqueo-prog #view-bloqueo table {
+                font-size: 14px !important; table-layout: fixed !important; width: 100% !important;
+            }
+            body.print-bloqueo-prog #view-bloqueo th,
+            body.print-bloqueo-prog #view-bloqueo td {
+                padding: 3px 3px !important; overflow: hidden !important;
+                text-overflow: ellipsis !important; white-space: nowrap !important;
+            }
+            body.print-bloqueo-prog #view-bloqueo tr.group-a td {
+                background-color: #e8f0fe !important;
+                -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;
+            }
+            body.print-bloqueo-prog #view-bloqueo tr.group-b td { background-color: #ffffff !important; }
+
+            /* --- CORTE PROG (3 turnos) --- */
+            body.print-corte-prog * { visibility: hidden; }
+            body.print-corte-prog #print-corte-container,
+            body.print-corte-prog #print-corte-container * { visibility: visible; }
+            body.print-corte-prog #print-corte-container {
+                position: absolute; left: 0; top: 0; width: 100%;
+            }
+            body.print-corte-prog #print-corte-container .print-shift-section {
+                page-break-after: always; margin-bottom: 20px;
+            }
+            body.print-corte-prog #print-corte-container .print-shift-section:last-child {
+                page-break-after: avoid;
+            }
+            body.print-corte-prog .print-shift-header {
+                visibility: visible !important; display: block !important;
+                text-align: center; font-size: 18px; font-weight: 700; margin-bottom: 8px; color: #1e293b;
+            }
+            body.print-corte-prog .print-shift-date {
+                visibility: visible !important; display: block !important;
+                text-align: right; font-size: 11px; font-weight: 500; margin-bottom: 4px; color: #64748b;
+            }
+            body.print-corte-prog #print-corte-container table {
+                font-size: 12px !important; table-layout: fixed !important; width: 100% !important; border-collapse: collapse !important;
+            }
+            body.print-corte-prog #print-corte-container th,
+            body.print-corte-prog #print-corte-container td {
+                padding: 3px 4px !important; overflow: hidden !important;
+                text-overflow: ellipsis !important; white-space: nowrap !important;
+                border: 1px solid #e2e8f0 !important;
+            }
+            body.print-corte-prog #print-corte-container thead th {
+                background-color: #1e293b !important; color: #ffffff !important;
+                -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;
+            }
+            body.print-corte-prog #print-corte-container th:nth-child(1),
+            body.print-corte-prog #print-corte-container td:nth-child(1) { width: 3% !important; }
+            body.print-corte-prog #print-corte-container th:nth-child(2),
+            body.print-corte-prog #print-corte-container td:nth-child(2) { width: 3% !important; }
+            body.print-corte-prog #print-corte-container th:nth-child(4),
+            body.print-corte-prog #print-corte-container td:nth-child(4) { width: 4% !important; }
+            body.print-corte-prog #print-corte-container th:nth-child(5),
+            body.print-corte-prog #print-corte-container td:nth-child(5) { width: 5% !important; }
+            body.print-corte-prog #print-corte-container th:nth-child(9),
+            body.print-corte-prog #print-corte-container td:nth-child(9) { width: 4% !important; }
+            body.print-corte-prog #print-corte-container tr.group-a td {
+                background-color: #e8f0fe !important;
+                -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;
+            }
+            body.print-corte-prog #print-corte-container tr.group-b td { background-color: #ffffff !important; }
+            body.print-corte-prog #print-corte-container tr.equipo-header td {
+                background-color: #FFE699 !important;
+                -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;
+                font-weight: 700 !important;
+            }
+
+            /* --- HABILITADO PROG (3 turnos, landscape) --- */
+            @page habilitado-landscape { size: A4 landscape; margin: 5mm; }
+            body.print-habilitado-prog {
+                -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;
+            }
+            body.print-habilitado-prog,
+            body.print-habilitado-prog #print-habilitado-container,
+            body.print-habilitado-prog #print-habilitado-container .print-shift-section {
+                page: habilitado-landscape;
+            }
+            body.print-habilitado-prog * { visibility: hidden; }
+            body.print-habilitado-prog #print-habilitado-container,
+            body.print-habilitado-prog #print-habilitado-container * { visibility: visible; }
+            body.print-habilitado-prog #print-habilitado-container {
+                position: absolute; left: 0; top: 0; width: 100%;
+            }
+            body.print-habilitado-prog #print-habilitado-container .print-shift-section {
+                page-break-after: always; margin-bottom: 20px;
+            }
+            body.print-habilitado-prog #print-habilitado-container .print-shift-section:last-child {
+                page-break-after: avoid;
+            }
+            body.print-habilitado-prog .print-shift-header {
+                visibility: visible !important; display: block !important;
+                text-align: center; font-size: 18px; font-weight: 700; margin-bottom: 8px; color: #1e293b;
+            }
+            body.print-habilitado-prog .print-shift-date {
+                visibility: visible !important; display: block !important;
+                text-align: right; font-size: 11px; font-weight: 500; margin-bottom: 4px; color: #64748b;
+            }
+            body.print-habilitado-prog #print-habilitado-container table {
+                font-size: 11px !important; table-layout: fixed !important; width: 100% !important; border-collapse: collapse !important;
+            }
+            body.print-habilitado-prog #print-habilitado-container th,
+            body.print-habilitado-prog #print-habilitado-container td {
+                padding: 3px 4px !important; overflow: hidden !important;
+                text-overflow: ellipsis !important; white-space: nowrap !important;
+                border: 1px solid #e2e8f0 !important;
+            }
+            body.print-habilitado-prog #print-habilitado-container thead th {
+                background-color: #1e293b !important; color: #ffffff !important;
+                -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;
+            }
+            body.print-habilitado-prog #print-habilitado-container tr.group-a td {
+                background-color: #e8f0fe !important;
+                -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;
+            }
+            body.print-habilitado-prog #print-habilitado-container tr.group-b td { background-color: #ffffff !important; }
+            body.print-habilitado-prog #print-habilitado-container tr.trsf-header td {
+                background-color: #FFE699 !important;
+                -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;
+                font-weight: 700 !important;
+            }
+            body.print-habilitado-prog #print-habilitado-container th:nth-child(1),
+            body.print-habilitado-prog #print-habilitado-container td:nth-child(1) { width: 3% !important; }
+        }
+        #print-header-bloqueo, #print-date-bloqueo { display: none; }
+        #print-corte-container { display: none; }
+        body.print-corte-prog #print-corte-container { display: block !important; }
+        #print-habilitado-container { display: none; }
+        body.print-habilitado-prog #print-habilitado-container { display: block !important; }
+        .print-show { display: none; }
+    </style>
 </head>
 <body>
 
@@ -1260,12 +1432,17 @@
         
         <!-- VISTA BLOQUEO (TABLA) -->
         <section id="view-bloqueo" class="view-section active">
+            <div id="print-date-bloqueo"></div>
+            <div id="print-header-bloqueo">Programa de Bloqueo de tela Lavada</div>
             <div class="sub-nav">
                 <button id="btn-xprog" class="sub-tab active" onclick="filterBloqueo('X PROG', this)">
                     Por Programar <span class="kg-badge" id="kg-xprog">[-]</span>
                 </button>
                 <button id="btn-prog" class="sub-tab" onclick="filterBloqueo('PROG', this)">
                     Programado <span class="kg-badge" id="kg-prog">[-]</span>
+                </button>
+                <button id="btn-print-bloqueo-prog" class="btn-print-circle" onclick="printBloqueoProgramado()" style="display:none;" title="Imprimir Programado" aria-label="Imprimir Programado">
+                    <i class="ph ph-printer"></i>
                 </button>
             </div>
             <div id="bloqueo-active-filters" style="display:none; flex-wrap:wrap; gap:6px; margin-bottom:8px; padding:4px 0;"></div>
@@ -1527,6 +1704,9 @@
                         <button id="habilitado-btn-3t" class="sub-tab" onclick="filterHabilitado('PROG 3T', this)">
                             PROG 3T <span class="kg-badge" id="habilitado-pds-3t">[-]</span>
                         </button>
+                        <button id="btn-print-habilitado-prog" class="btn-print-circle" onclick="printHabilitadoProg()" style="display:none;" title="Imprimir Programado (3 turnos)" aria-label="Imprimir Programado">
+                            <i class="ph ph-printer"></i>
+                        </button>
                     </div>
                     <!-- Badges de filtros activos -->
                     <div id="habilitado-active-filters" style="display:none; flex-wrap:wrap; gap:6px; margin-bottom:8px; padding:4px 0;"></div>
@@ -1613,6 +1793,9 @@
                 <button id="eqcorte-btn" class="sub-tab" onclick="abrirModalEQCorte()" style="background: var(--primary-light); color: var(--primary); border: 1px solid var(--primary);">
                     <i class="ph ph-gear"></i> EQ_Corte
                 </button>
+                <button id="btn-print-corte-prog" class="btn-print-circle" onclick="printCorteProg()" style="display:none;" title="Imprimir programación de los 3 turnos">
+                    <i class="ph ph-printer"></i>
+                </button>
                     <!-- Filtros por RUTA a la derecha -->
                     <div class="sub-filters" id="corte-route-filters" style="display:flex;">
                         <label class="filter-item"><input type="checkbox" id="flt-lv" onchange="onRouteFilterChange('LV-ok', this.checked)"><span>LV-ok</span></label>
@@ -1691,6 +1874,10 @@
         </section>
 
     </main>
+
+    <!-- Contenedores ocultos para impresión -->
+    <div id="print-corte-container"></div>
+    <div id="print-habilitado-container"></div>
 
     <script>
         // --- CONFIGURACIÓN ---
@@ -7382,6 +7569,14 @@
             // Limpiar filtros de encabezado cuando se cambia de sub-tab
             habilitadoHeaderFilters = [];
             renderHabilitadoActiveFilters();
+            // Mostrar/ocultar botón de imprimir según sub-tab
+            try {
+                const btnPrint = document.getElementById('btn-print-habilitado-prog');
+                if (btnPrint) {
+                    const isProgSubtab = (filterState === 'PROG 1T' || filterState === 'PROG 2T' || filterState === 'PROG 3T');
+                    btnPrint.style.display = isProgSubtab ? 'inline-flex' : 'none';
+                }
+            } catch (e) {}
             renderHabilitado();
         };
         
@@ -8240,7 +8435,34 @@
             if (!select) return;
             while (select.options.length > 1) select.remove(1);
             
-            const values = new Set();
+            // Map: displayValue -> sortKey (timestamp for dates, string for others)
+            const valuesMap = new Map();
+            const mesesEs = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+
+            // Helper: extract a numeric timestamp from a raw cell value for sorting
+            const rawToTimestamp = (raw) => {
+                if (raw === undefined || raw === null || raw === '') return null;
+                if (typeof raw === 'number' && raw > 30000) {
+                    return new Date(Math.round((raw - 25569) * 86400 * 1000)).getTime();
+                }
+                if (typeof raw === 'string') {
+                    const s = raw.trim();
+                    const m = s.match(/Date\((\d+),(\d+),(\d+)\)/);
+                    if (m) return new Date(parseInt(m[1],10), parseInt(m[2],10), parseInt(m[3],10)).getTime();
+                    const m2 = s.match(/(\d{1,2})\/([A-Za-z]{3})\/(\d{2,4})/);
+                    if (m2) {
+                        const day = parseInt(m2[1],10);
+                        const monIdx = mesesEs.findIndex(x => x.toLowerCase() === m2[2].toLowerCase());
+                        let year = parseInt(m2[3],10);
+                        if (m2[3].length === 2) year = 2000 + year;
+                        if (monIdx !== -1) return new Date(year, monIdx, day).getTime();
+                    }
+                    const tryIso = Date.parse(s);
+                    if (!isNaN(tryIso)) return tryIso;
+                }
+                return null;
+            };
+
             for (let i = 1; i < rawData.length; i++) {
                 const row = rawData[i];
                 const estadoCorte = (getVal(row, 'estado_corte') || '').toString().toUpperCase().trim();
@@ -8249,12 +8471,17 @@
                 if (estadoEnumerado === 'OK ENM' || estadoEnumerado === 'OK PAQUETEO' || estadoEnumerado === 'OK S/ENM') continue;
                 
                 let fieldValue = '';
+                let sortKey = null;
                 switch(fieldName) {
-                    case 'HOD': fieldValue = formatValue(getVal(row, 'HOD'), 'date') || ''; break;
+                    case 'HOD':
+                        fieldValue = formatValue(getVal(row, 'HOD'), 'date') || '';
+                        sortKey = rawToTimestamp(getVal(row, 'HOD'));
+                        break;
                     case 'F.ING.COST':
                         const rawFIng = getVal(row, 'F.ING.COST');
                         const dateValue = convertToDateInputFormat(rawFIng);
                         fieldValue = formatDateShortFromInput(dateValue) || '';
+                        sortKey = rawToTimestamp(rawFIng);
                         break;
                     case 'CLIENTE': fieldValue = normalizeClientName(getVal(row, 'CLIENTE')) || ''; break;
                     case 'RUTA':
@@ -8263,20 +8490,26 @@
                         else if (rutaTela === 'ACABADA') fieldValue = 'ACABADA';
                         break;
                 }
-                if (fieldValue) values.add(fieldValue);
+                if (fieldValue && !valuesMap.has(fieldValue)) {
+                    valuesMap.set(fieldValue, sortKey);
+                }
             }
             
-            // Si es fecha (HOD o F.ING.COST), ordenar por fecha; si no, alfabético
-            const sortedValues = Array.from(values).sort((a, b) => {
+            // Convert to array and sort: dates by timestamp, others alphabetically
+            const entries = Array.from(valuesMap.entries()).map(([display, ts]) => ({ display, ts }));
+            entries.sort((a, b) => {
                 if (fieldName === 'HOD' || fieldName === 'F.ING.COST') {
-                    return compareDates(a, b);
+                    if (a.ts === null && b.ts === null) return a.display.localeCompare(b.display);
+                    if (a.ts === null) return 1;
+                    if (b.ts === null) return -1;
+                    return a.ts - b.ts;
                 }
-                return a.localeCompare(b);
+                return a.display.localeCompare(b.display);
             });
-            sortedValues.forEach(value => {
+            entries.forEach(({ display }) => {
                 const option = document.createElement('option');
-                option.value = value;
-                option.textContent = value;
+                option.value = display;
+                option.textContent = display;
                 select.appendChild(option);
             });
         }
@@ -8307,6 +8540,10 @@
             btn.classList.add('active');
             bloqueoHeaderFilters = []; // Limpiar filtros al cambiar de sub-tab
             renderBloqueoActiveFilters();
+            try {
+                const printBtn = document.getElementById('btn-print-bloqueo-prog');
+                if (printBtn) printBtn.style.display = (currentBloqueoFilter === 'PROG') ? 'inline-flex' : 'none';
+            } catch (e) {}
             renderBloqueo();
         };
 
@@ -8331,6 +8568,14 @@
                     try {
                         const eqBtn = document.getElementById('eqcorte-btn');
                         if (eqBtn) eqBtn.style.display = (filterState === 'X PROG') ? 'inline-flex' : 'none';
+                    } catch (e) {}
+                    // Mostrar/ocultar botón de impresión según el subtab activo
+                    try {
+                        const btnPrintCorte = document.getElementById('btn-print-corte-prog');
+                        if (btnPrintCorte) {
+                            const isProg = (filterState === 'PROG 1T' || filterState === 'PROG 2T' || filterState === 'PROG 3T');
+                            btnPrintCorte.style.display = isProg ? 'inline-flex' : 'none';
+                        }
                     } catch (e) {}
                     renderCorte();
         };
@@ -10912,6 +11157,473 @@ NOTA: Por favor adjunte los archivos descargados (${fileName}.xlsx y ${fileName}
             // Abrir Outlook
             window.location.href = mailtoUrl;
         }
+
+        // =============================================
+        // FUNCIONES DE IMPRESIÓN
+        // =============================================
+
+        // --- Imprimir Bloqueo Programado ---
+        window.printBloqueoProgramado = function() {
+            try {
+                if (currentBloqueoFilter !== 'PROG') {
+                    const progBtn = document.getElementById('btn-prog');
+                    if (progBtn) filterBloqueo('PROG', progBtn);
+                }
+                const now = new Date();
+                const meses = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+                const dia = now.getDate();
+                const mes = meses[now.getMonth()];
+                const anio = now.getFullYear();
+                let horas = now.getHours();
+                const minutos = String(now.getMinutes()).padStart(2, '0');
+                const ampm = horas >= 12 ? 'pm' : 'am';
+                horas = horas % 12 || 12;
+                const fechaStr = `${dia}/${mes}/${anio}, ${String(horas).padStart(2, '0')}:${minutos}${ampm}`;
+                const dateEl = document.getElementById('print-date-bloqueo');
+                if (dateEl) dateEl.textContent = fechaStr;
+
+                // Formatear fechas sin año para impresión
+                const tbody = document.getElementById('tbody-bloqueo');
+                if (tbody) {
+                    tbody.querySelectorAll('tr').forEach(tr => {
+                        const cells = tr.querySelectorAll('td');
+                        [1, 2].forEach(idx => {
+                            if (cells[idx]) {
+                                const cell = cells[idx];
+                                const originalText = cell.getAttribute('data-full-date') || cell.textContent;
+                                if (!cell.getAttribute('data-full-date')) {
+                                    cell.setAttribute('data-full-date', originalText);
+                                }
+                                const parts = originalText.split('/');
+                                if (parts.length >= 2) {
+                                    cell.textContent = parts[0] + '/' + parts[1];
+                                }
+                            }
+                        });
+                    });
+                }
+
+                document.body.classList.add('print-bloqueo-prog');
+                setTimeout(() => { window.print(); }, 50);
+            } catch (e) {
+                console.error('Error printing Bloqueo Programado', e);
+            }
+        };
+
+        // --- afterprint: limpiar ---
+        window.addEventListener('afterprint', function() {
+            document.body.classList.remove('print-bloqueo-prog');
+            document.body.classList.remove('print-corte-prog');
+            document.body.classList.remove('print-habilitado-prog');
+            // Restaurar fechas completas Bloqueo
+            const tbody = document.getElementById('tbody-bloqueo');
+            if (tbody) {
+                tbody.querySelectorAll('tr').forEach(tr => {
+                    const cells = tr.querySelectorAll('td');
+                    [1, 2].forEach(idx => {
+                        if (cells[idx]) {
+                            const fullDate = cells[idx].getAttribute('data-full-date');
+                            if (fullDate) cells[idx].textContent = fullDate;
+                        }
+                    });
+                });
+            }
+            const printContainer = document.getElementById('print-corte-container');
+            if (printContainer) printContainer.innerHTML = '';
+            const printHabContainer = document.getElementById('print-habilitado-container');
+            if (printHabContainer) printHabContainer.innerHTML = '';
+        });
+
+        // --- Imprimir Corte PROG (3 turnos) ---
+        window.printCorteProg = function() {
+            try {
+                const container = document.getElementById('print-corte-container');
+                if (!container) return;
+                container.innerHTML = '';
+
+                const now = new Date();
+                const meses = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+                const dia = now.getDate();
+                const mes = meses[now.getMonth()];
+                const anio = now.getFullYear();
+                let horas = now.getHours();
+                const minutos = String(now.getMinutes()).padStart(2, '0');
+                const ampm = horas >= 12 ? 'pm' : 'am';
+                horas = horas % 12 || 12;
+                const fechaStr = `${dia}/${mes}/${anio}, ${String(horas).padStart(2, '0')}:${minutos}${ampm}`;
+
+                const columnsToShow = ['RSV', 'P', 'F.ING.COST', 'CLI', 'RUTA', 'OC', 'COLOR', 'OP-PTDA', 'PDS', 'PRENDA', 'ART.', 'TIPO CERT.', 'RIB'];
+                const turnos = ['PROG 1T', 'PROG 2T', 'PROG 3T'];
+
+                turnos.forEach((turno, turnoIdx) => {
+                    let validIndices = [];
+                    for (let i = 1; i < rawData.length; i++) {
+                        const row = rawData[i];
+                        const estadoCorteVal = (row[colMap["STATUS_CORTE"]] || row[colMap["STATUS"]] || row[colMap["status"]] || row[colMap["estado_corte"]] || row[colMap["ESTADO CORTE"]] || row[colMap["ESTADO_CORTE"]]) || "";
+                        const estadoCorteNorm = (!estadoCorteVal || estadoCorteVal === '') ? 'X PROG' : String(estadoCorteVal);
+                        if (estadoCorteNorm === turno) {
+                            validIndices.push(i);
+                        }
+                    }
+
+                    validIndices.sort((a, b) => {
+                        const idxP = findHeaderIndexCaseInsensitive('P');
+                        let pA = '', pB = '';
+                        if (idxP !== -1) {
+                            pA = String(rawData[a][idxP] || '').trim();
+                            pB = String(rawData[b][idxP] || '').trim();
+                        }
+                        const pNumA = pA === '' ? Infinity : parseInt(pA) || Infinity;
+                        const pNumB = pB === '' ? Infinity : parseInt(pB) || Infinity;
+                        if (pNumA !== pNumB) return pNumA - pNumB;
+
+                        const equipoA = String(rawData[a][colMap["EQUIPO CORTE"]] || rawData[a][colMap["EQUIPO_CORTE"]] || rawData[a][colMap["equipo_corte"]] || "").trim();
+                        const equipoB = String(rawData[b][colMap["EQUIPO CORTE"]] || rawData[b][colMap["EQUIPO_CORTE"]] || rawData[b][colMap["equipo_corte"]] || "").trim();
+                        const findEqOrder = (nombre) => {
+                            const equipo = equiposCorteData.find(eq => eq.nombre === nombre);
+                            return equipo ? (parseInt(equipo.eq) || 999) : 999;
+                        };
+                        return findEqOrder(equipoA) - findEqOrder(equipoB);
+                    });
+
+                    const section = document.createElement('div');
+                    section.className = 'print-shift-section';
+
+                    const header = document.createElement('div');
+                    header.className = 'print-shift-header';
+                    header.textContent = `Programación Corte - ${turno}`;
+                    section.appendChild(header);
+
+                    const dateDiv = document.createElement('div');
+                    dateDiv.className = 'print-shift-date';
+                    dateDiv.textContent = fechaStr;
+                    section.appendChild(dateDiv);
+
+                    const table = document.createElement('table');
+                    const thead = document.createElement('thead');
+                    const headerRow = document.createElement('tr');
+                    columnsToShow.forEach(col => {
+                        const th = document.createElement('th');
+                        th.textContent = col;
+                        headerRow.appendChild(th);
+                    });
+                    thead.appendChild(headerRow);
+                    table.appendChild(thead);
+
+                    const tbodyEl = document.createElement('tbody');
+                    let lastEquipo = null;
+                    let lastOpPtda = null;
+                    let currentGroup = 'a';
+
+                    validIndices.forEach(i => {
+                        const row = rawData[i];
+                        const equipoCorte = String(row[colMap["EQUIPO CORTE"]] || row[colMap["EQUIPO_CORTE"]] || row[colMap["equipo_corte"]] || "").trim();
+
+                        if (equipoCorte !== lastEquipo) {
+                            const eqRow = document.createElement('tr');
+                            eqRow.className = 'equipo-header';
+                            const eqCell = document.createElement('td');
+                            eqCell.colSpan = columnsToShow.length;
+                            let pdsEquipo = 0;
+                            validIndices.forEach(idx => {
+                                const r = rawData[idx];
+                                const eq = String(r[colMap["EQUIPO CORTE"]] || r[colMap["EQUIPO_CORTE"]] || r[colMap["equipo_corte"]] || "").trim();
+                                if (eq === equipoCorte) {
+                                    pdsEquipo += parseFloat(getVal(r, "PDS GIRADAS") || getVal(r, "PDS") || 0) || 0;
+                                }
+                            });
+                            eqCell.textContent = (equipoCorte || 'SIN EQUIPO ASIGNADO') + ' [' + formatThousands(pdsEquipo, 0) + 'pds]';
+                            eqRow.appendChild(eqCell);
+                            tbodyEl.appendChild(eqRow);
+                            lastEquipo = equipoCorte;
+                            lastOpPtda = null;
+                        }
+
+                        const opTela = String(row[colMap["OP TELA"]] || "").trim();
+                        const partida = String(row[colMap["PARTIDA"]] || "").trim();
+                        const currentOpPtda = opTela + '-' + partida;
+                        if (lastOpPtda !== null && currentOpPtda !== lastOpPtda) {
+                            currentGroup = (currentGroup === 'a') ? 'b' : 'a';
+                        }
+                        lastOpPtda = currentOpPtda;
+
+                        const tr = document.createElement('tr');
+                        tr.className = 'group-' + currentGroup;
+
+                        columnsToShow.forEach(col => {
+                            const td = document.createElement('td');
+                            let cellValue = '';
+                            switch(col) {
+                                case 'RSV': cellValue = String(getVal(row, 'RSV') || '').trim(); break;
+                                case 'P':
+                                    const idxP2 = findHeaderIndexCaseInsensitive('P');
+                                    cellValue = idxP2 !== -1 ? String(row[idxP2] || '').trim() : '';
+                                    break;
+                                case 'F.ING.COST': cellValue = formatValue(getVal(row, 'F.ING.COST'), 'date') || ''; break;
+                                case 'CLI': cellValue = normalizeClientName(getVal(row, 'CLIENTE')) || ''; break;
+                                case 'RUTA':
+                                    const rutaTela = (getVal(row, 'RUTA TELA') || '').toString().toUpperCase().trim();
+                                    const estadoBloqueo = (getVal(row, 'estado_bloqueo') || '').toString().toUpperCase().trim();
+                                    const estadoLavada = (getVal(row, 'estado_lavada') || '').toString().toUpperCase().trim();
+                                    if (rutaTela === 'LAVADA') {
+                                        if (estadoBloqueo === 'OK' && estadoLavada === 'OK') cellValue = 'LV-OK';
+                                        else if (estadoBloqueo !== 'OK') cellValue = 'X BLOQ';
+                                        else if (estadoLavada !== 'OK') cellValue = 'X LAVAR';
+                                    } else if (rutaTela === 'ACABADA') { cellValue = 'AC'; }
+                                    break;
+                                case 'OC':
+                                    cellValue = (getVal(row, 'OP') || '') + '-' + (getVal(row, 'CORTE') || '');
+                                    break;
+                                case 'COLOR': cellValue = abbreviateHeather(getVal(row, 'COLOR') || ''); break;
+                                case 'OP-PTDA': cellValue = currentOpPtda; break;
+                                case 'PDS':
+                                    const pds = parseFloat(getVal(row, 'PDS GIRADAS') || getVal(row, 'PDS') || 0) || 0;
+                                    cellValue = formatThousands(pds, 0);
+                                    break;
+                                case 'PRENDA': cellValue = normalizePrenda(getVal(row, 'PRENDA') || ''); break;
+                                case 'ART.': cellValue = getVal(row, 'ARTÍCULO') || ''; break;
+                                case 'TIPO CERT.': cellValue = normalizeTipoCert(getVal(row, 'TIPO CERTIFICADO') || ''); break;
+                                case 'RIB':
+                                    const ribVal = getVal(row, 'RIB') || '';
+                                    cellValue = ribVal === 'NO LLEVA' ? '' : (ribVal ? 'SI' : '');
+                                    break;
+                            }
+                            td.textContent = cellValue;
+                            tr.appendChild(td);
+                        });
+
+                        tbodyEl.appendChild(tr);
+                    });
+
+                    table.appendChild(tbodyEl);
+                    section.appendChild(table);
+                    container.appendChild(section);
+                });
+
+                document.body.classList.add('print-corte-prog');
+                setTimeout(() => { window.print(); }, 100);
+            } catch (e) {
+                console.error('Error printing Corte PROG', e);
+            }
+        };
+
+        // --- Imprimir Habilitado PROG (3 turnos) ---
+        window.printHabilitadoProg = function() {
+            try {
+                const container = document.getElementById('print-habilitado-container');
+                if (!container) return;
+                container.innerHTML = '';
+
+                const now = new Date();
+                const meses = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+                const dia = now.getDate();
+                const mes = meses[now.getMonth()];
+                const anio = now.getFullYear();
+                let horas = now.getHours();
+                const minutos = String(now.getMinutes()).padStart(2, '0');
+                const ampm = horas >= 12 ? 'pm' : 'am';
+                horas = horas % 12 || 12;
+                const fechaStr = `${dia}/${mes}/${anio}, ${String(horas).padStart(2, '0')}:${minutos}${ampm}`;
+
+                const columnsToShow = ['P', 'HOD', 'F.ING', 'STATUS', 'CLI', 'OC', 'COLOR', 'PDS', 'PDA', 'CERT', 'RIB', 'BLOQ?', 'COLL/TAP', 'TRSF', 'BORD', 'ESTM', 'PLANTA', 'LINEA'];
+                const turnos = ['PROG 1T', 'PROG 2T', 'PROG 3T'];
+
+                const idxEv = findHeaderIndexCaseInsensitive('estado_enumerado');
+                const idxHabil = findHeaderIndexCaseInsensitive('estado_habilitado');
+
+                const getTrsfGroupValue = (row) => {
+                    const tipoTransfer = getVal(row, 'tipo-transfer') || getVal(row, 'TIPO-TRANSFER') || getVal(row, 'tipo_transfer') || '';
+                    const rawNTrans = getVal(row, 'n.transfxpda') || getVal(row, 'N.TRANSFXPDA') || getVal(row, 'n_transfxpda') || '';
+                    const tipoTransNorm = (tipoTransfer || '').toString().toUpperCase().trim();
+                    const nTransNorm = (rawNTrans !== undefined && rawNTrans !== null) ? String(rawNTrans).trim() : '';
+                    if (tipoTransNorm === 'EN PIEZA' && !isNaN(parseInt(nTransNorm)) && nTransNorm !== '') return 'Pza';
+                    return 'Otros';
+                };
+
+                turnos.forEach((turno, turnoIdx) => {
+                    let validIndices = [];
+                    for (let i = 1; i < rawData.length; i++) {
+                        const row = rawData[i];
+                        let ev = '';
+                        if (idxEv !== -1 && row[idxEv] !== undefined) ev = row[idxEv];
+                        else ev = getVal(row, 'estado_enumerado') || '';
+                        const evNorm = (ev || '').toString().toUpperCase().trim();
+                        if (evNorm !== 'OK ENM' && evNorm !== 'OK S/ENM') continue;
+
+                        let habilVal = '';
+                        if (idxHabil !== -1 && row[idxHabil] !== undefined) habilVal = row[idxHabil];
+                        else habilVal = getVal(row, 'estado_habilitado') || '';
+                        const habilNorm = (habilVal || '').toString().toUpperCase().trim();
+                        if (habilNorm === turno) validIndices.push(i);
+                    }
+
+                    validIndices.sort((a, b) => {
+                        const rowA = rawData[a]; const rowB = rawData[b];
+                        const groupA = getTrsfGroupValue(rowA); const groupB = getTrsfGroupValue(rowB);
+                        if (groupA !== groupB) return (groupA === 'Pza' ? 0 : 1) - (groupB === 'Pza' ? 0 : 1);
+                        const idxP = findHeaderIndexCaseInsensitive('P');
+                        let pA = '', pB = '';
+                        if (idxP !== -1) { pA = String(rowA[idxP] || '').trim(); pB = String(rowB[idxP] || '').trim(); }
+                        const pNumA = pA === '' ? Infinity : parseInt(pA) || Infinity;
+                        const pNumB = pB === '' ? Infinity : parseInt(pB) || Infinity;
+                        if (pNumA !== pNumB) return pNumA - pNumB;
+                        const dateA = rowA[colMap["HOD"]] || 0; const dateB = rowB[colMap["HOD"]] || 0;
+                        return dateB - dateA;
+                    });
+
+                    const section = document.createElement('div');
+                    section.className = 'print-shift-section';
+
+                    const header = document.createElement('div');
+                    header.className = 'print-shift-header';
+                    header.textContent = `Programación Habilitado - ${turno}`;
+                    section.appendChild(header);
+
+                    const dateDiv = document.createElement('div');
+                    dateDiv.className = 'print-shift-date';
+                    dateDiv.textContent = fechaStr;
+                    section.appendChild(dateDiv);
+
+                    const table = document.createElement('table');
+                    const thead = document.createElement('thead');
+                    const headerRow = document.createElement('tr');
+                    columnsToShow.forEach(col => {
+                        const th = document.createElement('th');
+                        th.textContent = col;
+                        headerRow.appendChild(th);
+                    });
+                    thead.appendChild(headerRow);
+                    table.appendChild(thead);
+
+                    const tbodyEl = document.createElement('tbody');
+                    let lastOpPtda = null;
+                    let currentGroup = 'a';
+                    let lastTrsfGroup = null;
+
+                    validIndices.forEach(i => {
+                        const row = rawData[i];
+                        const currentTrsfGroup = getTrsfGroupValue(row);
+
+                        if (currentTrsfGroup !== lastTrsfGroup) {
+                            const trsfRow = document.createElement('tr');
+                            trsfRow.className = 'trsf-header';
+                            const trsfCell = document.createElement('td');
+                            trsfCell.colSpan = columnsToShow.length;
+                            trsfCell.textContent = currentTrsfGroup === 'Pza' ? 'TRANSFER EN PIEZA' : 'TRANSFER EN PRENDA / SIN TRANSFER';
+                            trsfRow.appendChild(trsfCell);
+                            tbodyEl.appendChild(trsfRow);
+                            lastTrsfGroup = currentTrsfGroup;
+                            lastOpPtda = null;
+                        }
+
+                        const opTela = String(row[colMap["OP TELA"]] || "").trim();
+                        const partida = String(row[colMap["PARTIDA"]] || "").trim();
+                        const currentOpPtda = opTela + '-' + partida;
+                        if (lastOpPtda !== null && currentOpPtda !== lastOpPtda) {
+                            currentGroup = (currentGroup === 'a') ? 'b' : 'a';
+                        }
+                        lastOpPtda = currentOpPtda;
+
+                        const tr = document.createElement('tr');
+                        tr.className = 'group-' + currentGroup;
+
+                        columnsToShow.forEach(col => {
+                            const td = document.createElement('td');
+                            let cellValue = '';
+                            switch(col) {
+                                case 'P':
+                                    const idxP2 = findHeaderIndexCaseInsensitive('P');
+                                    cellValue = idxP2 !== -1 ? String(row[idxP2] || '').trim() : '';
+                                    break;
+                                case 'HOD': cellValue = formatValue(getVal(row, 'HOD'), 'date') || ''; break;
+                                case 'F.ING': cellValue = formatValue(getVal(row, 'F.ING.COST'), 'date') || ''; break;
+                                case 'STATUS':
+                                    const rutaTela2 = (getVal(row, 'RUTA TELA') || '').toString().toUpperCase().trim();
+                                    const estadoCorte2 = (getVal(row, 'estado_corte') || '').toString().toUpperCase().trim();
+                                    const estadoBloqueo2 = (getVal(row, 'estado_bloqueo') || '').toString().toUpperCase().trim();
+                                    const estadoLavada2 = (getVal(row, 'estado_lavada') || '').toString().toUpperCase().trim();
+                                    const evNorm2 = (getVal(row, 'estado_enumerado') || '').toString().toUpperCase().trim();
+                                    if (rutaTela2 === 'ACABADA') {
+                                        if (estadoCorte2 === '' || estadoCorte2 === 'X PROG') cellValue = 'X CORTAR';
+                                        else if (estadoCorte2 === 'PROG' || estadoCorte2 === 'PROG 1T' || estadoCorte2 === 'PROG 2T' || estadoCorte2 === 'PROG 3T') cellValue = 'PROC CORTE';
+                                        else if (estadoCorte2 === 'OK') {
+                                            if (evNorm2 === 'OK ENM' || evNorm2 === 'OK PAQUETEO') cellValue = 'X HAB';
+                                            else cellValue = 'X ENM';
+                                        }
+                                    } else if (rutaTela2 === 'LAVADA') {
+                                        if (estadoBloqueo2 !== 'OK') cellValue = 'X BLOQ';
+                                        else if (estadoLavada2 !== 'OK') cellValue = 'X LAVAR';
+                                        else if (estadoCorte2 === '' || estadoCorte2 === 'X PROG') cellValue = 'X CORTAR';
+                                        else if (estadoCorte2.includes('PROG')) cellValue = 'PROC CORTE';
+                                        else if (estadoCorte2 === 'OK') {
+                                            if (evNorm2 === 'OK ENM' || evNorm2 === 'OK PAQUETEO') cellValue = 'X HAB';
+                                            else cellValue = 'X ENM';
+                                        }
+                                    }
+                                    break;
+                                case 'CLI': cellValue = normalizeClientName(getVal(row, 'CLIENTE')) || ''; break;
+                                case 'OC': cellValue = (getVal(row, 'OP') || '') + '-' + (getVal(row, 'CORTE') || ''); break;
+                                case 'COLOR': cellValue = abbreviateHeather(getVal(row, 'COLOR') || ''); break;
+                                case 'PDS':
+                                    const pds2 = parseFloat(getVal(row, 'PDS GIRADAS') || getVal(row, 'PDS') || 0) || 0;
+                                    cellValue = formatThousands(pds2, 0);
+                                    break;
+                                case 'PDA':
+                                    cellValue = normalizePrenda(getVal(row, 'PRENDA') || '');
+                                    break;
+                                case 'CERT': cellValue = normalizeTipoCert(getVal(row, 'TIPO CERTIFICADO') || ''); break;
+                                case 'RIB':
+                                    const ribVal2 = getVal(row, 'RIB') || '';
+                                    cellValue = ribVal2 === 'NO LLEVA' ? '' : (ribVal2 ? 'SI' : '');
+                                    break;
+                                case 'BLOQ?':
+                                    const rutaT2 = (getVal(row, 'RUTA TELA') || '').toString().toUpperCase().trim();
+                                    const estBloq2 = (getVal(row, 'estado_bloqueo') || '').toString().toUpperCase().trim();
+                                    if (rutaT2 === 'LAVADA') cellValue = estBloq2 === 'OK' ? 'OK' : 'X';
+                                    else cellValue = '-';
+                                    break;
+                                case 'COLL/TAP':
+                                    const collTap2 = getVal(row, 'COLL o TAP') || getVal(row, 'COLL O TAP') || '';
+                                    cellValue = collTap2 === 'NO LLEVA' ? '' : (collTap2 || '');
+                                    break;
+                                case 'TRSF':
+                                    const tipoTransfer2 = (getVal(row, 'tipo-transfer') || '').toString().toUpperCase().trim();
+                                    const nTrans2 = getVal(row, 'n.transfxpda') || '';
+                                    if (tipoTransfer2 === 'EN PIEZA') cellValue = 'Pza:' + nTrans2;
+                                    else if (tipoTransfer2 === 'EN PRENDA') cellValue = 'Pda:' + nTrans2;
+                                    break;
+                                case 'BORD':
+                                    const nBD2 = getVal(row, 'n.BDxpda') || '';
+                                    const estadoBord2 = (getVal(row, 'estado_bordado') || '').toString().toUpperCase().trim();
+                                    if (nBD2 && parseInt(nBD2) > 0) cellValue = estadoBord2 === 'OK' ? 'OK' : nBD2;
+                                    break;
+                                case 'ESTM':
+                                    const nEST2 = getVal(row, 'n.ESTAMPxpda') || '';
+                                    const estadoEst2 = (getVal(row, 'estado_estampado') || '').toString().toUpperCase().trim();
+                                    if (nEST2 && parseInt(nEST2) > 0) cellValue = estadoEst2 === 'OK' ? 'OK' : nEST2;
+                                    break;
+                                case 'PLANTA': cellValue = getVal(row, 'PLANTA') || ''; break;
+                                case 'LINEA': cellValue = getVal(row, 'LINEA') || ''; break;
+                            }
+                            td.textContent = cellValue;
+                            tr.appendChild(td);
+                        });
+
+                        tbodyEl.appendChild(tr);
+                    });
+
+                    table.appendChild(tbodyEl);
+                    section.appendChild(table);
+                    container.appendChild(section);
+                });
+
+                document.body.classList.add('print-habilitado-prog');
+                setTimeout(() => { window.print(); }, 100);
+            } catch (e) {
+                console.error('Error printing Habilitado PROG', e);
+            }
+        };
+
     </script>
 
     <script>
