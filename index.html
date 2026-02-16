@@ -10232,15 +10232,15 @@
                 try { newRow1._inserted = Date.now(); } catch(e){}
                 rawData[rowIndex] = newRow1;
                 
-                // Tendidos adicionales se insertan después
+                // Tendidos adicionales se agregan AL FINAL de rawData
+                // (coincide con el servidor que los añade al final del sheet)
                 for (let i = 1; i < tendidosData.length; i++) {
                     const newRow = [...originalRow];
                     newRow[corteIdx] = tendidosData[i].corte;
                     newRow[pdsIdx] = tendidosData[i].pds;
                     try { newRow._inserted = Date.now(); } catch(e){}
                     
-                    const insertAt = rowIndex + i;
-                    rawData.splice(insertAt, 0, newRow);
+                    rawData.push(newRow);
                 }
 
                 // Obtener el estado_corte actual de la fila para preservarlo en los tendidos
@@ -10337,9 +10337,8 @@
                     const ecIdx = colMap["estado_corte"] ?? colMap["ESTADO_CORTE"] ?? colMap["STATUS_CORTE"] ?? colMap["STATUS"] ?? colMap["status"] ?? -1;
                     const ecVal = (ecIdx !== -1 && sourceRow[ecIdx]) ? String(sourceRow[ecIdx]) : null;
                     
-                    // Insertar nuevos tendidos justo después del último tendido existente
-                    const lastExisting = tendidoRows[tendidoRows.length - 1];
-                    let inserted = 0;
+                    // Agregar nuevos tendidos AL FINAL de rawData
+                    // (coincide con el servidor que los añade al final del sheet)
                     for (let i = tendidoRows.length; i < pdsValues.length; i++) {
                         const pds = pdsValues[i];
                         const tendidoNum = String(i + 1).padStart(2, '0');
@@ -10350,9 +10349,7 @@
                         newRow[pdsIdx] = pds;
                         try { newRow._inserted = Date.now(); } catch(e){}
 
-                        const insertAt = lastExisting + 1 + inserted; // place after last existing, account inserted
-                        rawData.splice(insertAt, 0, newRow);
-                        inserted++;
+                        rawData.push(newRow);
 
                         const dupPayload = {
                             action: "duplicateRow",
