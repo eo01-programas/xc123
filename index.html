@@ -4091,9 +4091,9 @@
                 try { validIndices = sortBloqueoData(validIndices); } catch(e) { /* ignore */ }
             }
 
-            // Aplicar filtro de encabezado en Corte si existe (solo X PROG)
+            // Aplicar filtro de encabezado en Corte si existe
             try {
-                if (currentCorteFilter === 'X PROG' && corteHeaderFilter && corteHeaderFilter.field && corteHeaderFilter.value !== undefined && corteHeaderFilter.value !== null && String(corteHeaderFilter.value).trim() !== '') {
+                if (corteHeaderFilter && corteHeaderFilter.field && corteHeaderFilter.value !== undefined && corteHeaderFilter.value !== null && String(corteHeaderFilter.value).trim() !== '') {
                     const f = corteHeaderFilter.field;
                     const v = String(corteHeaderFilter.value).toUpperCase().trim();
                     validIndices = validIndices.filter(idx => {
@@ -4369,8 +4369,8 @@
             // Inicializar eventos de los selectores de fecha
             initializeDateInputs();
             
-            // Inicializar menú contextual de filtro en encabezados (solo X PROG)
-            if (currentCorteFilter === 'X PROG') {
+            // Inicializar menú contextual de filtro en encabezados (X PROG y PROG 1T/2T/3T)
+            if (currentCorteFilter === 'X PROG' || currentCorteFilter === 'PROG 1T' || currentCorteFilter === 'PROG 2T' || currentCorteFilter === 'PROG 3T') {
                 initializeCorteHeaderContextMenus();
             }
         }
@@ -8230,7 +8230,9 @@
         let corteContextMenuField = null;
         
         window.showCorteContextMenu = function(event, fieldName) {
-            if (currentCorteFilter !== 'X PROG') return;
+            // Permitir filtros en X PROG y PROG 1T/2T/3T
+            const allowedCorteFilters = ['X PROG', 'PROG 1T', 'PROG 2T', 'PROG 3T'];
+            if (!allowedCorteFilters.includes(currentCorteFilter)) return;
             event.preventDefault();
             event.stopPropagation();
             
@@ -8243,6 +8245,7 @@
             
             document.getElementById('corte-filter-field').textContent = fieldName;
             
+            // En PROG tabs, CLIENTE usa dropdown; OC y OP-PTDA usan texto
             const dropdownFields = ['HOD', 'F.ING.COST', 'CLIENTE', 'RUTA'];
             
             if (dropdownFields.includes(fieldName)) {
@@ -8301,7 +8304,11 @@
             for (let i = 1; i < rawData.length; i++) {
                 const row = rawData[i];
                 const estadoCorte = (getVal(row, 'estado_corte') || '').toString().toUpperCase().trim();
-                if (estadoCorte !== '' && estadoCorte !== 'X PROG') continue;
+                const estadoCorteNorm = (!estadoCorte || estadoCorte === '') ? 'X PROG' : estadoCorte;
+                // Filtrar según el sub-tab seleccionado
+                if (estadoCorteNorm !== currentCorteFilter) continue;
+                // Excluir OK (ya cortados)
+                if (estadoCorte === 'OK') continue;
                 
                 let fieldValue = '';
                 switch(fieldName) {
@@ -9891,12 +9898,16 @@
             const corteBase = String(corte).slice(0, -2);
             const corteIdx = colMap["CORTE"];
             const pdsIdx = colMap["PDS GIRADAS"];
+            const opIdx = colMap["OP"];
             
             const tendidos = [];
             const tendidoRows = [];
             const tendidoPds = [];
             
             for (let i = 1; i < rawData.length; i++) {
+                // Filtrar por OP para no mezclar tendidos de diferentes OPs
+                const rowOp = String(rawData[i][opIdx] || '').trim();
+                if (rowOp !== String(op).trim()) continue;
                 const rowCorte = String(rawData[i][corteIdx] || '');
                 const match = rowCorte.match(new RegExp(`^${corteBase}(\\d{2})$`));
                 if (match) {
@@ -9977,8 +9988,31 @@
             }
             
             const corte = modalTendidoData.corte;
-            const numTendidos = modalTendidoData.tendidos.length;
-            const siguienteNum = String(numTendidos + 1).padStart(2, '0');
+            // Buscar el sufijo máximo existente en rawData para este OP+corteBase
+            // para evitar conflictos con tendidos que existan pero no estén visibles
+            let maxSuffix = 0;
+            const corteIdx = colMap["CORTE"];
+            const opIdx = colMap["OP"];
+            const opVal = String(modalTendidoData.op || '').trim();
+            for (let i = 1; i < rawData.length; i++) {
+                const rowOp = String(rawData[i][opIdx] || '').trim();
+                if (rowOp !== opVal) continue;
+                const rowCorte = String(rawData[i][corteIdx] || '');
+                const m = rowCorte.match(new RegExp(`^${corte}(\\d{2})$`));
+                if (m) {
+                    const suf = parseInt(m[1]);
+                    if (suf > maxSuffix) maxSuffix = suf;
+                }
+            }
+            // También considerar los tendidos ya agregados en el modal (aún no guardados)
+            modalTendidoData.tendidos.forEach(t => {
+                const m = String(t).match(new RegExp(`^${corte}(\\d{2})$`));
+                if (m) {
+                    const suf = parseInt(m[1]);
+                    if (suf > maxSuffix) maxSuffix = suf;
+                }
+            });
+            const siguienteNum = String(maxSuffix + 1).padStart(2, '0');
             const nuevoTendido = `${corte}${siguienteNum}`;
             
             modalTendidoData.tendidos.push(nuevoTendido);
