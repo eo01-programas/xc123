@@ -1151,6 +1151,74 @@
         body.print-habilitado-prog #print-habilitado-container { display: block !important; }
         .print-show { display: none; }
     </style>
+    <style>
+        /* --- SEARCH PILL OC --- */
+        .search-oc-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: var(--gray-50);
+            border: 1px solid var(--gray-200);
+            border-radius: 20px;
+            padding: 4px 12px 4px 10px;
+            margin-left: 14px;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        .search-oc-pill:focus-within {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(37,99,235,0.10);
+        }
+        .search-oc-pill i {
+            color: var(--gray-400);
+            font-size: 14px;
+            flex-shrink: 0;
+        }
+        .search-oc-pill:focus-within i {
+            color: var(--primary);
+        }
+        .search-oc-label {
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--gray-500);
+            user-select: none;
+            white-space: nowrap;
+        }
+        .search-oc-input {
+            border: none;
+            outline: none;
+            background: transparent;
+            font-size: 12px;
+            font-family: 'Inter', sans-serif;
+            font-weight: 500;
+            color: var(--gray-800);
+            width: 80px;
+            padding: 2px 0;
+        }
+        .search-oc-input::placeholder {
+            color: var(--gray-300);
+            font-weight: 400;
+        }
+        .search-oc-msg {
+            position: absolute;
+            top: calc(100% + 6px);
+            left: 0;
+            background: #fef2f2;
+            color: #991b1b;
+            font-size: 11px;
+            font-weight: 600;
+            padding: 4px 12px;
+            border-radius: 6px;
+            white-space: nowrap;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            animation: fadeIn 0.3s ease;
+            z-index: 200;
+            pointer-events: none;
+        }
+        .search-oc-msg.success {
+            background: #ecfdf5;
+            color: #065f46;
+        }
+    </style>
 </head>
 <body>
 
@@ -1399,7 +1467,15 @@
 
     <!-- HEADER -->
     <header>
-        <div class="brand">Prog Corte/Habilitado</div>
+        <div class="brand">
+            Prog Corte/Habilitado
+            <div class="search-oc-pill" style="position:relative;">
+                <i class="ph ph-magnifying-glass"></i>
+                <span class="search-oc-label">OC:</span>
+                <input type="text" class="search-oc-input" id="search-oc-input" placeholder="Buscar..." autocomplete="off" onkeydown="if(event.key==='Enter'){event.preventDefault();buscarOC(this.value);}">
+                <div id="search-oc-msg" style="display:none;"></div>
+            </div>
+        </div>
         <nav class="nav-tabs">
             <button class="nav-tab active" onclick="switchView('bloqueo', this)">
                 <i class="ph ph-lock-key"></i> Bloqueo <span class="badge" id="count-bloqueo">0</span>
@@ -3952,6 +4028,19 @@
 
             validIndices = sortLavadoData(validIndices);
 
+            // Aplicar filtro OP-PTDA temporal de búsqueda por OC
+            try {
+                if (window._searchOpPtdaFilter) {
+                    const sf = window._searchOpPtdaFilter;
+                    validIndices = validIndices.filter(idx => {
+                        const r = rawData[idx];
+                        const op = String(getVal(r, 'OP TELA') || '').trim();
+                        const pt = String(getVal(r, 'PARTIDA') || '').trim();
+                        return (op + '-' + pt).toUpperCase().indexOf(sf) !== -1;
+                    });
+                }
+            } catch(e){}
+
             // Agrupar por OP-PTDA alternando clases para sombreado
             let lastOpPtda = null;
             let currentGroup = 'a';
@@ -4643,6 +4732,12 @@
                         passSubFilter = (estadoTransfer === currentTransferFilter);
                     }
                     if (passSubFilter) {
+                        // Aplicar filtro OP-PTDA temporal de búsqueda por OC
+                        if (window._searchOpPtdaFilter) {
+                            const opT = String(getVal(row, 'OP TELA') || '').trim();
+                            const ptT = String(getVal(row, 'PARTIDA') || '').trim();
+                            if ((opT + '-' + ptT).toUpperCase().indexOf(window._searchOpPtdaFilter) === -1) continue;
+                        }
                         count++;
                         
                         // Crear fila
@@ -7410,7 +7505,340 @@
             }
         };
 
+        // =============================================
+        // BÚSQUEDA GLOBAL POR OC
+        // =============================================
+        window.buscarOC = function(ocQuery) {
+            const msgEl = document.getElementById('search-oc-msg');
+            function showMsg(text, isSuccess) {
+                if (!msgEl) return;
+                msgEl.textContent = text;
+                msgEl.className = 'search-oc-msg' + (isSuccess ? ' success' : '');
+                msgEl.style.display = 'block';
+                clearTimeout(window._searchOcMsgTimer);
+                window._searchOcMsgTimer = setTimeout(() => { msgEl.style.display = 'none'; }, 2600);
+            }
+
+            if (!ocQuery || !rawData || rawData.length < 2) { showMsg('Sin datos cargados', false); return; }
+            const q = ocQuery.toString().trim().toUpperCase();
+            if (q === '') return;
+
+            // ── Limpiar TODOS los filtros de la búsqueda anterior ──
+            try {
+                // 1. bloqueoHeaderFilters: quitar filtro OP-PTDA
+                if (typeof bloqueoHeaderFilters !== 'undefined' && Array.isArray(bloqueoHeaderFilters)) {
+                    const bi = bloqueoHeaderFilters.findIndex(f => f.field === 'OP-PTDA');
+                    if (bi !== -1) { bloqueoHeaderFilters.splice(bi, 1); try { renderBloqueoActiveFilters(); } catch(e){} }
+                }
+                // 2. corteHeaderFilter
+                if (typeof corteHeaderFilter !== 'undefined' && corteHeaderFilter && corteHeaderFilter.field === 'OP-PTDA') {
+                    corteHeaderFilter = null;
+                }
+                // 3. enumeradoHeaderFilter
+                if (typeof enumeradoHeaderFilter !== 'undefined' && enumeradoHeaderFilter && enumeradoHeaderFilter.field === 'OP-PTDA') {
+                    enumeradoHeaderFilter = null;
+                }
+                // 4. habilitadoHeaderFilters: quitar filtro OP-PTDA
+                if (typeof habilitadoHeaderFilters !== 'undefined' && Array.isArray(habilitadoHeaderFilters)) {
+                    const hi = habilitadoHeaderFilters.findIndex(f => f.field === 'OP-PTDA');
+                    if (hi !== -1) { habilitadoHeaderFilters.splice(hi, 1); try { renderHabilitadoActiveFilters(); } catch(e){} }
+                }
+                // 5. filtro genérico temporal (_searchOpPtdaFilter)
+                window._searchOpPtdaFilter = null;
+            } catch(e) { console.error('buscarOC: error limpiando filtros anteriores', e); }
+
+            // Helper: obtener OC de una fila (tanto columna OC directa como OP-CORTE)
+            function rowOC(row) {
+                let oc = (getVal(row, 'OC') || '').toString().trim();
+                if (!oc) {
+                    const op = (getVal(row, 'OP') || '').toString().trim();
+                    const corte = (getVal(row, 'CORTE') || '').toString().trim();
+                    if (op && corte) oc = op + '-' + corte;
+                }
+                return oc.toUpperCase();
+            }
+
+            // Helper: obtener campos de estado normalizados
+            function est(row, col) {
+                let v = '';
+                try {
+                    const idx = findHeaderIndexCaseInsensitive(col);
+                    if (idx !== -1 && row[idx] !== undefined) v = row[idx];
+                    else v = getVal(row, col) || '';
+                } catch(e) { v = getVal(row, col) || ''; }
+                return (v || '').toString().toUpperCase().trim();
+            }
+
+            // Definir orden de búsqueda: cada entrada = { vista, subtab, check(row)->bool, go() }
+            const order = [];
+
+            // --- 1. BLOQUEO ---
+            ['X PROG', 'PROG'].forEach(sub => {
+                order.push({
+                    vista: 'bloqueo', subtab: sub,
+                    check: (row) => {
+                        const ruta = est(row, 'RUTA TELA');
+                        if (ruta !== 'LAVADA') return false;
+                        let eb = est(row, 'estado_bloqueo');
+                        if (eb === '') eb = 'X PROG';
+                        return eb === sub;
+                    },
+                    go: () => {
+                        const btn = document.getElementById(sub === 'X PROG' ? 'btn-xprog' : 'btn-prog');
+                        const navBtn = getNavBtn('bloqueo');
+                        if (navBtn) switchView('bloqueo', navBtn);
+                        if (btn) filterBloqueo(sub, btn);
+                    }
+                });
+            });
+
+            // --- 2. LAVANDERÍA ---
+            order.push({
+                vista: 'lavado', subtab: 'EN LAV',
+                check: (row) => {
+                    let eb = est(row, 'estado_bloqueo');
+                    if (eb === '') eb = 'X PROG';
+                    if (eb !== 'OK') return false;
+                    const el = est(row, 'estado_lavada');
+                    return el !== 'OK';
+                },
+                go: () => {
+                    const navBtn = getNavBtn('lavado');
+                    if (navBtn) switchView('lavado', navBtn);
+                    const btn = document.getElementById('btn-enlav');
+                    if (btn) filterLavado('EN LAV', btn);
+                }
+            });
+
+            // --- 3. CORTE PZAS ---
+            ['X PROG', 'PROG 1T', 'PROG 2T', 'PROG 3T'].forEach(sub => {
+                order.push({
+                    vista: 'corte', subtab: sub,
+                    check: (row) => {
+                        const ec = est(row, 'estado_corte') || est(row, 'STATUS_CORTE') || est(row, 'STATUS');
+                        const ecNorm = (ec === '') ? 'X PROG' : ec;
+                        if (ecNorm === 'OK') return false;
+                        return ecNorm === sub;
+                    },
+                    go: () => {
+                        const btnMap = {'X PROG':'corte-btn-xprog','PROG 1T':'corte-btn-1t','PROG 2T':'corte-btn-2t','PROG 3T':'corte-btn-3t'};
+                        const navBtn = getNavBtn('corte');
+                        if (navBtn) switchView('corte', navBtn);
+                        const btn = document.getElementById(btnMap[sub]);
+                        if (btn) filterCorte(sub, btn);
+                    }
+                });
+            });
+
+            // --- 4. CORTE BLOQUES ---
+            ['X PROG', 'PROG'].forEach(sub => {
+                order.push({
+                    vista: 'corte-bloques', subtab: sub,
+                    check: (row) => {
+                        const estadoBloques = est(row, 'estado_bloques') || est(row, 'ESTADO_BLOQUES') || est(row, 'ESTADO BLOQUES');
+                        if (estadoBloques !== 'OK CORTE') return false;
+                        let ecb = est(row, 'estado_corte_bloques') || est(row, 'ESTADO_CORTE_BLOQUES');
+                        if (ecb === '') ecb = 'X PROG';
+                        return ecb === sub;
+                    },
+                    go: () => {
+                        const navBtn = getNavBtn('corte-bloques');
+                        if (navBtn) switchView('corte-bloques', navBtn);
+                        const btn = document.getElementById(sub === 'X PROG' ? 'corte-bloques-btn-xprog' : 'corte-bloques-btn-prog');
+                        if (btn) filterCorteBloques(sub, btn);
+                    }
+                });
+            });
+
+            // --- 5. ENUMERADO ---
+            order.push({
+                vista: 'enumerado', subtab: 'Por enumerar',
+                check: (row) => {
+                    const ec = est(row, 'estado_corte') || est(row, 'STATUS_CORTE') || est(row, 'STATUS');
+                    if (ec !== 'OK') return false;
+                    const ev = est(row, 'estado_enumerado');
+                    return ev !== 'OK ENM' && ev !== 'OK S/ENM' && ev !== 'OK PAQUETEO';
+                },
+                go: () => {
+                    const navBtn = getNavBtn('enumerado');
+                    if (navBtn) switchView('enumerado', navBtn);
+                }
+            });
+
+            // --- 6. TRANSFER ---
+            ['X PROG', 'PROG'].forEach(sub => {
+                order.push({
+                    vista: 'transfer', subtab: sub,
+                    check: (row) => {
+                        const ev = est(row, 'estado_enumerado');
+                        let passMain = false;
+                        if (sub === 'X PROG') { passMain = ev !== ''; }
+                        else { passMain = (ev === 'OK ENM' || ev === 'OK S/ENM' || ev === 'OK PAQUETEO'); }
+                        if (!passMain) return false;
+                        const nTransf = est(row, 'n.transfxpda');
+                        if (nTransf === 'NO LLEVA') return false;
+                        const tipoT = est(row, 'tipo-transfer');
+                        if (tipoT === 'NO LLEVA') return false;
+                        let et = est(row, 'estado_transfer');
+                        if (et === '') et = 'X PROG';
+                        if (sub === 'X PROG') return et !== 'OK';
+                        return et === sub;
+                    },
+                    go: () => {
+                        const navBtn = getNavBtn('transfer');
+                        if (navBtn) switchView('transfer', navBtn);
+                        const btn = document.getElementById(sub === 'X PROG' ? 'btn-transfer-xprog' : 'btn-transfer-prog');
+                        if (btn) filterTransfer(sub, btn);
+                    }
+                });
+            });
+
+            // --- 7. ARTES BORDADO ---
+            ['X PROG', 'PROG'].forEach(sub => {
+                order.push({
+                    vista: 'artes', subtab: 'Bordado ' + sub,
+                    check: (row) => {
+                        const ev = est(row, 'estado_enumerado');
+                        if (ev === '') return false;
+                        const habil = est(row, 'estado_habilitado');
+                        if (habil === 'OK') return false;
+                        const nbd = est(row, 'n.BDxpda');
+                        if (nbd.indexOf('NO LLEVA') !== -1) return false;
+                        let eb = est(row, 'estado_bordado');
+                        if (eb === '') eb = 'X PROG';
+                        if (sub === 'PROG') return eb.indexOf('PROG') !== -1 && eb !== 'X PROG';
+                        return eb === 'X PROG' || eb === '';
+                    },
+                    go: () => {
+                        const navBtn = getNavBtn('artes');
+                        if (navBtn) switchView('artes', navBtn);
+                        const artBtn = document.getElementById('btn-artes-bordado');
+                        if (artBtn) filterArtes('BORDADO', artBtn);
+                        const subBtn = document.getElementById(sub === 'X PROG' ? 'btn-bordado-xprog' : 'btn-bordado-prog');
+                        if (subBtn) filterBordado(sub, subBtn);
+                    }
+                });
+            });
+
+            // --- 8. ARTES ESTAMPADO ---
+            ['X PROG', 'PROG'].forEach(sub => {
+                order.push({
+                    vista: 'artes', subtab: 'Estampado ' + sub,
+                    check: (row) => {
+                        const ev = est(row, 'estado_enumerado');
+                        if (ev === '') return false;
+                        const habil = est(row, 'estado_habilitado');
+                        if (habil === 'OK') return false;
+                        const nest = est(row, 'n.ESTAMPxpda');
+                        if (nest.indexOf('NO LLEVA') !== -1) return false;
+                        let ee = est(row, 'estado_estampado');
+                        if (ee === '') ee = 'X PROG';
+                        if (sub === 'PROG') return ee.indexOf('PROG') !== -1 && ee !== 'X PROG';
+                        return ee === 'X PROG' || ee === '';
+                    },
+                    go: () => {
+                        const navBtn = getNavBtn('artes');
+                        if (navBtn) switchView('artes', navBtn);
+                        const artBtn = document.getElementById('btn-artes-estampado');
+                        if (artBtn) filterArtes('ESTAMPADO', artBtn);
+                        const subBtn = document.getElementById(sub === 'X PROG' ? 'btn-estampado-xprog' : 'btn-estampado-prog');
+                        if (subBtn) filterEstampado(sub, subBtn);
+                    }
+                });
+            });
+
+            // --- 9. HABILITADO ---
+            ['X PROG', 'PROG 1T', 'PROG 2T', 'PROG 3T'].forEach(sub => {
+                order.push({
+                    vista: 'habilitado', subtab: sub,
+                    check: (row) => {
+                        let hv = est(row, 'estado_habilitado');
+                        if (hv === '') hv = 'X PROG';
+                        if (sub === 'X PROG') return hv === '' || hv === 'X PROG';
+                        return hv === sub;
+                    },
+                    go: () => {
+                        const btnMap = {'X PROG':'habilitado-btn-xprog','PROG 1T':'habilitado-btn-1t','PROG 2T':'habilitado-btn-2t','PROG 3T':'habilitado-btn-3t'};
+                        const navBtn = getNavBtn('habilitado');
+                        if (navBtn) switchView('habilitado', navBtn);
+                        const btn = document.getElementById(btnMap[sub]);
+                        if (btn) filterHabilitado(sub, btn);
+                    }
+                });
+            });
+
+            // Helper: obtener botón de navegación principal para una vista
+            function getNavBtn(viewName) {
+                return [...document.querySelectorAll('.nav-tab')].find(b => {
+                    const oc = b.getAttribute('onclick') || '';
+                    return oc.indexOf("switchView('" + viewName + "'") !== -1;
+                }) || null;
+            }
+
+            // Helper: aplicar filtro OP-PTDA en la vista destino y re-renderizar
+            function applyOpPtdaFilter(vista, opPtda) {
+                if (!opPtda) return;
+                try {
+                    if (vista === 'bloqueo') {
+                        // Reemplazar o agregar filtro OP-PTDA en bloqueoHeaderFilters
+                        const idx = bloqueoHeaderFilters.findIndex(f => f.field === 'OP-PTDA');
+                        const nf = { field: 'OP-PTDA', value: opPtda };
+                        if (idx !== -1) bloqueoHeaderFilters[idx] = nf; else bloqueoHeaderFilters.push(nf);
+                        renderBloqueoActiveFilters();
+                        renderBloqueo();
+                    } else if (vista === 'corte') {
+                        corteHeaderFilter = { field: 'OP-PTDA', value: opPtda };
+                        renderCorte();
+                    } else if (vista === 'enumerado') {
+                        enumeradoHeaderFilter = { field: 'OP-PTDA', value: opPtda };
+                        renderEnumerado();
+                    } else if (vista === 'habilitado') {
+                        const idx = habilitadoHeaderFilters.findIndex(f => f.field === 'OP-PTDA');
+                        const nf = { field: 'OP-PTDA', value: opPtda };
+                        if (idx !== -1) habilitadoHeaderFilters[idx] = nf; else habilitadoHeaderFilters.push(nf);
+                        try { renderHabilitadoActiveFilters(); } catch(e){}
+                        renderHabilitado();
+                    }
+                    // Para lavado, corte-bloques, transfer, artes: no tienen header filter nativo,
+                    // pero podemos usar un filtro temporal genérico
+                    else if (vista === 'lavado' || vista === 'corte-bloques' || vista === 'transfer' || vista === 'artes') {
+                        window._searchOpPtdaFilter = opPtda.toUpperCase();
+                        if (vista === 'lavado') renderLavado();
+                        else if (vista === 'corte-bloques') renderCorteBloques();
+                        else if (vista === 'transfer') renderTransfer();
+                        else if (vista === 'artes') {
+                            try { renderArtesBordado(); } catch(e){}
+                            try { renderArtesEstampado(); } catch(e){}
+                        }
+                    }
+                } catch(e) { console.error('applyOpPtdaFilter error:', e); }
+            }
+
+            // Ejecutar búsqueda en orden
+            for (const entry of order) {
+                for (let i = 1; i < rawData.length; i++) {
+                    const row = rawData[i];
+                    const oc = rowOC(row);
+                    if (oc.indexOf(q) !== -1 && entry.check(row)) {
+                        // Obtener OP-PTDA de la fila encontrada
+                        const opTela = String(getVal(row, 'OP TELA') || '').trim();
+                        const partida = String(getVal(row, 'PARTIDA') || '').trim();
+                        const opPtda = opTela + '-' + partida;
+
+                        entry.go();
+                        applyOpPtdaFilter(entry.vista, opPtda);
+                        showMsg('\u2714 Encontrado en ' + entry.vista.replace('-',' ') + ' → ' + entry.subtab, true);
+                        return;
+                    }
+                }
+            }
+
+            showMsg('OC "' + ocQuery.trim() + '" no encontrada', false);
+        };
+
         window.switchView = function(viewName, btn) {
+            // Limpiar filtro temporal de búsqueda por OC al cambiar de vista manualmente
+            window._searchOpPtdaFilter = null;
             document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
             document.querySelectorAll('.nav-tab').forEach(el => el.classList.remove('active'));
             document.getElementById(`view-${viewName}`).classList.add('active');
@@ -8558,6 +8986,7 @@
             currentLavadoFilter = filterState;
             document.querySelectorAll('#view-lavado .sub-tab').forEach(el => el.classList.remove('active'));
             btn.classList.add('active');
+            window._searchOpPtdaFilter = null;
             renderLavado();
         };
 
@@ -8592,6 +9021,7 @@
             currentCorteBloquesFilter = filterState;
             document.querySelectorAll('#view-corte-bloques .sub-tab').forEach(el => el.classList.remove('active'));
             if (btn) btn.classList.add('active');
+            window._searchOpPtdaFilter = null;
             renderCorteBloques();
         };
 
@@ -8599,6 +9029,7 @@
             currentTransferFilter = filterState;
             document.querySelectorAll('#view-transfer .sub-tab').forEach(el => el.classList.remove('active'));
             if (btn) btn.classList.add('active');
+            window._searchOpPtdaFilter = null;
             
             // Mostrar/ocultar contenedores según el sub-tab
             const normalContainer = document.getElementById('table-container-transfer-normal');
@@ -8622,6 +9053,7 @@
             window.currentArtesBordadoFilter = filterState;
             document.querySelectorAll('#bordado-subtabs .sub-tab').forEach(el => el.classList.remove('active'));
             if (btn) btn.classList.add('active');
+            window._searchOpPtdaFilter = null;
             renderArtesBordado();
         };
 
@@ -8630,6 +9062,7 @@
             window.currentArtesEstampadoFilter = filterState;
             document.querySelectorAll('#estampado-subtabs .sub-tab').forEach(el => el.classList.remove('active'));
             if (btn) btn.classList.add('active');
+            window._searchOpPtdaFilter = null;
             renderArtesEstampado();
         };
 
@@ -9085,6 +9518,13 @@
                     }
                 }
 
+                // Aplicar filtro OP-PTDA temporal de búsqueda por OC
+                if (window._searchOpPtdaFilter) {
+                    const opT = String(getVal(row, 'OP TELA') || '').trim();
+                    const ptT = String(getVal(row, 'PARTIDA') || '').trim();
+                    if ((opT + '-' + ptT).toUpperCase().indexOf(window._searchOpPtdaFilter) === -1) continue;
+                }
+
                 const tr = document.createElement('tr');
 
                 // HOD (formateada)
@@ -9238,6 +9678,12 @@
                 const opTela = String(getVal(row, 'OP TELA') || '').trim();
                 const partida = String(getVal(row, 'PARTIDA') || '').trim();
                 const currentOpPtda = `${opTela}-${partida}`;
+
+                // Aplicar filtro OP-PTDA temporal de búsqueda por OC
+                if (window._searchOpPtdaFilter) {
+                    if (currentOpPtda.toUpperCase().indexOf(window._searchOpPtdaFilter) === -1) return;
+                }
+
                 if (lastOpPtda !== null && currentOpPtda !== lastOpPtda) {
                     currentGroupClass = (currentGroupClass === 'a') ? 'b' : 'a';
                 }
@@ -9662,6 +10108,19 @@
             }
 
             validIndices = sortBloqueoData(validIndices);
+
+            // Aplicar filtro OP-PTDA temporal de búsqueda por OC
+            try {
+                if (window._searchOpPtdaFilter) {
+                    const sf = window._searchOpPtdaFilter;
+                    validIndices = validIndices.filter(idx => {
+                        const r = rawData[idx];
+                        const op = String(getVal(r, 'OP TELA') || '').trim();
+                        const pt = String(getVal(r, 'PARTIDA') || '').trim();
+                        return (op + '-' + pt).toUpperCase().indexOf(sf) !== -1;
+                    });
+                }
+            } catch(e){}
 
             let lastOpPtda = null;
             let currentGroup = 'a';
