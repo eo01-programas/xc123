@@ -1378,6 +1378,7 @@
                         <option value="CITI-2">CITI-2</option>
                         <option value="CITI-3">CITI-3</option>
                         <option value="CITI-4">CITI-4</option>
+                        <option value="S/DESTINO">S/DESTINO</option>
                     </select>
                 </div>
                 <div style="margin-bottom:14px;">
@@ -1779,6 +1780,9 @@
                         </button>
                         <button id="habilitado-btn-3t" class="sub-tab" onclick="filterHabilitado('PROG 3T', this)">
                             PROG 3T <span class="kg-badge" id="habilitado-pds-3t">[-]</span>
+                        </button>
+                        <button id="habilitado-btn-sdestino" class="sub-tab" onclick="filterHabilitado('S/DESTINO', this)" style="border-color:#f59e0b; color:#92400e;">
+                            PREP. PERO S/DESTINO <span class="kg-badge" id="habilitado-pds-sdestino">[-]</span>
                         </button>
                         <button id="btn-print-habilitado-prog" class="btn-print-circle" onclick="printHabilitadoProg()" style="display:none;" title="Imprimir Programado (3 turnos)" aria-label="Imprimir Programado">
                             <i class="ph ph-printer"></i>
@@ -3146,10 +3150,8 @@
             
             // Crear input
             const input = document.createElement('input');
-            input.type = 'number';
-            input.min = '0';
-            input.max = '99';
-            input.maxLength = 2;
+            input.type = 'text';
+            input.maxLength = 3;
             input.value = currentValue;
             input.className = 'linea-input';
             input.style.cssText = 'width: 40px; text-align: center; padding: 2px 4px; border: 1px solid var(--primary); border-radius: 4px; font-size: 11px; outline: none;';
@@ -3164,13 +3166,14 @@
             const saveValue = () => {
                 let newValue = input.value.trim();
                 
-                // Validar: solo enteros de máximo 2 cifras
+                // Validar: enteros de máximo 2 cifras, o formatos E#, E##, #E, ##E
                 if (newValue !== '') {
-                    newValue = parseInt(newValue);
-                    if (isNaN(newValue) || newValue < 0 || newValue > 99) {
-                        newValue = currentValue; // Revertir si inválido
+                    const upper = newValue.toUpperCase();
+                    const validPattern = /^(\d{1,2}|E\d{1,2}|\d{1,2}E)$/i;
+                    if (validPattern.test(upper)) {
+                        newValue = upper;
                     } else {
-                        newValue = String(newValue);
+                        newValue = currentValue; // Revertir si inválido
                     }
                 }
                 
@@ -4960,7 +4963,7 @@
             let currentRowGroup = 'a'; // Para alternar sombreado de filas
             
             // Contadores de PDS por sub-tab
-            let pdsXProg = 0, pds1T = 0, pds2T = 0, pds3T = 0;
+            let pdsXProg = 0, pds1T = 0, pds2T = 0, pds3T = 0, pdsSDestino = 0;
             
             // Recopilar índices válidos según el sub-tab seleccionado
             // Para "Por Programar" (X PROG): todas las filas con estado_habilitado vacío o X PROG
@@ -4996,9 +4999,20 @@
                     pds3T += pdsVal;
                 }
                 
+                // Contar S/DESTINO: PLANTA = S/DESTINO y estado_habilitado != OK, o estado_habilitado = OK S/DESTINO
+                const plantaCheck = (getVal(row, 'PLANTA') || '').toString().toUpperCase().trim();
+                if ((plantaCheck === 'S/DESTINO' && habilNorm !== 'OK') || habilNorm === 'OK S/DESTINO') {
+                    pdsSDestino += pdsVal;
+                }
+                
                 // Filtrar filas para el sub-tab activo
                 if (currentHabilitadoFilter === 'X PROG') {
                     if (habilNorm === '' || habilNorm === 'X PROG') {
+                        validIndices.push(i);
+                    }
+                } else if (currentHabilitadoFilter === 'S/DESTINO') {
+                    // S/DESTINO: PLANTA = S/DESTINO y estado_habilitado != OK, o estado_habilitado = OK S/DESTINO
+                    if ((plantaCheck === 'S/DESTINO' && habilNorm !== 'OK') || habilNorm === 'OK S/DESTINO') {
                         validIndices.push(i);
                     }
                 } else {
@@ -5122,15 +5136,18 @@
                 const habilValFilter = getVal(row, 'estado_habilitado') || getVal(row, 'ESTADO_HABILITADO') || '';
                 const habilValNormFilter = (habilValFilter || '').toString().toUpperCase().trim();
                 
-                // Para X PROG: ya se filtró en validIndices, no necesita verificar estado_enumerado
+                // Para X PROG and S/DESTINO: ya se filtró en validIndices, no necesita verificar estado_enumerado
                 // Para PROG 1T/2T/3T: verificar que estado_enumerado sea OK ENM o OK S/ENM
-                if (currentHabilitadoFilter !== 'X PROG') {
+                if (currentHabilitadoFilter !== 'X PROG' && currentHabilitadoFilter !== 'S/DESTINO') {
                     if (evNorm !== 'OK ENM' && evNorm !== 'OK S/ENM') return;
                 }
                 
                 // Filtrar según el sub-tab seleccionado
                 if (currentHabilitadoFilter === 'X PROG') {
                     if (habilValNormFilter !== '' && habilValNormFilter !== 'X PROG') return;
+                } else if (currentHabilitadoFilter === 'S/DESTINO') {
+                    const plantaFilt = (getVal(row, 'PLANTA') || '').toString().toUpperCase().trim();
+                    if ((plantaFilt !== 'S/DESTINO' || habilValNormFilter === 'OK') && habilValNormFilter !== 'OK S/DESTINO') return;
                 } else if (currentHabilitadoFilter === 'PROG 1T') {
                     if (habilValNormFilter !== 'PROG 1T') return;
                 } else if (currentHabilitadoFilter === 'PROG 2T') {
@@ -5229,9 +5246,9 @@
                     const tr = document.createElement('tr');
 
                     // COLUMNA P - Prioridad
-                    // COLUMNA P - Mostrar como texto si estamos en X PROG, si no usar prioridad editable
+                    // COLUMNA P - Mostrar como texto si estamos en X PROG o S/DESTINO, si no usar prioridad editable
                     const pCell = document.createElement('td');
-                    if (currentHabilitadoFilter === 'X PROG') {
+                    if (currentHabilitadoFilter === 'X PROG' || currentHabilitadoFilter === 'S/DESTINO') {
                         // Mostrar P como texto (no editable)
                         pCell.innerText = getVal(row, 'P') || '';
                     } else {
@@ -5242,11 +5259,11 @@
                     // HOD
                     const fDesp = formatValue(getVal(row, 'HOD'), 'date') || '';
 
-                    // F.ING.COST -> mostrar como texto si estamos en X PROG, si no usar date picker
+                    // F.ING.COST -> mostrar como texto si estamos en X PROG o S/DESTINO, si no usar date picker
                     const rawFIng = getVal(row, 'F.ING.COST');
                     const dateValue = convertToDateInputFormat(rawFIng);
                     let fIngHtml = '';
-                    if (currentHabilitadoFilter === 'X PROG') {
+                    if (currentHabilitadoFilter === 'X PROG' || currentHabilitadoFilter === 'S/DESTINO') {
                         // Mostrar F.ING.COST como texto (no editable)
                         fIngHtml = `<td class="date-cell">${formatDateShortFromInput(dateValue) || 'mm/dd/aaaa'}</td>`;
                     } else {
@@ -5438,29 +5455,31 @@
                     const habilValNorm = (habilVal || '').toString().toUpperCase().trim();
                     let habilClass = '';
                     if (habilValNorm === 'PROG 1T' || habilValNorm === 'PROG 2T' || habilValNorm === 'PROG 3T') habilClass = 'sel-PROG';
-                    if (habilValNorm === 'OK') habilClass = 'sel-OK';
+                    if (habilValNorm === 'OK' || habilValNorm === 'OK S/DESTINO') habilClass = 'sel-OK';
                     
                     // Mostrar opción OK solo en sub-tabs PROG 1T, PROG 2T, PROG 3T
                     const showOkOption = (currentHabilitadoFilter === 'PROG 1T' || currentHabilitadoFilter === 'PROG 2T' || currentHabilitadoFilter === 'PROG 3T');
                     
                     let habilHtml = '';
-                    if (currentHabilitadoFilter === 'X PROG') {
-                        // Mostrar estado_habilitado como dropdown con opciones X PROG y OK en X PROG
+                    if (currentHabilitadoFilter === 'X PROG' || currentHabilitadoFilter === 'S/DESTINO') {
+                        // Mostrar estado_habilitado como dropdown con opciones X PROG, OK y OK S/DESTINO en X PROG / S/DESTINO
                         habilHtml = `<td>
-                            <select class="table-select ${habilClass}" onchange="if(this.value === 'OK') { abrirModalIngresoCostura(${i}); this.value = '${habilValNorm || 'X PROG'}'; } else { updateRow(${i}, 'estado_habilitado', this.value, this); setTimeout(renderHabilitado, 300); }">
+                            <select class="table-select ${habilClass}" onchange="if(this.value === 'OK' || this.value === 'OK S/DESTINO') { abrirModalIngresoCostura(${i}, this.value); this.value = '${habilValNorm || 'X PROG'}'; } else { updateRow(${i}, 'estado_habilitado', this.value, this); setTimeout(renderHabilitado, 300); }">
                                 <option value="X PROG" ${habilValNorm === 'X PROG' || habilValNorm === '' ? 'selected' : ''}>X PROG</option>
                                 <option value="OK" ${habilValNorm === 'OK' ? 'selected' : ''}>OK</option>
+                                <option value="OK S/DESTINO" ${habilValNorm === 'OK S/DESTINO' ? 'selected' : ''}>OK S/DESTINO</option>
                             </select>
                         </td>`;
                     } else {
                         // Mostrar como select (editable) en otros sub-tabs
                         habilHtml = `<td>
-                            <select class="table-select ${habilClass}" onchange="if(this.value === 'OK') { abrirModalIngresoCostura(${i}); this.value = '${habilValNorm}'; } else { updateRow(${i}, 'estado_habilitado', this.value, this); setTimeout(renderHabilitado, 300); }">
+                            <select class="table-select ${habilClass}" onchange="if(this.value === 'OK' || this.value === 'OK S/DESTINO') { abrirModalIngresoCostura(${i}, this.value); this.value = '${habilValNorm}'; } else { updateRow(${i}, 'estado_habilitado', this.value, this); setTimeout(renderHabilitado, 300); }">
                                 <option value="X PROG" ${habilValNorm === 'X PROG' || habilValNorm === '' ? 'selected' : ''}>X PROG</option>
                                 <option value="PROG 1T" ${habilValNorm === 'PROG 1T' ? 'selected' : ''}>PROG 1T</option>
                                 <option value="PROG 2T" ${habilValNorm === 'PROG 2T' ? 'selected' : ''}>PROG 2T</option>
                                 <option value="PROG 3T" ${habilValNorm === 'PROG 3T' ? 'selected' : ''}>PROG 3T</option>
                                 ${showOkOption ? `<option value="OK" ${habilValNorm === 'OK' ? 'selected' : ''}>OK</option>` : ''}
+                                <option value="OK S/DESTINO" ${habilValNorm === 'OK S/DESTINO' ? 'selected' : ''}>OK S/DESTINO</option>
                             </select>
                         </td>`;
                     }
@@ -5547,6 +5566,7 @@
                             <option value="CITI2" ${plantaVal === 'CITI2' ? 'selected' : ''}>CITI2</option>
                             <option value="CITI3" ${plantaVal === 'CITI3' ? 'selected' : ''}>CITI3</option>
                             <option value="CITI4" ${plantaVal === 'CITI4' ? 'selected' : ''}>CITI4</option>
+                            <option value="S/DESTINO" ${plantaVal === 'S/DESTINO' ? 'selected' : ''}>S/DESTINO</option>
                         </select>
                     </td>`;
 
@@ -5613,12 +5633,13 @@
             try { document.getElementById('habilitado-pds-1t').innerText = `[${formatThousands(pds1T, 0)}pds]`; } catch(e){}
             try { document.getElementById('habilitado-pds-2t').innerText = `[${formatThousands(pds2T, 0)}pds]`; } catch(e){}
             try { document.getElementById('habilitado-pds-3t').innerText = `[${formatThousands(pds3T, 0)}pds]`; } catch(e){}
+            try { document.getElementById('habilitado-pds-sdestino').innerText = `[${formatThousands(pdsSDestino, 0)}pds]`; } catch(e){}
             
             // Inicializar eventos de los selectores de fecha
             initializeDateInputs();
             
-            // Agregar event listeners para click derecho en los encabezados (solo en X PROG)
-            if (currentHabilitadoFilter === 'X PROG') {
+            // Agregar event listeners para click derecho en los encabezados (solo en X PROG o S/DESTINO)
+            if (currentHabilitadoFilter === 'X PROG' || currentHabilitadoFilter === 'S/DESTINO') {
                 initializeHabilitadoHeaderContextMenus();
             }
             
@@ -7766,6 +7787,21 @@
                     }
                 });
             });
+            // S/DESTINO subtab in Habilitado
+            order.push({
+                vista: 'habilitado', subtab: 'S/DESTINO',
+                check: (row) => {
+                    const planta = (getVal(row, 'PLANTA') || '').toString().toUpperCase().trim();
+                    const hv = est(row, 'estado_habilitado');
+                    return (planta === 'S/DESTINO' && hv !== 'OK') || hv === 'OK S/DESTINO';
+                },
+                go: () => {
+                    const navBtn = getNavBtn('habilitado');
+                    if (navBtn) switchView('habilitado', navBtn);
+                    const btn = document.getElementById('habilitado-btn-sdestino');
+                    if (btn) filterHabilitado('S/DESTINO', btn);
+                }
+            });
 
             // Helper: obtener botón de navegación principal para una vista
             function getNavBtn(viewName) {
@@ -7814,12 +7850,33 @@
                 } catch(e) { console.error('applyOpPtdaFilter error:', e); }
             }
 
+            // Helper: matching por centena
+            // Si el query es OP-X (1-2 dígitos de CORTE), buscar solo OCs con CORTE de 3 dígitos
+            // que empiecen con esos dígitos (centena). Ej: 40453-4 → 40453-401..40453-499
+            function matchesOC(oc, query) {
+                const hi = query.lastIndexOf('-');
+                if (hi > 0) {
+                    const qOp = query.substring(0, hi);
+                    const qCorte = query.substring(hi + 1);
+                    if (qCorte.length >= 1 && qCorte.length <= 2 && /^\d+$/.test(qCorte)) {
+                        const ohi = oc.lastIndexOf('-');
+                        if (ohi > 0) {
+                            const ocOp = oc.substring(0, ohi);
+                            const ocCorte = oc.substring(ohi + 1);
+                            return ocOp === qOp && ocCorte.length === 3 && ocCorte.substring(0, qCorte.length) === qCorte;
+                        }
+                        return false;
+                    }
+                }
+                return oc.indexOf(query) !== -1;
+            }
+
             // Ejecutar búsqueda en orden
             for (const entry of order) {
                 for (let i = 1; i < rawData.length; i++) {
                     const row = rawData[i];
                     const oc = rowOC(row);
-                    if (oc.indexOf(q) !== -1 && entry.check(row)) {
+                    if (matchesOC(oc, q) && entry.check(row)) {
                         // Obtener OP-PTDA de la fila encontrada
                         const opTela = String(getVal(row, 'OP TELA') || '').trim();
                         const partida = String(getVal(row, 'PARTIDA') || '').trim();
@@ -10668,7 +10725,7 @@
         let currentIngresoCosturaRowIndex = -1;
         let currentIngresoCosturaData = {};
 
-        window.abrirModalIngresoCostura = function(rowIndex) {
+        window.abrirModalIngresoCostura = function(rowIndex, estadoHabTarget) {
             try {
                 currentIngresoCosturaRowIndex = rowIndex;
                 const row = rawData[rowIndex];
@@ -10693,7 +10750,8 @@
                     color: color,
                     pds: pds,
                     planta: planta,
-                    linea: linea
+                    linea: linea,
+                    estadoHabTarget: estadoHabTarget || 'OK'
                 };
                 
                 // Llenar el modal
@@ -10788,7 +10846,7 @@
                     { colName: 'PLANTA', value: planta },
                     { colName: 'LINEA', value: linea },
                     { colName: 'F.ING.REAL', value: fechaHora },
-                    { colName: 'estado_habilitado', value: 'OK' }
+                    { colName: 'estado_habilitado', value: currentIngresoCosturaData.estadoHabTarget || 'OK' }
                 ];
                 
                 // Cerrar el modal inmediatamente
