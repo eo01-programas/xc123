@@ -5016,8 +5016,8 @@
                         validIndices.push(i);
                     }
                 } else {
-                    // Para PROG 1T/2T/3T: mantener lógica original (estado_enumerado = OK ENM o OK S/ENM)
-                    if (evNorm === 'OK ENM' || evNorm === 'OK S/ENM') {
+                    // Para PROG 1T/2T/3T: estado_enumerado = OK ENM, OK S/ENM o OK PAQUETEO
+                    if (evNorm === 'OK ENM' || evNorm === 'OK S/ENM' || evNorm === 'OK PAQUETEO') {
                         validIndices.push(i);
                     }
                 }
@@ -5137,9 +5137,9 @@
                 const habilValNormFilter = (habilValFilter || '').toString().toUpperCase().trim();
                 
                 // Para X PROG and S/DESTINO: ya se filtró en validIndices, no necesita verificar estado_enumerado
-                // Para PROG 1T/2T/3T: verificar que estado_enumerado sea OK ENM o OK S/ENM
+                // Para PROG 1T/2T/3T: verificar que estado_enumerado sea OK ENM, OK S/ENM o OK PAQUETEO
                 if (currentHabilitadoFilter !== 'X PROG' && currentHabilitadoFilter !== 'S/DESTINO') {
-                    if (evNorm !== 'OK ENM' && evNorm !== 'OK S/ENM') return;
+                    if (evNorm !== 'OK ENM' && evNorm !== 'OK S/ENM' && evNorm !== 'OK PAQUETEO') return;
                 }
                 
                 // Filtrar según el sub-tab seleccionado
@@ -5200,7 +5200,7 @@
                                         else ev2 = getVal(r, 'estado_enumerado') || '';
                                         const evNorm2 = (ev2 || '').toString().toUpperCase().trim();
                                         
-                                        if ((evNorm2 === 'OK ENM' || evNorm2 === 'OK S/ENM')) {
+                                        if ((evNorm2 === 'OK ENM' || evNorm2 === 'OK S/ENM' || evNorm2 === 'OK PAQUETEO')) {
                                             const habilVal2 = getVal(r, 'estado_habilitado') || '';
                                             const habilNorm2 = (habilVal2 || '').toString().toUpperCase().trim();
                                             
@@ -8088,7 +8088,7 @@
             document.getElementById('habilitado-filter-field').textContent = fieldName;
             
             // Campos que usan dropdown
-            const dropdownFields = ['HOD', 'F.ING.COST', 'STATUS', 'CLIENTE', 'PLANTA', 'LINEA'];
+            const dropdownFields = ['HOD', 'F.ING.COST', 'F.ING', 'STATUS', 'CLIENTE', 'CLI', 'PLANTA', 'LINEA'];
             
             if (dropdownFields.includes(fieldName)) {
                 // Mostrar select y poblar con valores únicos
@@ -8170,6 +8170,9 @@
                 // Filtrar según el sub-tab seleccionado
                 if (currentHabilitadoFilter === 'X PROG') {
                     if (habilNorm !== '' && habilNorm !== 'X PROG') continue;
+                } else if (currentHabilitadoFilter === 'S/DESTINO') {
+                    const plantaPop = (getVal(row, 'PLANTA') || '').toString().toUpperCase().trim();
+                    if ((plantaPop !== 'S/DESTINO' || habilNorm === 'OK') && habilNorm !== 'OK S/DESTINO') continue;
                 } else {
                     // Para otros sub-tabs (PROG 1T, 2T, 3T), filtrar por ese estado
                     if (habilNorm !== currentHabilitadoFilter) continue;
