@@ -2836,11 +2836,13 @@
                     // Sumar pds para Transfer según estado_transfer
                     const estadoTransfer = (row && (row[ findHeaderIndexCaseInsensitive('estado_transfer') ])) || '';
                     const estadoTransferNorm = (!estadoTransfer || estadoTransfer.toString().trim() === '') ? 'X PROG' : estadoTransfer.toString().toUpperCase().trim();
-                    // Por Programar (X PROG): estado_transfer diferente a OK
+                    // Por Programar (X PROG): estado_transfer diferente a OK y tipo-transfer diferente a 'En prenda'
                     if (estadoTransferNorm !== 'OK') {
-                        const pds = parseFloat(row[colMap["PDS GIRADAS"]]) || 0;
-                        transfer_pds['X PROG'] += pds;
-                        transferCount++;
+                        if (tipoTransferBadge !== 'EN PRENDA') {
+                            const pds = parseFloat(row[colMap["PDS GIRADAS"]]) || 0;
+                            transfer_pds['X PROG'] += pds;
+                            transferCount++;
+                        }
                     }
                     // Programado (PROG): estado_transfer = PROG
                     if (estadoTransferNorm === 'PROG') {
@@ -4722,6 +4724,8 @@
                     // Si la fila indica NO LLEVA en tipo-transfer, no mostrarla en Transfer
                     const tipoTransferVal = (getVal(row, 'tipo-transfer') || '').toString().toUpperCase().trim();
                     if (tipoTransferVal === 'NO LLEVA') continue;
+                    // Si tipo-transfer es 'En prenda', no mostrar en Por Programar
+                    if (currentTransferFilter === 'X PROG' && tipoTransferVal === 'EN PRENDA') continue;
                     // Obtener estado_transfer (por defecto 'X PROG' si está vacío)
                     let estadoTransfer = getVal(row, 'estado_transfer') || 'X PROG';
                     estadoTransfer = (!estadoTransfer || estadoTransfer === '') ? 'X PROG' : estadoTransfer;
@@ -7700,6 +7704,7 @@
                         if (nTransf === 'NO LLEVA') return false;
                         const tipoT = est(row, 'tipo-transfer');
                         if (tipoT === 'NO LLEVA') return false;
+                        if (sub === 'X PROG' && tipoT === 'EN PRENDA') return false;
                         let et = est(row, 'estado_transfer');
                         if (et === '') et = 'X PROG';
                         if (sub === 'X PROG') return et !== 'OK';
@@ -7863,7 +7868,9 @@
                         if (ohi > 0) {
                             const ocOp = oc.substring(0, ohi);
                             const ocCorte = oc.substring(ohi + 1);
-                            return ocOp === qOp && ocCorte.length === 3 && ocCorte.substring(0, qCorte.length) === qCorte;
+                            if (ocOp !== qOp) return false;
+                            // Coincidencia exacta o por centena (3 dígitos que empiezan con qCorte)
+                            return ocCorte === qCorte || (ocCorte.length === 3 && ocCorte.substring(0, qCorte.length) === qCorte);
                         }
                         return false;
                     }
