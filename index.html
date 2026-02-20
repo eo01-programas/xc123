@@ -5491,7 +5491,7 @@
 
                     // STATUS - Columna calculada según RUTA TELA y estados
                     const rutaTela = (getVal(row, 'RUTA TELA') || getVal(row, 'RUTA_TELA') || getVal(row, 'RUTA') || '').toString().toUpperCase().trim();
-                    const estadoCorte = (getVal(row, 'estado_corte') || getVal(row, 'ESTADO_CORTE') || '').toString().toUpperCase().trim();
+                    const estadoCorte = (getVal(row, 'STATUS_CORTE') || getVal(row, 'STATUS') || getVal(row, 'estado_corte') || getVal(row, 'ESTADO_CORTE') || '').toString().toUpperCase().trim();
                     const estadoBloqueo = (getVal(row, 'estado_bloqueo') || getVal(row, 'ESTADO_BLOQUEO') || '').toString().toUpperCase().trim();
                     const estadoLavada = (getVal(row, 'estado_lavada') || getVal(row, 'ESTADO_LAVADA') || '').toString().toUpperCase().trim();
                     
@@ -6994,7 +6994,7 @@
                 return;
             }
             
-            if (colName.includes('estado_') || (typeof colName === 'string' && colName.toUpperCase() === 'STATUS')) {
+            if (colName.includes('estado_') || (typeof colName === 'string' && (colName.toUpperCase() === 'STATUS' || colName.toUpperCase() === 'STATUS_CORTE'))) {
                 try {
                     if (selectElement) {
                         selectElement.className = "table-select";
@@ -7335,6 +7335,9 @@
 
                     const shouldPropagate = !(valNorm === 'OK' && onCorteView && isProgSubtab);
 
+                    // Resolver el nombre exacto de la cabecera para propagar con el nombre correcto
+                    const resolvedStatusColName = (writeIdx !== undefined && writeIdx !== -1 && rawData[0] && rawData[0][writeIdx]) ? rawData[0][writeIdx] : colName;
+
                     if (shouldPropagate && opTelaIdx !== -1 && partidaIdx !== -1) {
                         const opTelaBase = String(rawData[rowIndex][opTelaIdx] || '').trim().toLowerCase();
                         const partidaBase = String(rawData[rowIndex][partidaIdx] || '').trim().toLowerCase();
@@ -7352,11 +7355,11 @@
                                 const prev = rawData[j][writeIdx];
                                 if (prev !== value) {
                                     rawData[j][writeIdx] = value;
-                                    // Guardar el cambio en backend (no-cors). Usar colName tal cual fue pasado (STATUS o estado_corte)
+                                    // Guardar el cambio en backend (no-cors). Usar nombre exacto de cabecera resuelto
                                     fetch(WEB_APP_URL, {
                                         method: 'POST',
                                         mode: 'no-cors',
-                                        body: JSON.stringify({ action: 'update', row: j, colName: colName, value: value })
+                                        body: JSON.stringify({ action: 'update', row: j, colName: resolvedStatusColName, value: value })
                                     }).catch(e => console.error('Error guardando propagado estado_corte', e));
                                 }
                                 
@@ -7870,8 +7873,8 @@
                             const ocOp = oc.substring(0, ohi);
                             const ocCorte = oc.substring(ohi + 1);
                             if (ocOp !== qOp) return false;
-                            // Coincidencia exacta o por centena (3 dígitos que empiezan con qCorte)
-                            return ocCorte === qCorte || (ocCorte.length === 3 && ocCorte.substring(0, qCorte.length) === qCorte);
+                            // Coincidencia exacta o por prefijo (OCs con más dígitos que empiezan con qCorte)
+                            return ocCorte === qCorte || (ocCorte.length > qCorte.length && ocCorte.substring(0, qCorte.length) === qCorte);
                         }
                         return false;
                     }
@@ -7978,7 +7981,7 @@
                     break;
                 case 'STATUS':
                     const rutaTela = (getVal(row, 'RUTA TELA') || getVal(row, 'RUTA_TELA') || getVal(row, 'RUTA') || '').toString().toUpperCase().trim();
-                    const estadoCorte = (getVal(row, 'estado_corte') || getVal(row, 'ESTADO_CORTE') || '').toString().toUpperCase().trim();
+                    const estadoCorte = (getVal(row, 'STATUS_CORTE') || getVal(row, 'STATUS') || getVal(row, 'estado_corte') || getVal(row, 'ESTADO_CORTE') || '').toString().toUpperCase().trim();
                     const estadoBloqueo = (getVal(row, 'estado_bloqueo') || getVal(row, 'ESTADO_BLOQUEO') || '').toString().toUpperCase().trim();
                     const estadoLavada = (getVal(row, 'estado_lavada') || getVal(row, 'ESTADO_LAVADA') || '').toString().toUpperCase().trim();
                     if (rutaTela === 'ACABADA') {
@@ -8229,7 +8232,7 @@
                     case 'STATUS':
                         // STATUS es un valor CALCULADO basado en RUTA TELA y estados
                         const rutaTela = (getVal(row, 'RUTA TELA') || getVal(row, 'RUTA_TELA') || getVal(row, 'RUTA') || '').toString().toUpperCase().trim();
-                        const estadoCorte = (getVal(row, 'estado_corte') || getVal(row, 'ESTADO_CORTE') || '').toString().toUpperCase().trim();
+                        const estadoCorte = (getVal(row, 'STATUS_CORTE') || getVal(row, 'STATUS') || getVal(row, 'estado_corte') || getVal(row, 'ESTADO_CORTE') || '').toString().toUpperCase().trim();
                         const estadoBloqueo = (getVal(row, 'estado_bloqueo') || getVal(row, 'ESTADO_BLOQUEO') || '').toString().toUpperCase().trim();
                         const estadoLavada = (getVal(row, 'estado_lavada') || getVal(row, 'ESTADO_LAVADA') || '').toString().toUpperCase().trim();
                         
@@ -8799,7 +8802,7 @@
             const values = new Set();
             for (let i = 1; i < rawData.length; i++) {
                 const row = rawData[i];
-                const estadoCorte = (getVal(row, 'estado_corte') || '').toString().toUpperCase().trim();
+                const estadoCorte = (getVal(row, 'STATUS_CORTE') || getVal(row, 'STATUS') || getVal(row, 'estado_corte') || getVal(row, 'ESTADO_CORTE') || '').toString().toUpperCase().trim();
                 const estadoCorteNorm = (!estadoCorte || estadoCorte === '') ? 'X PROG' : estadoCorte;
                 // Filtrar según el sub-tab seleccionado
                 if (estadoCorteNorm !== currentCorteFilter) continue;
@@ -8968,7 +8971,7 @@
 
             for (let i = 1; i < rawData.length; i++) {
                 const row = rawData[i];
-                const estadoCorte = (getVal(row, 'estado_corte') || '').toString().toUpperCase().trim();
+                const estadoCorte = (getVal(row, 'STATUS_CORTE') || getVal(row, 'STATUS') || getVal(row, 'estado_corte') || getVal(row, 'ESTADO_CORTE') || '').toString().toUpperCase().trim();
                 if (estadoCorte !== 'OK') continue;
                 const estadoEnumerado = (getVal(row, 'estado_enumerado') || '').toString().toUpperCase().trim();
                 if (estadoEnumerado === 'OK ENM' || estadoEnumerado === 'OK PAQUETEO' || estadoEnumerado === 'OK S/ENM') continue;
@@ -11403,7 +11406,7 @@
                 const row = rawData[i];
                 const rutaTela = (getVal(row, 'RUTA TELA') || '').toString().trim().toUpperCase();
                 const estadoBloqueo = (getVal(row, 'estado_bloqueo') || '').toString().trim().toUpperCase();
-                const estadoCorte = (getVal(row, 'estado_corte') || '').toString().trim().toUpperCase();
+                const estadoCorte = (getVal(row, 'STATUS_CORTE') || getVal(row, 'STATUS') || getVal(row, 'estado_corte') || getVal(row, 'ESTADO_CORTE') || '').toString().trim().toUpperCase();
 
                 // Extraer solo las columnas necesarias
                 const rowFiltrada = colIndices.map((idx, posicion) => {
@@ -12101,7 +12104,7 @@ NOTA: Por favor adjunte los archivos descargados (${fileName}.xlsx y ${fileName}
                                 case 'F.ING': cellValue = formatValue(getVal(row, 'F.ING.COST'), 'date') || ''; break;
                                 case 'STATUS':
                                     const rutaTela2 = (getVal(row, 'RUTA TELA') || '').toString().toUpperCase().trim();
-                                    const estadoCorte2 = (getVal(row, 'estado_corte') || '').toString().toUpperCase().trim();
+                                    const estadoCorte2 = (getVal(row, 'STATUS_CORTE') || getVal(row, 'STATUS') || getVal(row, 'estado_corte') || getVal(row, 'ESTADO_CORTE') || '').toString().toUpperCase().trim();
                                     const estadoBloqueo2 = (getVal(row, 'estado_bloqueo') || '').toString().toUpperCase().trim();
                                     const estadoLavada2 = (getVal(row, 'estado_lavada') || '').toString().toUpperCase().trim();
                                     const evNorm2 = (getVal(row, 'estado_enumerado') || '').toString().toUpperCase().trim();
