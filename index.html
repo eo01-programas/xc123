@@ -2601,6 +2601,7 @@
                 , "tipo-transfer", "TIPO-TRANSFER", "tipo_transfer"
                 , "estado_enumerado", "ESTADO_ENUMERADO"
                 , "estado_habilitado", "ESTADO_HABILITADO"
+                , "PLANTA", "LINEA"
             ];
             
             knownColumns.forEach(col => {
@@ -3210,10 +3211,10 @@
             // Guardar al perder foco
             input.addEventListener('blur', saveValue);
             
-            // Limitar a 2 dígitos mientras escribe
+            // Limitar a 3 caracteres mientras escribe (soporta E12, 12E, etc.)
             input.addEventListener('input', () => {
-                if (input.value.length > 2) {
-                    input.value = input.value.slice(0, 2);
+                if (input.value.length > 3) {
+                    input.value = input.value.slice(0, 3);
                 }
             });
         }
@@ -7319,7 +7320,7 @@
                 }, 600);
             }
 
-            if (colName === 'estado_corte' || (typeof colName === 'string' && colName.toUpperCase() === 'STATUS')) {
+            if (colName === 'estado_corte' || (typeof colName === 'string' && colName.toUpperCase() === 'STATUS') || (typeof colName === 'string' && colName.toUpperCase() === 'STATUS_CORTE')) {
                 try {
                     // Normalizar nombre de columna para buscar índices
                     const opTelaIdx = (colMap["OP TELA"] !== undefined) ? colMap["OP TELA"] : findColIndexNormalized('OP TELA');
