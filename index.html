@@ -73,7 +73,7 @@
             height: 100%;
             display: flex;
             flex-direction: column;
-            font-size: 12px; 
+            font-size: 13.5px; 
             box-sizing: border-box;
             overflow: hidden;
         }
@@ -83,7 +83,7 @@
             background-color: var(--white);
             border-bottom: 1px solid var(--gray-200);
             padding: 0 30px; 
-            height: 55px;    
+            height: 60px;    
             display: flex;
             align-items: center;
             justify-content: space-between;
@@ -93,7 +93,7 @@
         }
 
         .brand {
-            font-size: 16px; 
+            font-size: 18px; 
             font-weight: 700;
             color: var(--gray-800);
             display: flex;
@@ -107,7 +107,7 @@
 
         .nav-tab {
             background: none; border: none; height: 100%; padding: 0 8px;
-            font-size: 13px; 
+            font-size: 14px; 
             font-weight: 500; color: var(--gray-500);
             cursor: pointer; position: relative; transition: color 0.2s;
             display: flex; align-items: center; gap: 6px;
@@ -123,7 +123,7 @@
 
         .badge {
             background-color: var(--gray-200); color: var(--gray-800);
-            padding: 1px 6px; border-radius: 10px; font-size: 10px; font-weight: 600;
+            padding: 1px 6px; border-radius: 10px; font-size: 11px; font-weight: 600;
         }
         .nav-tab.active .badge { background-color: var(--primary-light); color: var(--primary); }
 
@@ -193,7 +193,7 @@
         table {
             width: 100%;
             border-collapse: collapse;
-            font-size: 11px; 
+            font-size: 12px; 
             min-width: 1200px; 
             table-layout: fixed;
         }
@@ -204,10 +204,102 @@
             table-layout: fixed;
         }
 
+        /* Habilitado: ajustar columnas al contenido y evitar scroll horizontal */
+        #view-habilitado .table-container {
+            overflow-x: hidden;
+        }
+        #table-habilitado {
+            width: 100% !important;
+            min-width: 0 !important;
+            table-layout: auto !important;
+        }
+        #table-habilitado th,
+        #table-habilitado td {
+            width: auto !important;
+            max-width: none;
+            min-width: 40px;
+        }
+        #table-habilitado th.col-comp-otros,
+        #table-habilitado td.col-comp-otros {
+            width: 22% !important;
+        }
+        #table-habilitado th.col-observaciones,
+        #table-habilitado td.col-observaciones {
+            width: 28% !important;
+        }
+        #table-habilitado th.col-validacion,
+        #table-habilitado td.cell-validacion {
+            width: 56px !important;
+            min-width: 56px !important;
+            max-width: 56px !important;
+        }
+        #table-habilitado th.col-validacion {
+            font-size: 12px;
+            letter-spacing: 0;
+            padding-left: 4px;
+            padding-right: 4px;
+            white-space: nowrap;
+        }
+        /* COLOR y CERT al tamaño de STATUS */
+        #table-habilitado th.col-color,
+        #table-habilitado th.col-cert,
+        #table-habilitado th.col-pda,
+        #table-habilitado td.cell-color,
+        #table-habilitado td.cell-cert,
+        #table-habilitado td.cell-pda {
+            width: 55px !important;
+            min-width: 55px !important;
+            max-width: 55px !important;
+        }
+        /* PLANTA, LINEA y HAB al tamaño de F.ING */
+        #table-habilitado th.col-planta,
+        #table-habilitado th.col-linea,
+        #table-habilitado th.col-hab,
+        #table-habilitado td.cell-planta,
+        #table-habilitado td.linea-cell,
+        #table-habilitado td.cell-hab {
+            width: 62px !important;
+            min-width: 62px !important;
+            max-width: 62px !important;
+        }
+        /* Columna P centrada en Habilitado */
+        #table-habilitado #th-habilitado-p,
+        #table-habilitado td.p-cell {
+            text-align: center !important;
+        }
+        #table-habilitado td.p-cell {
+            padding-left: 0 !important;
+            padding-right: 0 !important;
+        }
+        #table-habilitado td.p-cell input.prioridad-input {
+            margin: 0 auto;
+            display: block;
+        }
+        #table-habilitado th {
+            font-size: 14px;
+            padding: 9px 6px;
+        }
+        #table-habilitado td {
+            font-size: 12px;
+            padding: 6px 6px;
+        }
+        #table-habilitado select.table-select {
+            min-width: 0 !important;
+            font-size: 11px;
+            padding: 3px 5px;
+            padding-right: 16px;
+            height: 24px;
+        }
+        #table-habilitado .date-yy {
+            min-width: 0;
+            padding: 3px 6px;
+            font-size: 11px;
+        }
+
         /* Columnas con letra más pequeña en Habilitado */
         #table-habilitado td.cell-cert,
         #table-habilitado td.cell-pda {
-            font-size: 9px;
+            font-size: 11px;
         }
 
         thead th {
@@ -215,9 +307,9 @@
             color: #ffffff;
             font-weight: 600;
             text-transform: uppercase;
-            font-size: 13px; 
+            font-size: 14px; 
             letter-spacing: 0.5px;
-            padding: 8px 6px; 
+            padding: 9px 7px; 
             text-align: left;
             border-bottom: 1px solid var(--gray-200);
             position: sticky;
@@ -229,14 +321,14 @@
         }
 
         tbody td {
-            padding: 5px 6px; 
+            padding: 6px 7px; 
             border-bottom: 1px solid var(--gray-100);
             vertical-align: middle;
             color: var(--gray-800);
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
-            line-height: 1.2; 
+            line-height: 1.25; 
         }
 
         /* --- ESTILOS DE FILAS AGRUPADAS --- */
@@ -255,8 +347,8 @@
 
         /* --- ESTILOS DE CELDA --- */
         .op-cell { font-weight: 600; color: var(--gray-800); }
-        .kg-cell { font-family: 'Calibri', 'Inter', sans-serif; font-weight: 600; font-size: 11px; }
-        .date-cell { color: var(--gray-800); font-size: 11px; text-align: center; }
+        .kg-cell { font-family: 'Calibri', 'Inter', sans-serif; font-weight: 600; font-size: 12px; }
+        .date-cell { color: var(--gray-800); font-size: 12px; text-align: center; }
 
         /* --- SELECTS COMPACTOS --- */
         select.table-select {
@@ -320,6 +412,21 @@
         }
         .linea-cell:hover {
             background-color: rgba(37, 99, 235, 0.08);
+        }
+        .observaciones-cell {
+            cursor: pointer;
+        }
+        .observaciones-cell:hover {
+            background-color: rgba(37, 99, 235, 0.08);
+        }
+        .cell-validacion {
+            text-align: center;
+        }
+        .validacion-checkbox {
+            width: 16px;
+            height: 16px;
+            cursor: pointer;
+            accent-color: var(--primary);
         }
         .linea-display {
             display: inline-block;
@@ -1218,6 +1325,34 @@
             background: #ecfdf5;
             color: #065f46;
         }
+        .search-filter-clear-btn {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            border: 1px solid var(--gray-300);
+            background: var(--white);
+            color: var(--gray-600);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            margin-left: 6px;
+            transition: all 0.2s ease;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+            flex-shrink: 0;
+        }
+        .search-filter-clear-btn i {
+            font-size: 14px;
+        }
+        .search-filter-clear-btn:hover {
+            color: var(--primary);
+            border-color: var(--primary);
+            box-shadow: 0 3px 10px rgba(37,99,235,0.18);
+            transform: translateY(-1px);
+        }
+        .search-filter-clear-btn:active {
+            transform: translateY(0);
+        }
     </style>
 </head>
 <body>
@@ -1476,6 +1611,9 @@
                 <input type="text" class="search-oc-input" id="search-oc-input" placeholder="Buscar..." autocomplete="off" onkeydown="if(event.key==='Enter'){event.preventDefault();buscarOC(this.value);}">
                 <div id="search-oc-msg" style="display:none;"></div>
             </div>
+            <button class="search-filter-clear-btn" type="button" onclick="clearAllSearchFilters()" title="Quitar todos los filtros de búsqueda" aria-label="Quitar todos los filtros de búsqueda">
+                <i class="ph ph-funnel-simple"></i>
+            </button>
         </div>
         <nav class="nav-tabs">
             <button class="nav-tab active" onclick="switchView('bloqueo', this)">
@@ -1492,9 +1630,6 @@
             </button>
             <button class="nav-tab" onclick="switchView('enumerado', this)">
                 <i class="ph ph-list-numbers"></i> Enumerado <span class="badge" id="count-enumerado">0</span>
-            </button>
-            <button class="nav-tab" onclick="switchView('transfer', this)">
-                <i class="ph ph-stamp"></i> Transfer <span class="badge" id="count-transfer">0</span>
             </button>
             <button class="nav-tab" onclick="switchView('artes', this)">
                 <i class="ph ph-feather"></i> Artes (Pza) <span class="badge" id="count-artes">0</span>
@@ -1586,81 +1721,6 @@
             </div>
         </section>
 
-        <!-- VISTA TRANSFER -->
-        <section id="view-transfer" class="view-section">
-            <div class="sub-nav">
-                <button id="btn-transfer-xprog" class="sub-tab active" onclick="filterTransfer('X PROG', this)">
-                    Por Programar <span class="kg-badge" id="transfer-pds-xprog">[-]</span>
-                </button>
-                <button id="btn-transfer-prog" class="sub-tab" onclick="filterTransfer('PROG', this)">
-                    Programado <span class="kg-badge" id="transfer-pds-prog">[-]</span>
-                </button>
-                <button id="btn-transfer-asignar" class="sub-tab" onclick="filterTransfer('ASIGNAR', this)">
-                    Asignar #Trf
-                </button>
-            </div>
-            
-            <!-- Filtros para Asignar #Trf -->
-            <div id="transfer-asignar-filters" style="display:none; margin-bottom:15px; gap:10px; align-items:center;">
-                <label style="font-weight:600; font-size:12px; color:var(--gray-600);">Filtrar por:</label>
-                <!-- Nuevo filtro: Todos / Con dato / Sin dato -->
-                <select id="filter-transfer-haydato" style="padding:6px 10px; border-radius:4px; border:1px solid var(--gray-300); font-size:12px;" onchange="renderTransferAsignar()">
-                    <option value="">Todos</option>
-                    <option value="CON">Con dato</option>
-                    <option value="SIN">Sin dato</option>
-                </select>
-                <select id="filter-transfer-cliente" style="padding:6px 10px; border-radius:4px; border:1px solid var(--gray-300); font-size:12px;" onchange="renderTransferAsignar()">
-                    <option value="">Todos los clientes</option>
-                </select>
-                <select id="filter-transfer-estilo" style="padding:6px 10px; border-radius:4px; border:1px solid var(--gray-300); font-size:12px;" onchange="renderTransferAsignar()">
-                    <option value="">Todos los estilos</option>
-                </select>
-                <button onclick="guardarCambiosAsignarTransfer()" style="padding:6px 16px; background:var(--primary); color:white; border:none; border-radius:4px; font-weight:600; cursor:pointer; font-size:12px;">Guardar</button>
-                <label class="filter-item" style="margin-left:8px; font-weight:600; font-size:12px; display:inline-flex; align-items:center; gap:6px;">
-                    <input type="checkbox" id="chk-transfer-para-todo" style="width:18px;height:18px;vertical-align:middle;"> Para todo
-                </label>
-            </div>
-            
-            <div id="table-container-transfer-normal" class="table-container">
-                <table>
-                    <thead>
-                        <tr>
-                            <th id="th-transfer-p" style="width: 30px; display:none;">P</th>
-                            <th style="width: 65px; text-align: center;">HOD</th>
-                            <th style="width: 75px; text-align: center;">F.ING.COST</th>
-                            <th style="width: 40px;">CLIENTE</th>
-                            <th style="width: 50px;">RUTA</th>
-                            <th style="width: 45px;">OC</th>
-                            <th style="width: 80px;">COLOR</th>
-                            <th style="width: 45px; text-align:center;">PDS</th>
-                            <th style="width: 60px;">PRENDA</th>
-                            <th style="width: 70px;">TIPO CERT.</th>
-                            <th style="width: 90px;">n.transfxpda</th>
-                                        <th style="width: 90px;">tipo-transfer</th>
-                                        <th style="width: 90px;">estado_transfer</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tbody-transfer"></tbody>
-                </table>
-            </div>
-            
-            <!-- Tabla para Asignar #Trf -->
-            <div id="table-container-transfer-asignar" class="table-container" style="display:none;">
-                <table>
-                    <thead>
-                        <tr>
-                            <th style="width: 150px;">CLIENTE</th>
-                            <th style="width: 200px;">ESTILO</th>
-                            <th style="width: 80px;">OP</th>
-                            <th style="width: 120px;">tipo-transfer</th>
-                            <th style="width: 150px;">n.transfxpda</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tbody-transfer-asignar"></tbody>
-                </table>
-            </div>
-        </section>
-        
         <!-- VISTA ARTES (Pza) -->
         <section id="view-artes" class="view-section">
             <div class="sub-nav">
@@ -1672,6 +1732,9 @@
                 </button>
                 <button id="btn-artes-asignar" class="sub-tab" onclick="filterArtes('ASIGNAR', this)">
                     Asignar Artes
+                </button>
+                <button id="btn-artes-asignar-trf" class="sub-tab" onclick="filterArtes('ASIGNAR_TRF', this)">
+                    Asignar #Trf
                 </button>
             </div>
 
@@ -1704,6 +1767,26 @@
                 <button onclick="guardarCambiosAsignarArtes()" style="padding:6px 16px; background:var(--primary); color:white; border:none; border-radius:4px; font-weight:600; cursor:pointer; font-size:12px;">Guardar</button>
                 <label class="filter-item" style="margin-left:8px; font-weight:600; font-size:12px; display:inline-flex; align-items:center; gap:6px;">
                     <input type="checkbox" id="chk-artes-para-todo" style="width:18px;height:18px;vertical-align:middle;"> Para todo
+                </label>
+            </div>
+
+            <!-- Filtros para Asignar #Trf (movido desde Transfer) -->
+            <div id="transfer-asignar-filters" style="display:none; margin-bottom:15px; gap:10px; align-items:center;">
+                <label style="font-weight:600; font-size:12px; color:var(--gray-600);">Filtrar por:</label>
+                <select id="filter-transfer-haydato" style="padding:6px 10px; border-radius:4px; border:1px solid var(--gray-300); font-size:12px;" onchange="renderTransferAsignar()">
+                    <option value="">Todos</option>
+                    <option value="CON">Con dato</option>
+                    <option value="SIN">Sin dato</option>
+                </select>
+                <select id="filter-transfer-cliente" style="padding:6px 10px; border-radius:4px; border:1px solid var(--gray-300); font-size:12px;" onchange="renderTransferAsignar()">
+                    <option value="">Todos los clientes</option>
+                </select>
+                <select id="filter-transfer-estilo" style="padding:6px 10px; border-radius:4px; border:1px solid var(--gray-300); font-size:12px;" onchange="renderTransferAsignar()">
+                    <option value="">Todos los estilos</option>
+                </select>
+                <button onclick="guardarCambiosAsignarTransfer()" style="padding:6px 16px; background:var(--primary); color:white; border:none; border-radius:4px; font-weight:600; cursor:pointer; font-size:12px;">Guardar</button>
+                <label class="filter-item" style="margin-left:8px; font-weight:600; font-size:12px; display:inline-flex; align-items:center; gap:6px;">
+                    <input type="checkbox" id="chk-transfer-para-todo" style="width:18px;height:18px;vertical-align:middle;"> Para todo
                 </label>
             </div>
 
@@ -1764,6 +1847,22 @@
                     <tbody id="tbody-artes-asignar"></tbody>
                 </table>
             </div>
+
+            <!-- Tabla para Asignar #Trf (movida desde Transfer) -->
+            <div id="table-container-transfer-asignar" class="table-container" style="display:none;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width: 150px;">CLIENTE</th>
+                            <th style="width: 200px;">ESTILO</th>
+                            <th style="width: 80px;">OP</th>
+                            <th style="width: 120px;">tipo-transfer</th>
+                            <th style="width: 150px;">n.transfxpda</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tbody-transfer-asignar"></tbody>
+                </table>
+            </div>
         </section>
 
                 <!-- VISTA HABILITADO (Filtrado de Enumerado con estado_enumerado = OK ENM / OK S/ENM) -->
@@ -1794,25 +1893,22 @@
                         <table id="table-habilitado">
                             <thead>
                                 <tr>
-                                    <th id="th-habilitado-p" style="width: 25px;">P</th>
+                                    <th id="th-habilitado-p" style="width: 25px; text-align:center;">P</th>
                                     <th style="width: 62px; text-align: center;">HOD</th>
                                     <th style="width: 62px; text-align: center;">F.ING</th>
                                     <th style="width: 55px; text-align:center;">STATUS</th>
                                     <th style="width: 45px; text-align:center;">CLI</th>
                                     <th style="width: 65px;">OC</th>
-                                    <th style="width: 80px;">COLOR</th>
+                                    <th class="col-color" style="width: 55px;">COLOR</th>
                                     <th style="width: 45px; text-align:center;">PDS</th>
-                                    <th style="width: 45px;" class="col-pda">PDA</th>
-                                    <th style="width: 65px;" class="col-cert">CERT</th>
-                                    <th style="width: 55px; text-align:center;">RIB</th>
-                                    <th style="width: 50px; text-align:center;">BLOQ?</th>
-                                    <th style="width: 55px; text-align:center;">COLL/TAP</th>
-                                    <th style="width: 75px; text-align:center;">TRSF</th>
-                                    <th style="width: 50px; text-align:center;">BORD</th>
-                                    <th style="width: 50px; text-align:center;">ESTM</th>
-                                    <th style="width: 60px; text-align:center;">PLANTA</th>
-                                    <th style="width: 45px; text-align:center;">LINEA</th>
-                                    <th style="width: 65px; text-align:center;">HAB</th>
+                                    <th style="width: 55px;" class="col-pda">PDA</th>
+                                    <th style="width: 55px;" class="col-cert">CERT</th>
+                                    <th class="col-comp-otros" style="width: 220px; text-align:left;">COMP/OTROS</th>
+                                    <th class="col-observaciones" style="width: 150px; text-align:left;">OBSERVACIONES</th>
+                                    <th class="col-validacion" style="width: 56px; text-align:center;">VALIDA</th>
+                                    <th class="col-planta" style="width: 62px; text-align:center;">PLANTA</th>
+                                    <th class="col-linea" style="width: 62px; text-align:center;">LINEA</th>
+                                    <th class="col-hab" style="width: 62px; text-align:center;">HAB</th>
                                 </tr>
                             </thead>
                             <tbody id="tbody-habilitado"></tbody>
@@ -1961,7 +2057,7 @@
 
     <script>
         // --- CONFIGURACIÓN ---
-        const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbz-xN-vUHm-l-6CAOaannmPlOoctFRlMzsP7OdCHgQEgz1WzcH9SZNmsWEVqhT7FShaqw/exec"; 
+        const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzO3f8HVWbYN3aSdmKwdt16bbKfxNeGxcLxpvoLExme2UFAVPIc_sENIXYwgXtYkpT-Ow/exec"; 
         const SHEET_ID = "18cQuwqerdMggAeJ8TCUKA7-gujXsA91-CRMUTNpr8aQ";
 
         let rawData = [];
@@ -2601,6 +2697,7 @@
                 , "tipo-transfer", "TIPO-TRANSFER", "tipo_transfer"
                 , "estado_enumerado", "ESTADO_ENUMERADO"
                 , "estado_habilitado", "ESTADO_HABILITADO"
+                , "VALIDACION", "VALIDA"
                 , "PLANTA", "LINEA"
             ];
             
@@ -2644,7 +2741,6 @@
             renderCorte();
             renderCorteBloques();
             renderEnumerado();
-            renderTransfer();
             // Inicializar vistas y badges de Artes (Bordado/Estampado/Asignar)
             try { renderArtes(); } catch(e) {}
             try { if (typeof updateArtesBadges === 'function') updateArtesBadges(); } catch(e) {}
@@ -2714,6 +2810,86 @@
             try { document.getElementById('artes-pds-estampado').innerText = `[${formatThousands((e_pdsX||0)+(e_pdsProg||0),0)}pds]`; } catch(e){}
         };
         
+        function updateMainNavCounts() {
+            if (!rawData || rawData.length < 2) return;
+
+            let countBloqueo = 0;
+            let countLavado = 0;
+            let countCorte = 0;
+            let countCorteBloques = 0;
+            let countEnumerado = 0;
+            let countArtes = 0;
+            let countHabilitado = 0;
+
+            for (let i = 1; i < rawData.length; i++) {
+                const row = rawData[i];
+
+                const rutaTela = (getVal(row, 'RUTA TELA') || '').toString().toUpperCase().trim();
+                const estadoBloqueo = (getVal(row, 'estado_bloqueo') || '').toString().toUpperCase().trim() || 'X PROG';
+                const estadoLavada = (getVal(row, 'estado_lavada') || '').toString().toUpperCase().trim();
+                const estadoCorte = ((getVal(row, 'STATUS_CORTE') || getVal(row, 'STATUS') || getVal(row, 'status') || getVal(row, 'estado_corte') || getVal(row, 'ESTADO CORTE') || getVal(row, 'ESTADO_CORTE') || '') + '').toUpperCase().trim() || 'X PROG';
+                const estadoBloques = (getVal(row, 'ESTADO BLOQUES') || getVal(row, 'ESTADO_BLOQUES') || getVal(row, 'estado_bloques') || '').toString().toUpperCase().trim();
+                const estadoCorteBloques = (getVal(row, 'estado_corte_bloques') || getVal(row, 'ESTADO_CORTE_BLOQUES') || getVal(row, 'ESTADO CORTE BLOQUES') || '').toString().toUpperCase().trim() || 'X PROG';
+                const estadoEnumerado = (getVal(row, 'estado_enumerado') || getVal(row, 'ESTADO_ENUMERADO') || getVal(row, 'ESTADO ENUMERADO') || '').toString().toUpperCase().trim();
+                const estadoHabilitado = (getVal(row, 'estado_habilitado') || getVal(row, 'ESTADO_HABILITADO') || '').toString().toUpperCase().trim();
+                const planta = (getVal(row, 'PLANTA') || '').toString().toUpperCase().trim();
+
+                // Bloqueo: union de X PROG + PROG (solo ruta LAVADA)
+                if (rutaTela === 'LAVADA' && (estadoBloqueo === 'X PROG' || estadoBloqueo === 'PROG')) {
+                    countBloqueo++;
+                }
+
+                // Lavanderia: estado_bloqueo OK y estado_lavada diferente de OK
+                if (estadoBloqueo === 'OK' && estadoLavada !== 'OK') {
+                    countLavado++;
+                }
+
+                // Corte Pzas: union de sub-tabs visibles
+                if (estadoCorte === 'X PROG' || estadoCorte === 'PROG 1T' || estadoCorte === 'PROG 2T' || estadoCorte === 'PROG 3T') {
+                    countCorte++;
+                }
+
+                // Corte Bloques: filas elegibles del módulo en sub-tabs X PROG/PROG
+                if (estadoBloques === 'OK CORTE' && (estadoCorteBloques === 'X PROG' || estadoCorteBloques === 'PROG')) {
+                    countCorteBloques++;
+                }
+
+                // Enumerado: corte OK y aún no OK ENM / OK S/ENM / OK PAQUETEO
+                if (estadoCorte === 'OK' && estadoEnumerado !== 'OK ENM' && estadoEnumerado !== 'OK S/ENM' && estadoEnumerado !== 'OK PAQUETEO') {
+                    countEnumerado++;
+                }
+
+                // Artes: filas que participan en Bordado o Estampado
+                if (estadoEnumerado !== '' && estadoHabilitado !== 'OK') {
+                    const nBordado = (getVal(row, 'n.bordadoxpda') || getVal(row, 'N.BORDADOXPDA') || '').toString().toUpperCase().trim();
+                    const nBd = (getVal(row, 'n.BDxpda') || getVal(row, 'N.BDXPDA') || getVal(row, 'n.BDxpda ') || '').toString().toUpperCase().trim();
+                    const nEstamp = (getVal(row, 'n.ESTAMPxpda') || getVal(row, 'N.ESTAMPXPDA') || getVal(row, 'n.ESTAMP xpda') || '').toString().toUpperCase().trim();
+                    const aplicaBordado = (nBordado.indexOf('NO LLEVA') === -1 && nBd.indexOf('NO LLEVA') === -1);
+                    const aplicaEstampado = (nEstamp.indexOf('NO LLEVA') === -1);
+                    if (aplicaBordado || aplicaEstampado) countArtes++;
+                }
+
+                // Habilitado: union de sub-tabs del módulo
+                const habilProg = (estadoHabilitado === '' || estadoHabilitado === 'X PROG' || estadoHabilitado === 'PROG 1T' || estadoHabilitado === 'PROG 2T' || estadoHabilitado === 'PROG 3T');
+                const habilEnumOk = (estadoEnumerado === 'OK ENM' || estadoEnumerado === 'OK S/ENM' || estadoEnumerado === 'OK PAQUETEO');
+                const habilSDestino = ((planta === 'S/DESTINO' && estadoHabilitado !== 'OK') || estadoHabilitado === 'OK S/DESTINO');
+                if (habilProg || habilEnumOk || habilSDestino) countHabilitado++;
+            }
+
+            const setCount = (id, val) => {
+                const el = document.getElementById(id);
+                if (el) el.innerText = val;
+            };
+
+            setCount('count-bloqueo', countBloqueo);
+            setCount('count-lavado', countLavado);
+            setCount('count-corte', countCorte);
+            setCount('count-corte-bloques', countCorteBloques);
+            setCount('count-enumerado', countEnumerado);
+            setCount('count-artes', countArtes);
+            setCount('count-habilitado', countHabilitado);
+        }
+
         function updateCounters() {
             let b_kgX = 0, b_pdsX = 0; 
             let b_kgP = 0, b_pdsP = 0; 
@@ -2862,6 +3038,9 @@
             if (elTX) elTX.innerText = `[${formatThousands(transfer_pds['X PROG'],0)}pds]`;
             const elTP = document.getElementById('transfer-pds-prog');
             if (elTP) elTP.innerText = `[${formatThousands(transfer_pds['PROG'],0)}pds]`;
+
+            // Asegurar que los badges de pestañas principales reflejen el total real de cada vista.
+            try { updateMainNavCounts(); } catch (e) {}
         }
 
         // helper para buscar índice de encabezado de forma case-insensitive y sin símbolos
@@ -3219,6 +3398,72 @@
             });
         }
 
+        // --- FUNCIÓN PARA EDITAR OBSERVACIONES CON DOBLE CLICK ---
+        function editObservaciones(cell, rowIndex) {
+            // PROTECCIÓN: No permitir escritura en encabezados
+            if (rowIndex < 1 || !rawData[rowIndex]) {
+                console.error('PROTECCIÓN editObservaciones: rowIndex inválido=' + rowIndex);
+                return;
+            }
+            // Evitar abrir más de un editor en la misma celda
+            if (cell.querySelector('textarea')) return;
+
+            const span = cell.querySelector('.observaciones-display');
+            const currentValue = String(
+                getVal(rawData[rowIndex], 'OBSERVACIONES')
+                || getVal(rawData[rowIndex], 'OBSERVACION')
+                || getVal(rawData[rowIndex], 'OBS')
+                || ''
+            );
+
+            const textarea = document.createElement('textarea');
+            textarea.value = currentValue;
+            textarea.className = 'observaciones-input';
+            textarea.rows = 2;
+            textarea.style.cssText = 'width:100%; min-height:44px; resize:vertical; padding:4px 6px; border:1px solid var(--primary); border-radius:4px; font-size:10px; font-family:Calibri,sans-serif; outline:none; box-sizing:border-box;';
+
+            if (span) span.style.display = 'none';
+            cell.appendChild(textarea);
+            cell.style.padding = '2px';
+            textarea.focus();
+            try { textarea.setSelectionRange(textarea.value.length, textarea.value.length); } catch(e) {}
+
+            const finish = (keepChanges) => {
+                if (keepChanges) {
+                    const newValue = textarea.value.trim();
+                    if (newValue !== currentValue.trim()) {
+                        const idxObs = findHeaderIndexCaseInsensitive('OBSERVACIONES');
+                        if (idxObs !== -1 && rawData[rowIndex]) {
+                            rawData[rowIndex][idxObs] = newValue;
+                        }
+                        if (span) span.textContent = newValue;
+                        cell.title = newValue;
+                        updateRow(rowIndex, 'OBSERVACIONES', newValue, null);
+                    } else if (span) {
+                        span.textContent = currentValue;
+                    }
+                } else if (span) {
+                    span.textContent = currentValue;
+                }
+
+                if (span) span.style.display = '';
+                textarea.remove();
+                cell.style.padding = '';
+            };
+
+            textarea.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    finish(true);
+                } else if (e.key === 'Escape') {
+                    e.preventDefault();
+                    finish(false);
+                }
+            });
+
+            textarea.addEventListener('blur', () => finish(true));
+        }
+
         // --- LÓGICA DE ORDENAMIENTO ---
         function sortBloqueoData(indices) {
             return indices.sort((a, b) => {
@@ -3497,7 +3742,7 @@
                 tbody.appendChild(tr);
             });
             
-            document.getElementById('count-bloqueo').innerText = count;
+            try { updateMainNavCounts(); } catch (e) {}
             
             // Inicializar eventos de los selectores de fecha
             initializeDateInputs();
@@ -4081,7 +4326,7 @@
                 
                 tbody.appendChild(tr);
             });
-            document.getElementById('count-lavado').innerText = count;
+            try { updateMainNavCounts(); } catch (e) {}
             
             // Inicializar eventos de los selectores de fecha
             initializeDateInputs();
@@ -4459,7 +4704,7 @@
                 });
             }
 
-            document.getElementById('count-corte').innerText = count;
+            try { updateMainNavCounts(); } catch (e) {}
             
             // Inicializar eventos de los selectores de fecha
             initializeDateInputs();
@@ -4657,7 +4902,7 @@
                 
                 tbody.appendChild(tr);
             });
-            document.getElementById('count-enumerado').innerText = count;
+            try { updateMainNavCounts(); } catch (e) {}
             try {
                 const el = document.getElementById('enumerado-pds-por');
                 if (el) el.innerText = `[${formatThousands(pds_total,0)}pds]`;
@@ -4953,7 +5198,8 @@
                     }
                 }
             }
-            document.getElementById('count-transfer').innerText = count;
+            const countTransferEl = document.getElementById('count-transfer');
+            if (countTransferEl) countTransferEl.innerText = count;
             
             // Inicializar eventos de los selectores de fecha
             initializeDateInputs();
@@ -4976,6 +5222,8 @@
             const validIndices = [];
             const idxEv = findHeaderIndexCaseInsensitive('estado_enumerado');
             const idxHabil = findHeaderIndexCaseInsensitive('estado_habilitado');
+            let idxValidacion = findHeaderIndexCaseInsensitive('VALIDACION');
+            if (idxValidacion === -1) idxValidacion = findHeaderIndexCaseInsensitive('VALIDA');
             for (let i = 1; i < rawData.length; i++) {
                 const row = rawData[i];
                 let ev = '';
@@ -4991,22 +5239,35 @@
                 if (idxHabil !== -1 && row[idxHabil] !== undefined) habilVal = row[idxHabil];
                 else habilVal = getVal(row, 'estado_habilitado') || getVal(row, 'ESTADO_HABILITADO') || '';
                 const habilNorm = (habilVal || '').toString().toUpperCase().trim();
+
+                // Si VALIDA está marcado, no debe sumar en los totales PDS de Habilitado.
+                let validacionRaw = '';
+                if (idxValidacion !== -1 && row[idxValidacion] !== undefined && row[idxValidacion] !== null) {
+                    validacionRaw = row[idxValidacion];
+                } else {
+                    const validacionByName = getVal(row, 'VALIDACION') || getVal(row, 'VALIDA');
+                    if (validacionByName !== undefined && validacionByName !== null) validacionRaw = validacionByName;
+                }
+                const validacionNorm = String(validacionRaw).trim().toUpperCase();
+                const validaMarcado = validacionRaw === true || validacionRaw === 1 || validacionNorm === 'TRUE' || validacionNorm === 'VERDADERO' || validacionNorm === '1' || validacionNorm === 'SI' || validacionNorm === 'X';
                 
                 // Calcular PDS por sub-tab para los badges (SIEMPRE, independiente del filtro activo)
                 const pdsVal = parseFloat(getVal(row, 'PDS GIRADAS')) || 0;
-                if (habilNorm === '' || habilNorm === 'X PROG') {
-                    pdsXProg += pdsVal;
-                } else if (habilNorm === 'PROG 1T') {
-                    pds1T += pdsVal;
-                } else if (habilNorm === 'PROG 2T') {
-                    pds2T += pdsVal;
-                } else if (habilNorm === 'PROG 3T') {
-                    pds3T += pdsVal;
+                if (!validaMarcado) {
+                    if (habilNorm === '' || habilNorm === 'X PROG') {
+                        pdsXProg += pdsVal;
+                    } else if (habilNorm === 'PROG 1T') {
+                        pds1T += pdsVal;
+                    } else if (habilNorm === 'PROG 2T') {
+                        pds2T += pdsVal;
+                    } else if (habilNorm === 'PROG 3T') {
+                        pds3T += pdsVal;
+                    }
                 }
                 
                 // Contar S/DESTINO: PLANTA = S/DESTINO y estado_habilitado != OK, o estado_habilitado = OK S/DESTINO
                 const plantaCheck = (getVal(row, 'PLANTA') || '').toString().toUpperCase().trim();
-                if ((plantaCheck === 'S/DESTINO' && habilNorm !== 'OK') || habilNorm === 'OK S/DESTINO') {
+                if (!validaMarcado && ((plantaCheck === 'S/DESTINO' && habilNorm !== 'OK') || habilNorm === 'OK S/DESTINO')) {
                     pdsSDestino += pdsVal;
                 }
                 
@@ -5191,8 +5452,8 @@
                             headerRow.style.fontWeight = '700';
                             headerRow.style.fontSize = '13px';
                             
-                            // Calcular colspan: 18 columnas en Habilitado (incluye PLANTA y LINEA)
-                            const colspan = '18';
+                            // Calcular colspan: 16 columnas en Habilitado (incluye OBSERVACIONES, VALIDACION, PLANTA y LINEA)
+                            const colspan = '16';
                             
                             // Calcular suma de PDS para este grupo de TRSF
                             let pdsTrsf = 0;
@@ -5456,6 +5717,62 @@
                             estampHtml = `<td style="text-align:center;" title="${estampVal}">${estampVal}</td>`;
                         }
                     } catch(e) { estampHtml = `<td style="text-align:center;" title="${estampVal}">${estampVal}</td>`; }
+                    const extractCompText = (cellHtml) => {
+                        const plain = String(cellHtml || '')
+                            .replace(/<[^>]*>/g, ' ')
+                            .replace(/&amp;/g, '&')
+                            .replace(/&lt;/g, '<')
+                            .replace(/&gt;/g, '>')
+                            .replace(/\s+/g, ' ')
+                            .trim();
+                        const plainNorm = plain.toUpperCase();
+                        if (!plain || plain === '-' || plainNorm === 'X' || plainNorm === 'NO LLEVA') return '';
+                        return plain;
+                    };
+                    const compItems = [];
+                    const ribComp = extractCompText(ribHtml);
+                    const bloqComp = extractCompText(bloqHtml);
+                    const collComp = extractCompText(collHtml);
+                    const trsfComp = extractCompText(trsfHtml);
+                    const bordComp = extractCompText(bordHtml);
+                    const estmComp = extractCompText(estampHtml);
+                    if (ribComp) compItems.push({ label: 'RIB', value: ribComp });
+                    if (bloqComp) compItems.push({ label: 'BLOQ?', value: bloqComp });
+                    if (collComp) compItems.push({ label: 'COLL/TAP', value: collComp });
+                    if (trsfComp) compItems.push({ label: 'TRSF', value: trsfComp });
+                    if (bordComp) compItems.push({ label: 'BORD', value: bordComp });
+                    if (estmComp) compItems.push({ label: 'ESTM', value: estmComp });
+                    const escapeHtml = (txt) => String(txt || '')
+                        .replace(/&/g, '&amp;')
+                        .replace(/</g, '&lt;')
+                        .replace(/>/g, '&gt;')
+                        .replace(/"/g, '&quot;');
+                    const compOtrosText = compItems.map(item => `${item.label}: ${item.value}`).join(' | ');
+                    const compOtrosSafe = escapeHtml(compOtrosText);
+                    const compOtrosRich = compItems
+                        .map(item => `<strong>${item.label}:</strong> ${escapeHtml(item.value)}`)
+                        .join(' | ');
+                    const compOtrosHtml = `<td class="wrap-text col-comp-otros" style="text-align:left;" title="${compOtrosSafe}">${compOtrosRich}</td>`;
+                    const observacionesVal = getVal(row, 'OBSERVACIONES')
+                        || getVal(row, 'OBSERVACION')
+                        || getVal(row, 'OBS')
+                        || '';
+                    const observacionesText = String(observacionesVal || '').trim();
+                    const observacionesSafe = escapeHtml(observacionesText);
+                    const observacionesHtml = `<td class="wrap-text observaciones-cell col-observaciones" style="text-align:left;" title="${observacionesSafe}" ondblclick="editObservaciones(this, ${i})"><span class="observaciones-display">${observacionesSafe}</span></td>`;
+                    let idxValidacion = findHeaderIndexCaseInsensitive('VALIDACION');
+                    if (idxValidacion === -1) idxValidacion = findHeaderIndexCaseInsensitive('VALIDA');
+                    let validacionRaw = '';
+                    if (idxValidacion !== -1 && row[idxValidacion] !== undefined && row[idxValidacion] !== null) {
+                        validacionRaw = row[idxValidacion];
+                    } else {
+                        const validacionByName = getVal(row, 'VALIDACION') || getVal(row, 'VALIDA');
+                        if (validacionByName !== undefined && validacionByName !== null) validacionRaw = validacionByName;
+                    }
+                    const validacionNorm = String(validacionRaw).trim().toUpperCase();
+                    const validacionChecked = validacionRaw === true || validacionRaw === 1 || validacionNorm === 'TRUE' || validacionNorm === 'VERDADERO' || validacionNorm === '1' || validacionNorm === 'SI' || validacionNorm === 'X';
+                    const validacionHtml = `<td class="cell-validacion col-validacion"><input type="checkbox" class="validacion-checkbox" aria-label="Validacion" ${validacionChecked ? 'checked' : ''} onchange="updateRow(${i}, 'VALIDACION', this.checked, this)" /></td>`;
+
                     // estado_habilitado -> select editable con opciones X PROG, PROG 1T, PROG 2T, PROG 3T (y OK para PROG 1T/2T/3T)
                     const habilValNorm = (habilVal || '').toString().toUpperCase().trim();
                     let habilClass = '';
@@ -5468,7 +5785,7 @@
                     let habilHtml = '';
                     if (currentHabilitadoFilter === 'X PROG' || currentHabilitadoFilter === 'S/DESTINO') {
                         // Mostrar estado_habilitado como dropdown con opciones X PROG, OK y OK S/DESTINO en X PROG / S/DESTINO
-                        habilHtml = `<td>
+                        habilHtml = `<td class="cell-hab">
                             <select class="table-select ${habilClass}" onchange="if(this.value === 'OK' || this.value === 'OK S/DESTINO') { abrirModalIngresoCostura(${i}, this.value); this.value = '${habilValNorm || 'X PROG'}'; } else { updateRow(${i}, 'estado_habilitado', this.value, this); setTimeout(renderHabilitado, 300); }">
                                 <option value="X PROG" ${habilValNorm === 'X PROG' || habilValNorm === '' ? 'selected' : ''}>X PROG</option>
                                 <option value="OK" ${habilValNorm === 'OK' ? 'selected' : ''}>OK</option>
@@ -5477,7 +5794,7 @@
                         </td>`;
                     } else {
                         // Mostrar como select (editable) en otros sub-tabs
-                        habilHtml = `<td>
+                        habilHtml = `<td class="cell-hab">
                             <select class="table-select ${habilClass}" onchange="if(this.value === 'OK' || this.value === 'OK S/DESTINO') { abrirModalIngresoCostura(${i}, this.value); this.value = '${habilValNorm}'; } else { updateRow(${i}, 'estado_habilitado', this.value, this); setTimeout(renderHabilitado, 300); }">
                                 <option value="X PROG" ${habilValNorm === 'X PROG' || habilValNorm === '' ? 'selected' : ''}>X PROG</option>
                                 <option value="PROG 1T" ${habilValNorm === 'PROG 1T' ? 'selected' : ''}>PROG 1T</option>
@@ -5563,7 +5880,7 @@
                     // PLANTA - Obtener valor y generar celda con dropdown
                     const plantaVal = getVal(row, 'PLANTA') || '';
                     const plantaDisplay = plantaVal.toString().trim() || 'XASIG';
-                    const plantaHtml = `<td style="text-align:center;">
+                    const plantaHtml = `<td class="cell-planta" style="text-align:center;">
                         <select class="table-select planta-select" data-row="${i}" onchange="updatePlanta(${i}, this.value, this)">
                             <option value="" ${plantaVal === '' ? 'selected' : ''}>XASIG</option>
                             <option value="COFACO" ${plantaVal === 'COFACO' ? 'selected' : ''}>COFACO</option>
@@ -5589,16 +5906,13 @@
                         <td style="text-align:center;" title="${statusValue}">${statusHtml.replace(/<td[^>]*>|<\/td>/g, '')}</td>
                         <td style="text-align:center;" title="${cliente}">${cliente}</td>
                         ${ocHtml}
-                        <td title="${color}">${color}</td>
+                        <td class="cell-color" title="${color}">${color}</td>
                         <td class="kg-cell" style="text-align:center;">${pdsStr}</td>
                         <td class="cell-pda" title="${prenda}"><span class="oc-link" onclick="abrirModalOC(${i});">${prenda}</span></td>
                         <td class="cell-cert" title="${tipoCert}">${tipoCert}</td>
-                        ${ribHtml}
-                        ${bloqHtml}
-                        ${collHtml}
-                        ${trsfHtml}
-                        ${bordHtml}
-                        ${estampHtml}
+                        ${compOtrosHtml}
+                        ${observacionesHtml}
+                        ${validacionHtml}
                         ${plantaHtml}
                         ${lineaHtml}
                         ${habilHtml}
@@ -5631,7 +5945,7 @@
                     
                     tbody.appendChild(tr);
             });
-            document.getElementById('count-habilitado').innerText = count;
+            try { updateMainNavCounts(); } catch (e) {}
             
             // Actualizar badges de PDS por sub-tab
             try { document.getElementById('habilitado-pds-xprog').innerText = `[${formatThousands(pdsXProg, 0)}pds]`; } catch(e){}
@@ -7019,6 +7333,19 @@
                 return -1;
             }
 
+            // Resolver la columna de validación aunque en la hoja esté como VALIDA o VALIDACION.
+            if (typeof colName === 'string') {
+                const colNameUp = colName.toUpperCase().trim();
+                if (colNameUp === 'VALIDACION' || colNameUp === 'VALIDA') {
+                    let idxVal = findHeaderIndexCaseInsensitive('VALIDACION');
+                    if (idxVal === -1) idxVal = findHeaderIndexCaseInsensitive('VALIDA');
+                    if (idxVal !== -1) {
+                        colMap['VALIDACION'] = idxVal;
+                        colMap['VALIDA'] = idxVal;
+                    }
+                }
+            }
+
             if (colMap[colName] === undefined || colMap[colName] === -1) {
                 const found = findColIndexNormalized(colName);
                 if (found !== -1) colMap[colName] = found;
@@ -7237,6 +7564,13 @@
                 setTimeout(() => {
                     renderTransfer();
                 }, 600);
+            }
+
+            if (typeof colName === 'string' && (colName.toUpperCase() === 'VALIDACION' || colName.toUpperCase() === 'VALIDA')) {
+                // Recalcular al instante los totales PDS de Habilitado al marcar/desmarcar VALIDA.
+                setTimeout(() => {
+                    renderHabilitado();
+                }, 150);
             }
 
             if (colName === 'estado_rib') {
@@ -7537,6 +7871,66 @@
         // =============================================
         // BÚSQUEDA GLOBAL POR OC
         // =============================================
+        window.clearAllSearchFilters = function() {
+            try {
+                if (typeof hideHabilitadoContextMenu === 'function') hideHabilitadoContextMenu();
+                if (typeof hideBloqueoContextMenu === 'function') hideBloqueoContextMenu();
+                if (typeof hideCorteContextMenu === 'function') hideCorteContextMenu();
+                if (typeof hideEnumeradoContextMenu === 'function') hideEnumeradoContextMenu();
+            } catch (e) { /* ignore */ }
+
+            try {
+                window._searchOpPtdaFilter = null;
+
+                if (typeof bloqueoHeaderFilters !== 'undefined' && Array.isArray(bloqueoHeaderFilters)) bloqueoHeaderFilters = [];
+                if (typeof bloqueoHeaderFilter !== 'undefined') bloqueoHeaderFilter = null;
+
+                if (typeof corteHeaderFilters !== 'undefined' && Array.isArray(corteHeaderFilters)) corteHeaderFilters = [];
+                if (typeof corteHeaderFilter !== 'undefined') corteHeaderFilter = null;
+
+                if (typeof enumeradoHeaderFilters !== 'undefined' && Array.isArray(enumeradoHeaderFilters)) enumeradoHeaderFilters = [];
+                if (typeof enumeradoHeaderFilter !== 'undefined') enumeradoHeaderFilter = null;
+
+                if (typeof habilitadoHeaderFilters !== 'undefined' && Array.isArray(habilitadoHeaderFilters)) habilitadoHeaderFilters = [];
+                if (typeof habilitadoHeaderFilter !== 'undefined') habilitadoHeaderFilter = null;
+
+                if (typeof lavadoHeaderFilters !== 'undefined' && Array.isArray(lavadoHeaderFilters)) lavadoHeaderFilters = [];
+                if (typeof lavadoHeaderFilter !== 'undefined') lavadoHeaderFilter = null;
+
+                if (typeof corteBloquesHeaderFilters !== 'undefined' && Array.isArray(corteBloquesHeaderFilters)) corteBloquesHeaderFilters = [];
+                if (typeof corteBloquesHeaderFilter !== 'undefined') corteBloquesHeaderFilter = null;
+
+                if (typeof transferHeaderFilters !== 'undefined' && Array.isArray(transferHeaderFilters)) transferHeaderFilters = [];
+                if (typeof transferHeaderFilter !== 'undefined') transferHeaderFilter = null;
+
+                if (typeof artesHeaderFilters !== 'undefined' && Array.isArray(artesHeaderFilters)) artesHeaderFilters = [];
+                if (typeof artesHeaderFilter !== 'undefined') artesHeaderFilter = null;
+            } catch (e) {
+                console.error('clearAllSearchFilters: error limpiando filtros', e);
+            }
+
+            try { renderBloqueoActiveFilters(); } catch (e) {}
+            try { renderHabilitadoActiveFilters(); } catch (e) {}
+
+            const searchInput = document.getElementById('search-oc-input');
+            if (searchInput) searchInput.value = '';
+            const msgEl = document.getElementById('search-oc-msg');
+            if (msgEl) {
+                msgEl.textContent = '';
+                msgEl.style.display = 'none';
+            }
+            try { clearTimeout(window._searchOcMsgTimer); } catch (e) {}
+
+            try { renderBloqueo(); } catch (e) {}
+            try { renderLavado(); } catch (e) {}
+            try { renderCorte(); } catch (e) {}
+            try { renderCorteBloques(); } catch (e) {}
+            try { renderEnumerado(); } catch (e) {}
+            try { renderArtes(); } catch (e) {}
+            try { renderHabilitado(); } catch (e) {}
+            try { updateCounters(); } catch (e) {}
+        };
+
         window.buscarOC = function(ocQuery) {
             const msgEl = document.getElementById('search-oc-msg');
             function showMsg(text, isSuccess) {
@@ -7576,15 +7970,24 @@
                 window._searchOpPtdaFilter = null;
             } catch(e) { console.error('buscarOC: error limpiando filtros anteriores', e); }
 
-            // Helper: obtener OC de una fila (tanto columna OC directa como OP-CORTE)
-            function rowOC(row) {
-                let oc = (getVal(row, 'OC') || '').toString().trim();
-                if (!oc) {
-                    const op = (getVal(row, 'OP') || '').toString().trim();
-                    const corte = (getVal(row, 'CORTE') || '').toString().trim();
-                    if (op && corte) oc = op + '-' + corte;
-                }
-                return oc.toUpperCase();
+            // Helper: obtener candidatos de OC de una fila.
+            // Se considera OC directo y también OP-CORTE / OP TELA-PARTIDA
+            // para soportar prefijos como 40727-1 -> 40727-101.
+            function rowOCCandidates(row) {
+                const out = [];
+                const push = (val) => {
+                    const s = (val || '').toString().trim().toUpperCase();
+                    if (!s) return;
+                    if (out.indexOf(s) === -1) out.push(s);
+                };
+
+                push(getVal(row, 'OC'));
+
+                const op = (getVal(row, 'OP') || '').toString().trim();
+                const corte = (getVal(row, 'CORTE') || '').toString().trim();
+                if (op && corte) push(op + '-' + corte);
+
+                return out;
             }
 
             // Helper: obtener campos de estado normalizados
@@ -7694,90 +8097,7 @@
                 }
             });
 
-            // --- 6. TRANSFER ---
-            ['X PROG', 'PROG'].forEach(sub => {
-                order.push({
-                    vista: 'transfer', subtab: sub,
-                    check: (row) => {
-                        const ev = est(row, 'estado_enumerado');
-                        let passMain = false;
-                        if (sub === 'X PROG') { passMain = ev !== ''; }
-                        else { passMain = (ev === 'OK ENM' || ev === 'OK S/ENM' || ev === 'OK PAQUETEO'); }
-                        if (!passMain) return false;
-                        const nTransf = est(row, 'n.transfxpda');
-                        if (nTransf === 'NO LLEVA') return false;
-                        const tipoT = est(row, 'tipo-transfer');
-                        if (tipoT === 'NO LLEVA') return false;
-                        if (sub === 'X PROG' && tipoT === 'EN PRENDA') return false;
-                        let et = est(row, 'estado_transfer');
-                        if (et === '') et = 'X PROG';
-                        if (sub === 'X PROG') return et !== 'OK';
-                        return et === sub;
-                    },
-                    go: () => {
-                        const navBtn = getNavBtn('transfer');
-                        if (navBtn) switchView('transfer', navBtn);
-                        const btn = document.getElementById(sub === 'X PROG' ? 'btn-transfer-xprog' : 'btn-transfer-prog');
-                        if (btn) filterTransfer(sub, btn);
-                    }
-                });
-            });
-
-            // --- 7. ARTES BORDADO ---
-            ['X PROG', 'PROG'].forEach(sub => {
-                order.push({
-                    vista: 'artes', subtab: 'Bordado ' + sub,
-                    check: (row) => {
-                        const ev = est(row, 'estado_enumerado');
-                        if (ev === '') return false;
-                        const habil = est(row, 'estado_habilitado');
-                        if (habil === 'OK') return false;
-                        const nbd = est(row, 'n.BDxpda');
-                        if (nbd.indexOf('NO LLEVA') !== -1) return false;
-                        let eb = est(row, 'estado_bordado');
-                        if (eb === '') eb = 'X PROG';
-                        if (sub === 'PROG') return eb.indexOf('PROG') !== -1 && eb !== 'X PROG';
-                        return eb === 'X PROG' || eb === '';
-                    },
-                    go: () => {
-                        const navBtn = getNavBtn('artes');
-                        if (navBtn) switchView('artes', navBtn);
-                        const artBtn = document.getElementById('btn-artes-bordado');
-                        if (artBtn) filterArtes('BORDADO', artBtn);
-                        const subBtn = document.getElementById(sub === 'X PROG' ? 'btn-bordado-xprog' : 'btn-bordado-prog');
-                        if (subBtn) filterBordado(sub, subBtn);
-                    }
-                });
-            });
-
-            // --- 8. ARTES ESTAMPADO ---
-            ['X PROG', 'PROG'].forEach(sub => {
-                order.push({
-                    vista: 'artes', subtab: 'Estampado ' + sub,
-                    check: (row) => {
-                        const ev = est(row, 'estado_enumerado');
-                        if (ev === '') return false;
-                        const habil = est(row, 'estado_habilitado');
-                        if (habil === 'OK') return false;
-                        const nest = est(row, 'n.ESTAMPxpda');
-                        if (nest.indexOf('NO LLEVA') !== -1) return false;
-                        let ee = est(row, 'estado_estampado');
-                        if (ee === '') ee = 'X PROG';
-                        if (sub === 'PROG') return ee.indexOf('PROG') !== -1 && ee !== 'X PROG';
-                        return ee === 'X PROG' || ee === '';
-                    },
-                    go: () => {
-                        const navBtn = getNavBtn('artes');
-                        if (navBtn) switchView('artes', navBtn);
-                        const artBtn = document.getElementById('btn-artes-estampado');
-                        if (artBtn) filterArtes('ESTAMPADO', artBtn);
-                        const subBtn = document.getElementById(sub === 'X PROG' ? 'btn-estampado-xprog' : 'btn-estampado-prog');
-                        if (subBtn) filterEstampado(sub, subBtn);
-                    }
-                });
-            });
-
-            // --- 9. HABILITADO ---
+            // --- 6. HABILITADO ---
             ['X PROG', 'PROG 1T', 'PROG 2T', 'PROG 3T'].forEach(sub => {
                 order.push({
                     vista: 'habilitado', subtab: sub,
@@ -7844,16 +8164,14 @@
                         try { renderHabilitadoActiveFilters(); } catch(e){}
                         renderHabilitado();
                     }
-                    // Para lavado, corte-bloques, transfer, artes: no tienen header filter nativo,
+                    // Para lavado, corte-bloques y artes: no tienen header filter nativo,
                     // pero podemos usar un filtro temporal genérico
-                    else if (vista === 'lavado' || vista === 'corte-bloques' || vista === 'transfer' || vista === 'artes') {
+                    else if (vista === 'lavado' || vista === 'corte-bloques' || vista === 'artes') {
                         window._searchOpPtdaFilter = opPtda.toUpperCase();
                         if (vista === 'lavado') renderLavado();
                         else if (vista === 'corte-bloques') renderCorteBloques();
-                        else if (vista === 'transfer') renderTransfer();
                         else if (vista === 'artes') {
-                            try { renderArtesBordado(); } catch(e){}
-                            try { renderArtesEstampado(); } catch(e){}
+                            try { renderArtes(); } catch(e){}
                         }
                     }
                 } catch(e) { console.error('applyOpPtdaFilter error:', e); }
@@ -7863,34 +8181,47 @@
             // Si el query es OP-X (1-2 dígitos de CORTE), buscar solo OCs con CORTE de 3 dígitos
             // que empiecen con esos dígitos (centena). Ej: 40453-4 → 40453-401..40453-499
             function matchesOC(oc, query) {
+                const ocNorm = (oc || '').toString().trim().toUpperCase();
+                if (!ocNorm) return false;
+
+                // Caso principal: OP-CORTE parcial.
+                // Ej: 40727-1 debe traer 40727-101, 40727-102, etc.
                 const hi = query.lastIndexOf('-');
                 if (hi > 0) {
                     const qOp = query.substring(0, hi);
                     const qCorte = query.substring(hi + 1);
-                    if (qCorte.length >= 1 && qCorte.length <= 2 && /^\d+$/.test(qCorte)) {
-                        const ohi = oc.lastIndexOf('-');
-                        if (ohi > 0) {
-                            const ocOp = oc.substring(0, ohi);
-                            const ocCorte = oc.substring(ohi + 1);
-                            if (ocOp !== qOp) return false;
-                            // Coincidencia exacta o por prefijo (OCs con más dígitos que empiezan con qCorte)
-                            return ocCorte === qCorte || (ocCorte.length > qCorte.length && ocCorte.substring(0, qCorte.length) === qCorte);
+                    const ohi = ocNorm.lastIndexOf('-');
+                    if (ohi > 0) {
+                        const ocOp = ocNorm.substring(0, ohi);
+                        const ocCorte = ocNorm.substring(ohi + 1);
+                        if (ocOp !== qOp) return false;
+
+                        // Si se busca por 1-2 dígitos numéricos (ej. -1, -10),
+                        // considerar cortes de centena (3+ dígitos) o coincidencia exacta.
+                        if (/^\d{1,2}$/.test(qCorte)) {
+                            if (ocCorte === qCorte) return true;
+                            if (ocCorte.length >= 3 && ocCorte.indexOf(qCorte) === 0) return true;
+                            return false;
                         }
-                        return false;
+
+                        return ocCorte.indexOf(qCorte) === 0;
                     }
                 }
-                return oc.indexOf(query) !== -1;
+
+                // Respaldo: coincidencia por subcadena.
+                return ocNorm.indexOf(query) !== -1;
             }
 
             // Ejecutar búsqueda en orden
             for (const entry of order) {
                 for (let i = 1; i < rawData.length; i++) {
                     const row = rawData[i];
-                    const oc = rowOC(row);
-                    if (matchesOC(oc, q) && entry.check(row)) {
+                    const ocCandidates = rowOCCandidates(row);
+                    const ocMatched = ocCandidates.some(oc => matchesOC(oc, q));
+                    if (ocMatched && entry.check(row)) {
                         // Obtener OP-PTDA de la fila encontrada
-                        const opTela = String(getVal(row, 'OP TELA') || '').trim();
-                        const partida = String(getVal(row, 'PARTIDA') || '').trim();
+                        const opTela = String(getVal(row, 'OP TELA') || getVal(row, 'OP') || '').trim();
+                        const partida = String(getVal(row, 'PARTIDA') || getVal(row, 'CORTE') || '').trim();
                         const opPtda = opTela + '-' + partida;
 
                         entry.go();
@@ -7920,7 +8251,6 @@
                 else if (viewName === 'corte') renderCorte();
                 else if (viewName === 'corte-bloques') renderCorteBloques();
                 else if (viewName === 'enumerado') renderEnumerado();
-                else if (viewName === 'transfer') renderTransfer();
                 else if (viewName === 'artes') renderArtes();
                 else if (viewName === 'habilitado') renderHabilitado();
             } catch (e) { console.error('Error re-rendering view after switch:', e); }
@@ -9485,7 +9815,7 @@
                 const estampadoSubs = document.getElementById('estampado-subtabs');
                 if (filterState === 'BORDADO') { if (bordadoSubs) bordadoSubs.style.display = 'flex'; if (estampadoSubs) estampadoSubs.style.display = 'none'; }
                 else if (filterState === 'ESTAMPADO') { if (bordadoSubs) bordadoSubs.style.display = 'none'; if (estampadoSubs) estampadoSubs.style.display = 'flex'; }
-                else if (filterState === 'ASIGNAR') { if (bordadoSubs) bordadoSubs.style.display = 'none'; if (estampadoSubs) estampadoSubs.style.display = 'none'; }
+                else if (filterState === 'ASIGNAR' || filterState === 'ASIGNAR_TRF') { if (bordadoSubs) bordadoSubs.style.display = 'none'; if (estampadoSubs) estampadoSubs.style.display = 'none'; }
                 else { if (bordadoSubs) bordadoSubs.style.display = 'flex'; if (estampadoSubs) estampadoSubs.style.display = 'none'; }
             } catch(e) {}
 
@@ -9493,18 +9823,32 @@
             const estampadoContainer = document.getElementById('table-container-artes-estampado');
             const asignarContainer = document.getElementById('table-container-artes-asignar');
             const asignarFilters = document.getElementById('artes-asignar-filters');
+            const asignarTrfContainer = document.getElementById('table-container-transfer-asignar');
+            const asignarTrfFilters = document.getElementById('transfer-asignar-filters');
 
             if (filterState === 'ASIGNAR') {
                 if (bordadoContainer) bordadoContainer.style.display = 'none';
                 if (estampadoContainer) estampadoContainer.style.display = 'none';
                 if (asignarContainer) asignarContainer.style.display = 'block';
                 if (asignarFilters) asignarFilters.style.display = 'flex';
+                if (asignarTrfContainer) asignarTrfContainer.style.display = 'none';
+                if (asignarTrfFilters) asignarTrfFilters.style.display = 'none';
                 renderArtesAsignar();
+            } else if (filterState === 'ASIGNAR_TRF') {
+                if (bordadoContainer) bordadoContainer.style.display = 'none';
+                if (estampadoContainer) estampadoContainer.style.display = 'none';
+                if (asignarContainer) asignarContainer.style.display = 'none';
+                if (asignarFilters) asignarFilters.style.display = 'none';
+                if (asignarTrfContainer) asignarTrfContainer.style.display = 'block';
+                if (asignarTrfFilters) asignarTrfFilters.style.display = 'flex';
+                renderTransferAsignar();
             } else if (filterState === 'ESTAMPADO') {
                 if (bordadoContainer) bordadoContainer.style.display = 'none';
                 if (estampadoContainer) estampadoContainer.style.display = 'block';
                 if (asignarContainer) asignarContainer.style.display = 'none';
                 if (asignarFilters) asignarFilters.style.display = 'none';
+                if (asignarTrfContainer) asignarTrfContainer.style.display = 'none';
+                if (asignarTrfFilters) asignarTrfFilters.style.display = 'none';
                 // Asegurar que el sub-tab interno de Estampado muestre el estado "activo"
                 try {
                     const subs = document.querySelectorAll('#estampado-subtabs .sub-tab');
@@ -9519,6 +9863,8 @@
                 if (estampadoContainer) estampadoContainer.style.display = 'none';
                 if (asignarContainer) asignarContainer.style.display = 'none';
                 if (asignarFilters) asignarFilters.style.display = 'none';
+                if (asignarTrfContainer) asignarTrfContainer.style.display = 'none';
+                if (asignarTrfFilters) asignarTrfFilters.style.display = 'none';
                 // Asegurar que el sub-tab interno de Bordado muestre el estado "activo"
                 try {
                     const subs = document.querySelectorAll('#bordado-subtabs .sub-tab');
@@ -9533,6 +9879,7 @@
 
         window.renderArtes = function() {
             if (window.currentArtesFilter === 'ASIGNAR') renderArtesAsignar();
+            else if (window.currentArtesFilter === 'ASIGNAR_TRF') renderTransferAsignar();
             else if (window.currentArtesFilter === 'ESTAMPADO') renderArtesEstampado();
             else renderArtesBordado();
         };
@@ -10322,7 +10669,7 @@
                 tbody.appendChild(tr);
             });
 
-            document.getElementById('tbody-corte-bloques') && (document.getElementById('count-corte-bloques').innerText = count);
+            try { updateMainNavCounts(); } catch (e) {}
             
             // Actualizar badges de pds según el filtro
             updateCorteBloquesCounters();
@@ -11990,7 +12337,7 @@ NOTA: Por favor adjunte los archivos descargados (${fileName}.xlsx y ${fileName}
                 horas = horas % 12 || 12;
                 const fechaStr = `${dia}/${mes}/${anio}, ${String(horas).padStart(2, '0')}:${minutos}${ampm}`;
 
-                const columnsToShow = ['P', 'HOD', 'F.ING', 'STATUS', 'CLI', 'OC', 'COLOR', 'PDS', 'PDA', 'CERT', 'RIB', 'BLOQ?', 'COLL/TAP', 'TRSF', 'BORD', 'ESTM', 'PLANTA', 'LINEA'];
+                const columnsToShow = ['P', 'HOD', 'F.ING', 'STATUS', 'CLI', 'OC', 'COLOR', 'PDS', 'PDA', 'CERT', 'COMP/OTROS', 'OBSERVACIONES', 'VALIDACION', 'PLANTA', 'LINEA'];
                 const turnos = ['PROG 1T', 'PROG 2T', 'PROG 3T'];
 
                 const idxEv = findHeaderIndexCaseInsensitive('estado_enumerado');
@@ -12003,6 +12350,98 @@ NOTA: Por favor adjunte los archivos descargados (${fileName}.xlsx y ${fileName}
                     const nTransNorm = (rawNTrans !== undefined && rawNTrans !== null) ? String(rawNTrans).trim() : '';
                     if (tipoTransNorm === 'EN PIEZA' && !isNaN(parseInt(nTransNorm)) && nTransNorm !== '') return 'Pza';
                     return 'Otros';
+                };
+                const getCompOtrosPrintValue = (row) => {
+                    const pieces = [];
+                    const pushPiece = (label, value) => {
+                        const text = (value || '').toString().replace(/\s+/g, ' ').trim();
+                        const textNorm = text.toUpperCase();
+                        if (!text || text === '-' || textNorm === 'X' || textNorm === 'NO LLEVA') return;
+                        pieces.push(`${label}: ${text}`);
+                    };
+
+                    const rawRib = getVal(row, 'RIB') || '';
+                    const estadoRib = getVal(row, 'estado_rib') || getVal(row, 'ESTADO_RIB') || '';
+                    pushPiece('RIB', estadoRib || rawRib);
+
+                    const estadoCorteBloques = getVal(row, 'estado_corte_bloques') || getVal(row, 'ESTADO_CORTE_BLOQUES') || getVal(row, 'ESTADO CORTE BLOQUES') || '';
+                    const estadoBloques = getVal(row, 'ESTADO BLOQUES') || getVal(row, 'ESTADO_BLOQUES') || getVal(row, 'estado_bloques') || '';
+                    const estadoBloquesNorm = (estadoBloques || '').toString().toUpperCase().trim();
+                    const estadoCorteBloquesNorm = (estadoCorteBloques || '').toString().toUpperCase().trim();
+                    let bloqDisplay = '';
+                    if (estadoBloquesNorm === 'NO LLEVA') bloqDisplay = 'NO LLEVA';
+                    else if (estadoBloquesNorm.indexOf('OK CORTE') !== -1) {
+                        if (!estadoCorteBloquesNorm) bloqDisplay = 'X PROG';
+                        else if (estadoCorteBloquesNorm.indexOf('PROG') !== -1) bloqDisplay = 'PROG';
+                        else if (estadoCorteBloquesNorm.indexOf('OK') !== -1) bloqDisplay = 'OK';
+                        else bloqDisplay = estadoCorteBloques;
+                    } else {
+                        bloqDisplay = estadoBloques;
+                    }
+                    pushPiece('BLOQ?', bloqDisplay);
+
+                    const collVal = getVal(row, 'estado_coll_tap') || getVal(row, 'ESTADO_COLL_TAP') || getVal(row, 'ESTADO COLL TAP') || '';
+                    pushPiece('COLL/TAP', collVal);
+
+                    const tipoTransfer = getVal(row, 'tipo-transfer') || getVal(row, 'TIPO-TRANSFER') || getVal(row, 'tipo_transfer') || '';
+                    const rawNTrans = getVal(row, 'n.transfxpda') || getVal(row, 'N.TRANSFXPDA') || getVal(row, 'n_transfxpda') || '';
+                    const estadoTransfer = getVal(row, 'estado_transfer') || getVal(row, 'ESTADO_TRANSFER') || '';
+                    const tipoTransNorm = (tipoTransfer || '').toString().toUpperCase().trim();
+                    const nTransNorm = (rawNTrans !== undefined && rawNTrans !== null) ? String(rawNTrans).trim() : '';
+                    const estadoTransNorm = (estadoTransfer || '').toString().trim();
+                    let trsfDisplay = '';
+                    if (tipoTransNorm === 'NO LLEVA' || nTransNorm.toUpperCase() === 'NO LLEVA') trsfDisplay = 'NO LLEVA';
+                    else if (tipoTransNorm === 'EN PIEZA' && !isNaN(parseInt(nTransNorm)) && nTransNorm !== '') trsfDisplay = `Pza(x${parseInt(nTransNorm)})-${estadoTransNorm || 'X PROG'}`;
+                    else if (tipoTransNorm === 'EN PRENDA' && !isNaN(parseInt(nTransNorm)) && nTransNorm !== '') trsfDisplay = `PDA[x${parseInt(nTransNorm)}]-${estadoTransNorm || 'X PROG'}`;
+                    else trsfDisplay = nTransNorm;
+                    pushPiece('TRSF', trsfDisplay);
+
+                    const bordVal = getVal(row, 'estado_bordado') || getVal(row, 'ESTADO_BORDADO') || '';
+                    const nbdRaw = getVal(row, 'n.BDxpda') || getVal(row, 'n.bordadoxpda') || getVal(row, 'N.BDXPDA') || '';
+                    const nbdNorm = (nbdRaw || '').toString().toUpperCase().trim();
+                    const bordValNorm = (bordVal || '').toString().toUpperCase().trim();
+                    let bordDisplay = '';
+                    if (bordValNorm === 'NO LLEVA' || nbdNorm === 'NO LLEVA') bordDisplay = 'NO LLEVA';
+                    else if (bordValNorm === 'PROG') bordDisplay = 'PROG';
+                    else if ((bordValNorm === '' || bordValNorm === undefined) && nbdNorm !== '' && !isNaN(parseInt(nbdNorm))) bordDisplay = 'X PROG';
+                    else if (bordValNorm === 'OK') bordDisplay = 'OK';
+                    else bordDisplay = bordVal;
+                    pushPiece('BORD', bordDisplay);
+
+                    const estampVal = getVal(row, 'estado_estampado') || getVal(row, 'ESTADO_ESTAMPADO') || '';
+                    const nestRaw = getVal(row, 'n.ESTAMPxpda') || getVal(row, 'n.ESTAMP xpda') || getVal(row, 'N.ESTAMPXPDA') || getVal(row, 'n.ESTAMPxpda ') || '';
+                    const nestNorm = (nestRaw || '').toString().toUpperCase().trim();
+                    const estampValNorm = (estampVal || '').toString().toUpperCase().trim();
+                    let estmDisplay = '';
+                    if (nestNorm.indexOf('NO LLEVA') !== -1 || estampValNorm === 'NO LLEVA') estmDisplay = 'NO LLEVA';
+                    else if (estampValNorm === 'PROG') estmDisplay = 'PROG';
+                    else if ((estampValNorm === '' || estampValNorm === undefined) && nestNorm !== '' && !isNaN(parseInt(nestNorm))) estmDisplay = 'X PROG';
+                    else if (estampValNorm === 'OK') estmDisplay = 'OK';
+                    else estmDisplay = estampVal;
+                    pushPiece('ESTM', estmDisplay);
+
+                    return pieces.join(' | ');
+                };
+                const getObservacionesPrintValue = (row) => {
+                    const obs = getVal(row, 'OBSERVACIONES')
+                        || getVal(row, 'OBSERVACION')
+                        || getVal(row, 'OBS')
+                        || '';
+                    return String(obs || '').replace(/\s+/g, ' ').trim();
+                };
+                const getValidacionPrintValue = (row) => {
+                    let idxValidacion = findHeaderIndexCaseInsensitive('VALIDACION');
+                    if (idxValidacion === -1) idxValidacion = findHeaderIndexCaseInsensitive('VALIDA');
+                    let raw = '';
+                    if (idxValidacion !== -1 && row[idxValidacion] !== undefined && row[idxValidacion] !== null) {
+                        raw = row[idxValidacion];
+                    } else {
+                        const validacionByName = getVal(row, 'VALIDACION') || getVal(row, 'VALIDA');
+                        if (validacionByName !== undefined && validacionByName !== null) raw = validacionByName;
+                    }
+                    const norm = String(raw).trim().toUpperCase();
+                    const checked = raw === true || raw === 1 || norm === 'TRUE' || norm === 'VERDADERO' || norm === '1' || norm === 'SI' || norm === 'X';
+                    return checked ? 'TRUE' : 'FALSE';
                 };
 
                 turnos.forEach((turno, turnoIdx) => {
@@ -12137,35 +12576,14 @@ NOTA: Por favor adjunte los archivos descargados (${fileName}.xlsx y ${fileName}
                                     cellValue = normalizePrenda(getVal(row, 'PRENDA') || '');
                                     break;
                                 case 'CERT': cellValue = normalizeTipoCert(getVal(row, 'TIPO CERTIFICADO') || ''); break;
-                                case 'RIB':
-                                    const ribVal2 = getVal(row, 'RIB') || '';
-                                    cellValue = ribVal2 === 'NO LLEVA' ? '' : (ribVal2 ? 'SI' : '');
+                                case 'COMP/OTROS':
+                                    cellValue = getCompOtrosPrintValue(row);
                                     break;
-                                case 'BLOQ?':
-                                    const rutaT2 = (getVal(row, 'RUTA TELA') || '').toString().toUpperCase().trim();
-                                    const estBloq2 = (getVal(row, 'estado_bloqueo') || '').toString().toUpperCase().trim();
-                                    if (rutaT2 === 'LAVADA') cellValue = estBloq2 === 'OK' ? 'OK' : 'X';
-                                    else cellValue = '-';
+                                case 'OBSERVACIONES':
+                                    cellValue = getObservacionesPrintValue(row);
                                     break;
-                                case 'COLL/TAP':
-                                    const collTap2 = getVal(row, 'COLL o TAP') || getVal(row, 'COLL O TAP') || '';
-                                    cellValue = collTap2 === 'NO LLEVA' ? '' : (collTap2 || '');
-                                    break;
-                                case 'TRSF':
-                                    const tipoTransfer2 = (getVal(row, 'tipo-transfer') || '').toString().toUpperCase().trim();
-                                    const nTrans2 = getVal(row, 'n.transfxpda') || '';
-                                    if (tipoTransfer2 === 'EN PIEZA') cellValue = 'Pza:' + nTrans2;
-                                    else if (tipoTransfer2 === 'EN PRENDA') cellValue = 'Pda:' + nTrans2;
-                                    break;
-                                case 'BORD':
-                                    const nBD2 = getVal(row, 'n.BDxpda') || '';
-                                    const estadoBord2 = (getVal(row, 'estado_bordado') || '').toString().toUpperCase().trim();
-                                    if (nBD2 && parseInt(nBD2) > 0) cellValue = estadoBord2 === 'OK' ? 'OK' : nBD2;
-                                    break;
-                                case 'ESTM':
-                                    const nEST2 = getVal(row, 'n.ESTAMPxpda') || '';
-                                    const estadoEst2 = (getVal(row, 'estado_estampado') || '').toString().toUpperCase().trim();
-                                    if (nEST2 && parseInt(nEST2) > 0) cellValue = estadoEst2 === 'OK' ? 'OK' : nEST2;
+                                case 'VALIDACION':
+                                    cellValue = getValidacionPrintValue(row);
                                     break;
                                 case 'PLANTA': cellValue = getVal(row, 'PLANTA') || ''; break;
                                 case 'LINEA': cellValue = getVal(row, 'LINEA') || ''; break;
