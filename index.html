@@ -7132,6 +7132,7 @@
             // Normalizaciones rápidas
             if (name.includes("LACOSTE")) return "LAC";
             if (name.includes("ATHLETA, INC.")) return "ATH";
+            if (name.includes("ALLBIRDS")) return "ALLB";
             if (name.includes("BANANA REPUBLIC, LLC")) return "BNN";
             if (name.includes("THEORY LLC,")) return "THE";
             if (name.includes("DISH & DUER")) return "DDU";
@@ -9362,6 +9363,7 @@
                     }
                     break;
                 case 'CLIENTE':
+                case 'CLI':
                     fieldValue = (normalizeClientName(getVal(row, 'CLIENTE')) || '').toString().trim().toUpperCase();
                     break;
                 case 'OP-PTDA':
@@ -9389,9 +9391,6 @@
                     const rawFIngH = getVal(row, 'F.ING.COST');
                     const dateValH = convertToDateInputFormat(rawFIngH);
                     fieldValue = (formatDateShortFromInput(dateValH) || '').toString().trim().toUpperCase();
-                    break;
-                case 'CLI':
-                    fieldValue = (normalizeClientName(getVal(row, 'CLIENTE')) || '').toString().trim().toUpperCase();
                     break;
             }
             return fieldValue;
