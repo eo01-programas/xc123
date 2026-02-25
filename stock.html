@@ -247,15 +247,22 @@ function processAndRender(){
     let sumCorteBloqPROG = 0;
     let sumCorteBloqXPROG = 0;
 
-        // ENUMERADO: suma de filas con estado_corte = 'OK' y estado_enumerado != 'OK ENM' y != 'OK PAQUETO'
+        // ENUMERADO (Por enumerar): misma logica de la vista Enumerado > Por enumerar
+        // estado_corte = 'OK' y estado_enumerado distinto de:
+        // 'OK ENM', 'OK S/ENM', 'OK PAQUETEO' (y variante 'OK PAQUETO')
         let sumEnumeradoPROG = 0;
 
-    // TRANSFER: suma de filas con tipo-transfer = 'En pieza'|'En prenda' y estado_enumerado = 'OK ENM'|'OK Paqueteo'
-    // Se separa en PROG (estado_transfer = 'PROG') y X PROG (estado_transfer != 'PROG')
+    // TRANSFER:
+    // - considerar solo estado_enumerado = OK ENM / OK S/ENM / OK PAQUETEO
+    // - NO considerar estado_habilitado = OK / OK S/DESTINO
+    // - en Prendas: valor = n.transfxpda * PDS GIRADAS
+    // - en Kg: valor = KG GIRADOS (sin multiplicar por n.transfxpda)
+    // - si n.transfxpda vacio, no numerico o 'NO LLEVA', aporta 0
+    // Se muestra solo PROG (X PROG = 0)
     let sumTransferPROG = 0;
-    let sumTransferXPROG = 0;
 
-    // HABILITADO: filas con estado_enumerado = 'OK ENM'|'OK S/ENM'|'OK PAQUETEO' y estado_habilitado != 'OK'
+    // HABILITADO: filas con estado_enumerado = 'OK ENM'|'OK S/ENM'|'OK PAQUETEO'
+    // y estado_habilitado distinto de 'OK' y 'OK S/DESTINO'
     let sumHabPROG = 0;
     let sumHabXPROG = 0;
 
@@ -265,8 +272,6 @@ function processAndRender(){
     const idxEstadoBloques = getColIndexFlexible(['estado_bloques','ESTADO_BLOQUES','ESTADO BLOQUES','ESTADO_BLOQUES']);
     const idxEstadoCorteBloques = getColIndexFlexible(['estado_corte_bloques','ESTADO_CORTE_BLOQUES','estado_corte_bloques','estado corte bloques']);
     const idxEstadoEnumerado = getColIndexFlexible(['estado_enumerado','ESTADO_ENUMERADO','estado enumerado']);
-    const idxTipoTransfer = getColIndexFlexible(['tipo-transfer','TIPO-TRANSFER','TIPO_TRANSFER','tipo transfer','TIPO TRANSFER']);
-    const idxEstadoTransfer = getColIndexFlexible(['estado_transfer','estado-transfer','ESTADO_TRANSFER','ESTADO-TRANSFER','estado transfer']);
     const idxNTransfxpda = getColIndexFlexible(['n.transfxpda','N.TRANSFXPDA','n_transfxpda','N_TRANSFXPDA']);
     const idxEstadoHabilitado = getColIndexFlexible(['estado_habilitado','ESTADO_HABILITADO','estado habilitado']);
     const idxFDespacho = getColIndexFlexible(['F. DESPACHO','F.DESPACHO','FDESPACHO','F DESPACHO','F. DESPACHO ']);
@@ -332,21 +337,44 @@ function processAndRender(){
         const estadoBloquesRow = (idxEstadoBloques !== -1) ? String(getVal(row, idxEstadoBloques) || '').toUpperCase().trim() : '';
         const estadoCorteBloquesRow = (idxEstadoCorteBloques !== -1) ? String(getVal(row, idxEstadoCorteBloques) || '').toUpperCase().trim() : '';
 
-            // Enumerado: filas con estado_corte = 'OK' y estado_enumerado distinto de 'OK ENM' y 'OK PAQUETO'
+            // Enumerado > Por enumerar (misma logica de index/CORTE_index):
+            // estado_corte = OK y estado_enumerado != OK ENM/OK S/ENM/OK PAQUETEO
             const estadoEnumeradoRow = (idxEstadoEnumerado !== -1) ? String(getVal(row, idxEstadoEnumerado) || '').toUpperCase().trim() : '';
-            if(estadoCorteRow === 'OK' && estadoEnumeradoRow !== 'OK ENM' && estadoEnumeradoRow !== 'OK PAQUETO'){
+            if(
+                estadoCorteRow === 'OK' &&
+                estadoEnumeradoRow !== 'OK ENM' &&
+                estadoEnumeradoRow !== 'OK S/ENM' &&
+                estadoEnumeradoRow !== 'OK PAQUETEO' &&
+                estadoEnumeradoRow !== 'OK PAQUETO'
+            ){
                 sumEnumeradoPROG += val;
             }
 
-            // TRANSFER: estado_enumerado != vacío, n.transfxpda != NO LLEVA, tipo-transfer != NO LLEVA, estado_transfer != OK
-            const tipoTransferRow = (idxTipoTransfer !== -1) ? String(getVal(row, idxTipoTransfer) || '').toUpperCase().trim() : '';
-            const nTransfxpdaRow = (idxNTransfxpda !== -1) ? String(getVal(row, idxNTransfxpda) || '').toUpperCase().trim() : '';
-            if(estadoEnumeradoRow !== '' && tipoTransferRow !== 'NO LLEVA' && nTransfxpdaRow !== 'NO LLEVA'){
-                const estadoTransferRow = (idxEstadoTransfer !== -1) ? String(getVal(row, idxEstadoTransfer) || '').toUpperCase().trim() : '';
-                if(estadoTransferRow !== 'OK'){
-                    if(estadoTransferRow === 'PROG') sumTransferPROG += val;
-                    else sumTransferXPROG += val;
+            // TRANSFER: considerar solo estados permitidos en Enumerado y excluir habilitado OK/S-DESTINO
+            const estadoHabTransferRow = (idxEstadoHabilitado !== -1) ? String(getVal(row, idxEstadoHabilitado) || '').toUpperCase().trim() : '';
+            const includeByEnumerado =
+                estadoEnumeradoRow === 'OK ENM' ||
+                estadoEnumeradoRow === 'OK S/ENM' ||
+                estadoEnumeradoRow === 'OK PAQUETEO' ||
+                estadoEnumeradoRow === 'OK PAQUETO';
+            const excludeByHabilitado =
+                estadoHabTransferRow === 'OK' ||
+                estadoHabTransferRow === 'OK S/DESTINO';
+            if(includeByEnumerado && !excludeByHabilitado){
+                const rawNTransf = (idxNTransfxpda !== -1) ? getVal(row, idxNTransfxpda) : '';
+                const nTransfTxt = String(rawNTransf || '').toUpperCase().trim();
+                let transferVal = 0;
+                if(nTransfTxt !== '' && nTransfTxt !== 'NO LLEVA'){
+                    if(useKg){
+                        // En Kg no se multiplica por n.transfxpda
+                        transferVal = val;
+                    } else {
+                        let nTransfNum = Number(String(rawNTransf).replace(/,/g, '').trim());
+                        if(!Number.isFinite(nTransfNum)) nTransfNum = 0;
+                        transferVal = nTransfNum * val;
+                    }
                 }
+                sumTransferPROG += transferVal;
             }
 
         if(estadoCorteRow === 'OK' && estadoBloquesRow === 'OK CORTE' && estadoCorteBloquesRow !== 'OK'){
@@ -354,10 +382,11 @@ function processAndRender(){
             else sumCorteBloqXPROG += val;
         }
 
-        // HABILITADO: estado_enumerado IN ('OK ENM','OK S/ENM','OK PAQUETEO') y estado_habilitado != 'OK'
+        // HABILITADO: estado_enumerado IN ('OK ENM','OK S/ENM','OK PAQUETEO')
+        // y estado_habilitado != 'OK' y != 'OK S/DESTINO'
         const estadoHabRow = (idxEstadoHabilitado !== -1) ? String(getVal(row, idxEstadoHabilitado) || '').toUpperCase().trim() : '';
         if(estadoEnumeradoRow === 'OK ENM' || estadoEnumeradoRow === 'OK S/ENM' || estadoEnumeradoRow === 'OK PAQUETEO' || estadoEnumeradoRow === 'OK PAQUETO'){
-            if(estadoHabRow !== 'OK'){
+            if(estadoHabRow !== 'OK' && estadoHabRow !== 'OK S/DESTINO'){
                 if(estadoHabRow === 'PROG 1T' || estadoHabRow === 'PROG 2T' || estadoHabRow === 'PROG 3T'){
                     sumHabPROG += val;
                 } else {
@@ -392,7 +421,7 @@ function processAndRender(){
                 }
                 // HABILITADO
                 if(estadoEnumeradoRow === 'OK ENM' || estadoEnumeradoRow === 'OK S/ENM' || estadoEnumeradoRow === 'OK PAQUETEO' || estadoEnumeradoRow === 'OK PAQUETO'){
-                    if(estadoHabRow !== 'OK'){
+                    if(estadoHabRow !== 'OK' && estadoHabRow !== 'OK S/DESTINO'){
                         if(estadoHabRow === 'PROG 1T' || estadoHabRow === 'PROG 2T' || estadoHabRow === 'PROG 3T'){
                             md.hab.prog += val;
                         } else {
@@ -411,7 +440,7 @@ function processAndRender(){
         { label: 'CORTE PZAS', prog: sumCortePROG, xprog: sumCorteXPROG },
         { label: 'CORTE BLOQ', prog: sumCorteBloqPROG, xprog: sumCorteBloqXPROG },
         { label: 'ENUMERADO', prog: sumEnumeradoPROG, xprog: 0 },
-        { label: 'TRANSFER', prog: sumTransferPROG, xprog: sumTransferXPROG },
+        { label: 'TRANSFER', prog: sumTransferPROG, xprog: 0 },
         { label: 'HABILITADO', prog: sumHabPROG, xprog: sumHabXPROG }
     ]);
 
@@ -798,4 +827,3 @@ reloadData();
 </script>
 </body>
 </html>
-
