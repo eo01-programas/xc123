@@ -1212,10 +1212,15 @@
                 position: absolute; left: 0; top: 0; width: 100%;
             }
             body.print-habilitado-prog #print-habilitado-container .print-shift-section {
-                page-break-after: always; margin-bottom: 20px;
+                page-break-after: always;
+                break-after: page;
+                margin-bottom: 20px;
+                width: 100%;
+                box-sizing: border-box;
             }
             body.print-habilitado-prog #print-habilitado-container .print-shift-section:last-child {
                 page-break-after: avoid;
+                break-after: auto;
             }
             body.print-habilitado-prog .print-shift-header {
                 visibility: visible !important; display: block !important;
@@ -1226,13 +1231,20 @@
                 text-align: right; font-size: 11px; font-weight: 500; margin-bottom: 4px; color: #64748b;
             }
             body.print-habilitado-prog #print-habilitado-container table {
-                font-size: 11px !important; table-layout: fixed !important; width: 100% !important; border-collapse: collapse !important;
+                font-size: 10px !important;
+                table-layout: fixed !important;
+                width: 100% !important;
+                min-width: 100% !important;
+                border-collapse: collapse !important;
             }
             body.print-habilitado-prog #print-habilitado-container th,
             body.print-habilitado-prog #print-habilitado-container td {
-                padding: 3px 4px !important; overflow: hidden !important;
-                text-overflow: ellipsis !important; white-space: nowrap !important;
+                padding: 2px 3px !important;
+                overflow: visible !important;
+                text-overflow: clip !important;
+                white-space: nowrap !important;
                 border: 1px solid #e2e8f0 !important;
+                line-height: 1.15 !important;
             }
             body.print-habilitado-prog #print-habilitado-container thead th {
                 background-color: #1e293b !important; color: #ffffff !important;
@@ -1249,7 +1261,43 @@
                 font-weight: 700 !important;
             }
             body.print-habilitado-prog #print-habilitado-container th:nth-child(1),
-            body.print-habilitado-prog #print-habilitado-container td:nth-child(1) { width: 3% !important; }
+            body.print-habilitado-prog #print-habilitado-container td:nth-child(1) { width: 2% !important; }
+            body.print-habilitado-prog #print-habilitado-container th:nth-child(2),
+            body.print-habilitado-prog #print-habilitado-container td:nth-child(2) { width: 6% !important; }
+            body.print-habilitado-prog #print-habilitado-container th:nth-child(3),
+            body.print-habilitado-prog #print-habilitado-container td:nth-child(3) { width: 6% !important; }
+            body.print-habilitado-prog #print-habilitado-container th:nth-child(4),
+            body.print-habilitado-prog #print-habilitado-container td:nth-child(4) { width: 6% !important; }
+            body.print-habilitado-prog #print-habilitado-container th:nth-child(5),
+            body.print-habilitado-prog #print-habilitado-container td:nth-child(5) { width: 4% !important; }
+            body.print-habilitado-prog #print-habilitado-container th:nth-child(6),
+            body.print-habilitado-prog #print-habilitado-container td:nth-child(6) { width: 6% !important; }
+            body.print-habilitado-prog #print-habilitado-container th:nth-child(7),
+            body.print-habilitado-prog #print-habilitado-container td:nth-child(7) { width: 9% !important; }
+            body.print-habilitado-prog #print-habilitado-container th:nth-child(8),
+            body.print-habilitado-prog #print-habilitado-container td:nth-child(8) { width: 4% !important; }
+            body.print-habilitado-prog #print-habilitado-container th:nth-child(9),
+            body.print-habilitado-prog #print-habilitado-container td:nth-child(9) { width: 8% !important; }
+            body.print-habilitado-prog #print-habilitado-container th:nth-child(10),
+            body.print-habilitado-prog #print-habilitado-container td:nth-child(10) { width: 6% !important; }
+            body.print-habilitado-prog #print-habilitado-container th:nth-child(11),
+            body.print-habilitado-prog #print-habilitado-container td:nth-child(11) { width: 15% !important; }
+            body.print-habilitado-prog #print-habilitado-container th:nth-child(12),
+            body.print-habilitado-prog #print-habilitado-container td:nth-child(12) { width: 15% !important; }
+            body.print-habilitado-prog #print-habilitado-container th:nth-child(13),
+            body.print-habilitado-prog #print-habilitado-container td:nth-child(13) { width: 4% !important; }
+            body.print-habilitado-prog #print-habilitado-container th:nth-child(14),
+            body.print-habilitado-prog #print-habilitado-container td:nth-child(14) { width: 5% !important; }
+            body.print-habilitado-prog #print-habilitado-container th:nth-child(15),
+            body.print-habilitado-prog #print-habilitado-container td:nth-child(15) { width: 4% !important; }
+
+            body.print-habilitado-prog #print-habilitado-container td:nth-child(11),
+            body.print-habilitado-prog #print-habilitado-container td:nth-child(12),
+            body.print-habilitado-prog #print-habilitado-container th:nth-child(11),
+            body.print-habilitado-prog #print-habilitado-container th:nth-child(12) {
+                white-space: normal !important;
+                word-break: break-word !important;
+            }
         }
         #print-header-bloqueo, #print-date-bloqueo { display: none; }
         #print-corte-container { display: none; }
@@ -1489,6 +1537,23 @@
             <div class="modal-buttons">
                 <button class="btn-modal btn-limpiar" onclick="handleConfirmWasher(false)">No</button>
                 <button class="btn-modal btn-guardar" onclick="handleConfirmWasher(true)">Si</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL CONFIRMACION ENUMERADO -->
+    <div id="modal-confirm-enumerado" class="modal-overlay" onclick="if(event.target === this) cerrarModalConfirmEnumerado()">
+        <div class="modal-content" style="max-width:360px; width:40%;">
+            <div class="modal-header">
+                <div class="modal-title">Confirmar</div>
+                <button class="modal-close" onclick="cerrarModalConfirmEnumerado()">&times;</button>
+            </div>
+            <p style="margin: 16px 0; font-size:13px; color:var(--gray-600); line-height:1.5;">
+                YA ESTA ENUMERADO?
+            </p>
+            <div class="modal-buttons">
+                <button class="btn-modal btn-limpiar" onclick="handleConfirmEnumerado(false)">NO</button>
+                <button class="btn-modal btn-guardar" onclick="handleConfirmEnumerado(true)">SI</button>
             </div>
         </div>
     </div>
@@ -3114,6 +3179,33 @@
                         const day = String(m[3]).padStart(2, '0');
                         return `${year}-${month}-${day}`;
                     }
+                    const txt = rawValue.trim();
+                    const mesesEsMap = { ene:1, feb:2, mar:3, abr:4, may:5, jun:6, jul:7, ago:8, sep:9, oct:10, nov:11, dic:12 };
+                    // dd/Mon/yy o dd/Mon/yyyy (ej: 16/Ene/26)
+                    const mEs = txt.match(/^(\d{1,2})[\/\-]([A-Za-z]{3,})[\/\-](\d{2,4})$/);
+                    if (mEs) {
+                        const day = String(parseInt(mEs[1], 10)).padStart(2, '0');
+                        const monKey = mEs[2].slice(0,3).toLowerCase();
+                        const monNum = mesesEsMap[monKey];
+                        let yearNum = parseInt(mEs[3], 10);
+                        if (!isNaN(monNum) && !isNaN(yearNum)) {
+                            if (yearNum < 100) yearNum += 2000;
+                            const year = String(yearNum);
+                            const month = String(monNum).padStart(2, '0');
+                            return `${year}-${month}-${day}`;
+                        }
+                    }
+                    // dd/mm/yy o dd/mm/yyyy
+                    const mNum = txt.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
+                    if (mNum) {
+                        const day = String(parseInt(mNum[1], 10)).padStart(2, '0');
+                        const month = String(parseInt(mNum[2], 10)).padStart(2, '0');
+                        let yearNum = parseInt(mNum[3], 10);
+                        if (!isNaN(yearNum)) {
+                            if (yearNum < 100) yearNum += 2000;
+                            return `${yearNum}-${month}-${day}`;
+                        }
+                    }
                     // Intentar parsear como fecha ISO o estándar
                     const parsed = new Date(rawValue);
                     if (!isNaN(parsed.getTime())) {
@@ -3315,6 +3407,73 @@
             
             // Guardar en el backend
             updateRow(rowIndex, 'PLANTA', value, selectElement);
+        }
+
+        // --- FUNCION PARA EDITAR HOD CON DOBLE CLICK EN HABILITADO ---
+        function editHodDate(cell, rowIndex) {
+            if (rowIndex < 1 || !rawData[rowIndex]) {
+                console.error('PROTECCION editHodDate: rowIndex invalido=' + rowIndex);
+                return;
+            }
+            if (cell.querySelector('input')) return;
+
+            const currentRaw = getVal(rawData[rowIndex], 'HOD') || getVal(rawData[rowIndex], 'F DESPACHO') || '';
+            const currentDisplay = formatValue(currentRaw, 'date') || '';
+            const initialValue = convertToDateInputFormat(currentRaw);
+
+            const input = document.createElement('input');
+            input.type = 'date';
+            input.className = 'short-year';
+            input.value = initialValue;
+            input.style.cssText = 'width: 130px; padding: 2px 4px; border: 1px solid var(--primary); border-radius: 4px; font-size: 11px; outline: none;';
+
+            const span = document.createElement('span');
+            span.className = 'date-yy';
+            span.style.marginLeft = '6px';
+            span.style.cursor = 'pointer';
+
+            cell.innerHTML = '';
+            cell.appendChild(input);
+            cell.appendChild(span);
+            try { updateShortYearDisplay(input); } catch(e) {}
+
+            let finished = false;
+            const finish = (saveChanges) => {
+                if (finished) return;
+                finished = true;
+
+                if (saveChanges && input.value) {
+                    handleDateChange(input, rowIndex, 'HOD');
+                    const idxHod = findHeaderIndexCaseInsensitive('HOD');
+                    const newRaw = (idxHod !== -1 && rawData[rowIndex]) ? rawData[rowIndex][idxHod] : '';
+                    const newDisplay = formatValue(newRaw, 'date') || formatDateShortFromInput(input.value) || '';
+                    cell.setAttribute('data-value', newDisplay);
+                    cell.textContent = newDisplay;
+                } else {
+                    cell.setAttribute('data-value', currentDisplay);
+                    cell.textContent = currentDisplay;
+                }
+            };
+
+            input.addEventListener('change', () => finish(true));
+            input.addEventListener('blur', () => finish(true));
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    finish(true);
+                } else if (e.key === 'Escape') {
+                    e.preventDefault();
+                    finish(false);
+                }
+            });
+
+            span.onclick = function(e) {
+                e.stopPropagation();
+                try { input.showPicker ? input.showPicker() : input.click(); } catch(err) { input.click(); }
+            };
+
+            input.focus();
+            try { input.showPicker ? input.showPicker() : input.click(); } catch (e) {}
         }
 
         // --- FUNCIÓN PARA EDITAR LINEA CON DOBLE CLICK ---
@@ -5432,11 +5591,7 @@
                     let fieldValue = getHabilitadoFieldValue(row, currentHF.field, evNorm);
                     // Si el valor no contiene el filtro, saltarlo
                     const filterValue = (currentHF.value || '').trim().toUpperCase();
-                    if (filterValue === '') {
-                        if (fieldValue !== '') return;
-                    } else {
-                        if (fieldValue.indexOf(filterValue) === -1) return;
-                    }
+                            if (!matchesHabilitadoFilterValue(currentHF.field, fieldValue, filterValue)) return;
                   }
                 }
                     
@@ -5899,9 +6054,11 @@
                         <span class="linea-display">${lineaDisplay}</span>
                     </td>`;
 
+                    const hodHtml = `<td class="date-cell hod-cell" data-value="${fDesp}" ondblclick="editHodDate(this, ${i})">${fDesp}</td>`;
+
                     tr.innerHTML = `
                         <td class="p-cell">${pCell.innerHTML}</td>
-                        <td class="date-cell">${fDesp}</td>
+                        ${hodHtml}
                         ${fIngHtml}
                         <td style="text-align:center;" title="${statusValue}">${statusHtml.replace(/<td[^>]*>|<\/td>/g, '')}</td>
                         <td style="text-align:center;" title="${cliente}">${cliente}</td>
@@ -6627,10 +6784,9 @@
                 // Usar la función helper para renderizar el badge de RUTA
                 const rutaDisplay = renderRutaBadge(rutaVal, row, rowIndex);
                 
-                // Determinar si OP-PTDA debe ser clickeable (solo en Corte PROG 1T/2T/3T y cuando RUTA != "AC")
+                // Determinar si OP-PTDA debe ser clickeable en Corte PROG 1T/2T/3T
                 const isCorteProgView = (currentCorteFilter === 'PROG 1T' || currentCorteFilter === 'PROG 2T' || currentCorteFilter === 'PROG 3T');
-                const rutaKey = String(rutaVal || "").toUpperCase().trim();
-                const makeOpPtdaClickable = isCorteProgView && rutaKey !== 'ACABADA' && !isHabilitadoView();
+                const makeOpPtdaClickable = isCorteProgView && !isHabilitadoView();
                 const opPtdaHtml = makeOpPtdaClickable 
                     ? `<span class="oc-link" style="cursor:pointer;" onclick="abrirModalLavadoFromCorte(${rowIndex})" title="Cambiar estado lavada">${opPtda}</span>`
                     : opPtda;
@@ -6801,7 +6957,8 @@
                                             <option value="LLEVA?" ${(!collVal || collVal === 'LLEVA?') ? 'selected' : ''}>LLEVA?</option>
                                             <option value="Coll en Hab" ${collVal === 'Coll en Hab' ? 'selected' : ''}>Coll en Hab</option>
                                             <option value="Tap en Hab" ${collVal === 'Tap en Hab' ? 'selected' : ''}>Tap en Hab</option>
-                                            <option value="Coll+Tap en Hab" ${collVal === 'Coll+Tap en Hab' ? 'selected' : ''}>Coll+Tap en Hab</option>
+                                                <option value="Coll/Tap nCorte" ${collVal === 'Coll/Tap nCorte' ? 'selected' : ''}>Coll/Tap nCorte</option>
+                                                <option value="Coll+Tap en Hab" ${collVal === 'Coll+Tap en Hab' ? 'selected' : ''}>Coll+Tap en Hab</option>
                                             <option value="NO LLEVA" ${collVal === 'NO LLEVA' ? 'selected' : ''}>NO LLEVA</option>
                                         </select>
                                     </td>`;
@@ -7298,9 +7455,9 @@
             });
         };
 
-        window.updateRow = function(rowIndex, colName, value, selectElement, skipPropagation) {
+        window.updateRow = function(rowIndex, colName, value, selectElement, skipPropagation, skipEnumPrompt) {
             // Log para debugging
-            console.log('updateRow llamado:', {rowIndex, colName, value, skipPropagation: !!skipPropagation});
+            console.log('updateRow llamado:', {rowIndex, colName, value, skipPropagation: !!skipPropagation, skipEnumPrompt: !!skipEnumPrompt});
             
             // PROTECCIÓN: No permitir escritura en la fila de encabezados (rawData[0])
             if (rowIndex < 1 || !rawData[rowIndex]) {
@@ -7361,8 +7518,30 @@
                 const valNorm = (value || '').toString().toUpperCase().trim();
                 const onCorteView = document.getElementById('view-corte') && document.getElementById('view-corte').classList.contains('active');
                 const isProgSubtab = (currentCorteFilter && currentCorteFilter.toString().toUpperCase().startsWith('PROG ') && currentCorteFilter !== 'X PROG');
+                const isProgTurno = (currentCorteFilter === 'PROG 1T' || currentCorteFilter === 'PROG 2T' || currentCorteFilter === 'PROG 3T');
 
                 const isStatusCol = (colName === 'estado_corte' || (typeof colName === 'string' && colName.toUpperCase() === 'STATUS') || (typeof colName === 'string' && colName.toUpperCase().includes('STATUS_CORTE')));
+                const isDirectUiChange = !!(selectElement && document.body && document.body.contains(selectElement));
+
+                    // Confirmacion extra: al marcar OK en PROG 1T/2T/3T preguntar si ya esta enumerado
+                    if (isStatusCol && valNorm === 'OK' && onCorteView && isProgTurno && !skipEnumPrompt && isDirectUiChange) {
+                        askEnumeradoConfirmModal().then(function(isEnumerado) {
+                            try {
+                                window.updateRow(rowIndex, colName, value, selectElement, skipPropagation, true);
+                                if (isEnumerado) {
+                                    const fake = document.createElement('select');
+                                    fake.className = 'table-select';
+                                    window.updateRow(rowIndex, 'estado_enumerado', 'OK ENM', fake, true, true);
+                                }
+                            } catch (e) {
+                                console.error('Error aplicando confirmacion de enumerado:', e);
+                            }
+                        }).catch(function(e) {
+                            console.error('Error en modal de enumerado:', e);
+                            window.updateRow(rowIndex, colName, value, selectElement, skipPropagation, true);
+                        });
+                        return;
+                    }
 
                     // VALIDACIÓN 1: Verificar que tenga equipo_corte al cambiar de X PROG a PROG 1T/2T/3T
                     if (isStatusCol && (valNorm === 'PROG 1T' || valNorm === 'PROG 2T' || valNorm === 'PROG 3T') && onCorteView && currentCorteFilter === 'X PROG') {
@@ -7881,6 +8060,7 @@
 
             try {
                 window._searchOpPtdaFilter = null;
+                window._ocSearchState = null;
 
                 if (typeof bloqueoHeaderFilters !== 'undefined' && Array.isArray(bloqueoHeaderFilters)) bloqueoHeaderFilters = [];
                 if (typeof bloqueoHeaderFilter !== 'undefined') bloqueoHeaderFilter = null;
@@ -7945,7 +8125,9 @@
             if (!ocQuery || !rawData || rawData.length < 2) { showMsg('Sin datos cargados', false); return; }
             const q = ocQuery.toString().trim().toUpperCase();
             if (q === '') return;
+            const prevSearchState = window._ocSearchState;             const canReuseState = !!(                 prevSearchState &&                 prevSearchState.query === q &&                 prevSearchState.rawDataLen === rawData.length &&                 Array.isArray(prevSearchState.results) &&                 prevSearchState.results.length > 0             );
 
+            if (!canReuseState) {                 window._ocSearchState = null;
             // ── Limpiar TODOS los filtros de la búsqueda anterior ──
             try {
                 // 1. bloqueoHeaderFilters: quitar filtro OP-PTDA
@@ -7969,6 +8151,7 @@
                 // 5. filtro genérico temporal (_searchOpPtdaFilter)
                 window._searchOpPtdaFilter = null;
             } catch(e) { console.error('buscarOC: error limpiando filtros anteriores', e); }
+            }
 
             // Helper: obtener candidatos de OC de una fila.
             // Se considera OC directo y también OP-CORTE / OP TELA-PARTIDA
@@ -8212,27 +8395,7 @@
                 return ocNorm.indexOf(query) !== -1;
             }
 
-            // Ejecutar búsqueda en orden
-            for (const entry of order) {
-                for (let i = 1; i < rawData.length; i++) {
-                    const row = rawData[i];
-                    const ocCandidates = rowOCCandidates(row);
-                    const ocMatched = ocCandidates.some(oc => matchesOC(oc, q));
-                    if (ocMatched && entry.check(row)) {
-                        // Obtener OP-PTDA de la fila encontrada
-                        const opTela = String(getVal(row, 'OP TELA') || getVal(row, 'OP') || '').trim();
-                        const partida = String(getVal(row, 'PARTIDA') || getVal(row, 'CORTE') || '').trim();
-                        const opPtda = opTela + '-' + partida;
-
-                        entry.go();
-                        applyOpPtdaFilter(entry.vista, opPtda);
-                        showMsg('\u2714 Encontrado en ' + entry.vista.replace('-',' ') + ' → ' + entry.subtab, true);
-                        return;
-                    }
-                }
-            }
-
-            showMsg('OC "' + ocQuery.trim() + '" no encontrada', false);
+            let searchState = canReuseState ? prevSearchState : null; if (!searchState) { const matches = []; const seen = new Set(); for (const entry of order) { for (let i = 1; i < rawData.length; i++) { const row = rawData[i]; const ocCandidates = rowOCCandidates(row); const ocMatched = ocCandidates.some(oc => matchesOC(oc, q)); if (!ocMatched || !entry.check(row)) continue; const opTela = String(getVal(row, 'OP TELA') || getVal(row, 'OP') || '').trim(); const partida = String(getVal(row, 'PARTIDA') || getVal(row, 'CORTE') || '').trim(); const opPtda = opTela + '-' + partida; const opPtdaKey = (opPtda && opPtda !== '-') ? opPtda : ('ROW_' + i); const key = entry.vista + '|' + entry.subtab + '|' + opPtdaKey; if (seen.has(key)) continue; seen.add(key); matches.push({ vista: entry.vista, subtab: entry.subtab, go: entry.go, opPtda: opPtda }); } } if (matches.length === 0) { window._ocSearchState = { query: q, rawDataLen: rawData.length, results: [], index: -1 }; showMsg('OC "' + ocQuery.trim() + '" no encontrada', false); return; } searchState = { query: q, rawDataLen: rawData.length, results: matches, index: -1 }; window._ocSearchState = searchState; } searchState.index = (searchState.index + 1) % searchState.results.length; const currentResult = searchState.results[searchState.index]; currentResult.go(); applyOpPtdaFilter(currentResult.vista, currentResult.opPtda); showMsg('\u2714 Encontrado en ' + currentResult.vista.replace('-',' ') + ' -> ' + currentResult.subtab + ' (' + (searchState.index + 1) + '/' + searchState.results.length + ')', true);
         };
 
         window.switchView = function(viewName, btn) {
@@ -8410,6 +8573,19 @@
         let habilitadoContextMenuField = null;
         let habilitadoContextMenuX = 0;
         let habilitadoContextMenuY = 0;
+        function matchesHabilitadoFilterValue(fieldName, fieldValue, filterValueRaw) {
+            const fv = String(fieldValue || '').toUpperCase().trim();
+            const rv = String(filterValueRaw || '').toUpperCase().trim();
+
+            if (fieldName === 'HOD' && rv.indexOf('||') !== -1) {
+                const selectedDates = rv.split('||').map(v => v.trim()).filter(v => v !== '');
+                if (selectedDates.length === 0) return false;
+                return selectedDates.includes(fv);
+            }
+
+            if (rv === '') return fv === '';
+            return fv.indexOf(rv) !== -1;
+        }
         
         window.showHabilitadoContextMenu = function(event, fieldName) {
             event.preventDefault();
@@ -8425,21 +8601,28 @@
             const input = document.getElementById('habilitado-filter-input');
             const select = document.getElementById('habilitado-filter-select');
             
-            // Mostrar el menú
             document.getElementById('habilitado-filter-field').textContent = fieldName;
             
-            // Campos que usan dropdown
             const dropdownFields = ['HOD', 'F.ING.COST', 'F.ING', 'STATUS', 'CLIENTE', 'CLI', 'PLANTA', 'LINEA'];
             
             if (dropdownFields.includes(fieldName)) {
-                // Mostrar select y poblar con valores únicos
                 input.style.display = 'none';
                 select.style.display = 'block';
                 select.value = '';
+
+                if (fieldName === 'HOD') {
+                    select.multiple = true;
+                    select.size = 10;
+                } else {
+                    select.multiple = false;
+                    select.size = 1;
+                }
+
                 populateHabilitadoFilterSelect(fieldName);
                 select.focus();
             } else {
-                // Mostrar input de texto
+                select.multiple = false;
+                select.size = 1;
                 select.style.display = 'none';
                 input.style.display = 'block';
                 input.value = '';
@@ -8448,7 +8631,6 @@
             
             menu.classList.add('active');
             
-            // Para PLANTA y LINEA, posicionar el menú hacia la izquierda
             if (fieldName === 'PLANTA' || fieldName === 'LINEA') {
                 const menuWidth = 220;
                 menu.style.left = (habilitadoContextMenuX - menuWidth) + 'px';
@@ -8532,10 +8714,10 @@
                     const hf = habilitadoHeaderFilters[fi];
                     if (hf.field === fieldName) continue; // Excluir el campo actual
                     const fv = getHabilitadoFieldValue(row, hf.field, evNormForFilter);
-                    if (fv.toUpperCase().indexOf(hf.value.toUpperCase()) === -1) {
-                        passesOtherFilters = false;
-                        break;
-                    }
+                            if (!matchesHabilitadoFilterValue(hf.field, fv, hf.value)) {
+                                passesOtherFilters = false;
+                                break;
+                            }
                 }
                 if (!passesOtherFilters) continue;
                 
@@ -8712,7 +8894,8 @@
             habilitadoHeaderFilters.forEach((f, idx) => {
                 const badge = document.createElement('span');
                 badge.style.cssText = 'display:inline-flex;align-items:center;gap:4px;background:#dbeafe;color:#1e40af;border:1px solid #93c5fd;border-radius:12px;padding:3px 10px;font-size:11px;font-weight:600;cursor:default;';
-                badge.innerHTML = `${f.field}: ${f.value} <span onclick="removeHabilitadoFilter(${idx})" style="cursor:pointer;color:#ef4444;font-size:14px;font-weight:700;margin-left:2px;" title="Quitar filtro">&times;</span>`;
+                const badgeValue = (f.field && f.field.toUpperCase() === 'HOD' && typeof f.value === 'string' && f.value.indexOf('||') !== -1) ? f.value.split('||').join(', ') : f.value;
+                badge.innerHTML = `${f.field}: ${badgeValue} <span onclick="removeHabilitadoFilter(${idx})" style="cursor:pointer;color:#ef4444;font-size:14px;font-weight:700;margin-left:2px;" title="Quitar filtro">&times;</span>`;
                 container.appendChild(badge);
             });
             // Botón limpiar todo
@@ -8737,24 +8920,36 @@
             let filterValue = '';
             let isFromSelect = false;
             
-            // Obtener valor del input o select según cuál esté visible
             if (input.style.display !== 'none') {
                 filterValue = input.value.trim().toUpperCase();
             } else if (select.style.display !== 'none') {
-                filterValue = select.value.trim();
                 isFromSelect = true;
+
+                if (habilitadoContextMenuField === 'HOD') {
+                    const selectedValues = Array.from(select.selectedOptions || [])
+                        .map(opt => String(opt.value || '').trim())
+                        .filter(v => v !== '');
+
+                    if (selectedValues.length === 0) {
+                        alert('Por favor seleccione al menos una fecha');
+                        return;
+                    }
+
+                    filterValue = selectedValues.join('||');
+                } else {
+                    filterValue = select.value.trim();
+                }
             }
             
             if (!filterValue && !isFromSelect) {
                 alert('Por favor seleccione o ingrese un valor para filtrar');
                 return;
             }
-            if (isFromSelect && select.selectedIndex === 0) {
+            if (isFromSelect && habilitadoContextMenuField !== 'HOD' && select.selectedIndex === 0) {
                 alert('Por favor seleccione un valor para filtrar');
                 return;
             }
             
-            // Reemplazar filtro del mismo campo si ya existe, sino agregar
             const existingIdx = habilitadoHeaderFilters.findIndex(f => f.field.toUpperCase() === habilitadoContextMenuField.toUpperCase());
             const newFilter = { field: habilitadoContextMenuField, value: filterValue };
             if (existingIdx !== -1) {
@@ -9581,43 +9776,91 @@
             
             // Función para calcular el valor representativo de n.transfxpda
             function calcularNTransfRepresentativo(values) {
-                if (!values || values.length === 0) return '';
-                
-                // Si algún valor contiene "NO LLEVA", retornar "NO LLEVA"
-                const hasNoLleva = values.some(v => String(v).toUpperCase().includes('NO LLEVA'));
+                const cleaned = (values || [])
+                    .map(v => (v === null || v === undefined) ? '' : String(v).trim())
+                    .filter(v => v !== '' && v.toUpperCase() !== 'LLEVA?');
+
+                if (cleaned.length === 0) return '';
+
+                const hasNoLleva = cleaned.some(v => v.toUpperCase().includes('NO LLEVA'));
                 if (hasNoLleva) return 'NO LLEVA';
-                
-                // Filtrar solo valores numéricos
-                const numericValues = values
+
+                // If all values are the same (ignoring case), preserve that exact value.
+                const uniques = [];
+                const seen = new Set();
+                cleaned.forEach(v => {
+                    const key = v.toUpperCase();
+                    if (!seen.has(key)) {
+                        seen.add(key);
+                        uniques.push(v);
+                    }
+                });
+                if (uniques.length === 1) return uniques[0];
+
+                // If all values are numeric, keep historical behavior using rounded average.
+                const numericValues = cleaned
                     .map(v => parseFloat(v))
                     .filter(v => !isNaN(v));
-                
-                if (numericValues.length === 0) {
-                    // Si no hay valores numéricos, retornar el primer valor o vacío
-                    return values[0] || '';
+                if (numericValues.length === cleaned.length) {
+                    const promedio = numericValues.reduce((a, b) => a + b, 0) / numericValues.length;
+                    return String(Math.round(promedio));
                 }
-                
-                // Calcular promedio y redondear al entero más cercano
-                const promedio = numericValues.reduce((a, b) => a + b, 0) / numericValues.length;
-                const promedioRedondeado = Math.round(promedio);
-                
-                return String(promedioRedondeado);
+
+                // For mixed text, use the most frequent value.
+                const counts = {};
+                const firstValueByKey = {};
+                cleaned.forEach(v => {
+                    const key = v.toUpperCase();
+                    counts[key] = (counts[key] || 0) + 1;
+                    if (!firstValueByKey[key]) firstValueByKey[key] = v;
+                });
+                let bestKey = '';
+                let bestCount = 0;
+                Object.keys(counts).forEach(k => {
+                    if (counts[k] > bestCount) {
+                        bestKey = k;
+                        bestCount = counts[k];
+                    }
+                });
+                return firstValueByKey[bestKey] || '';
+            }
+
+            function calcularTipoTransferRepresentativo(values) {
+                const cleaned = (values || [])
+                    .map(v => (v === null || v === undefined) ? '' : String(v).trim())
+                    .filter(v => v !== '');
+                if (cleaned.length === 0) return '';
+
+                const hasNoLleva = cleaned.some(v => v.toUpperCase() === 'NO LLEVA');
+                if (hasNoLleva) return 'NO LLEVA';
+
+                const uniques = [];
+                const seen = new Set();
+                cleaned.forEach(v => {
+                    const key = v.toUpperCase();
+                    if (!seen.has(key)) {
+                        seen.add(key);
+                        uniques.push(v);
+                    }
+                });
+                return (uniques.length === 1) ? uniques[0] : '';
             }
             
-            // Convertir grupoMap a estiloMap para compatibilidad con el código existente
+            // Convertir grupoMap a estiloMap para compatibilidad con el c�digo existente
             const estiloMap = new Map();
             grupoMap.forEach((data, key) => {
-                // Usar la función avgTransfByClienteEstilo existente para mayor consistencia
-                let nTransfCalculado = avgTransfByClienteEstilo(data.cliente, data.estilo);
-                // Si avgTransfByClienteEstilo retorna null, usar el valor calculado localmente como fallback
-                if (nTransfCalculado === null) {
-                    nTransfCalculado = calcularNTransfRepresentativo(data.nTransfValues);
-                }
-                // Determinar valor representativo de tipo-transfer para el grupo
-                const uniqueTipos = Array.from(new Set((data.tipoValues || []).filter(v => v && v.toString().trim() !== '')));
-                const tipoRepresentativo = (uniqueTipos.length === 1) ? uniqueTipos[0] : '';
+                // Tomar el valor representativo desde las filas del grupo visible.
+                let nTransfCalculado = calcularNTransfRepresentativo(data.nTransfValues);
+                const tipoRepresentativo = calcularTipoTransferRepresentativo(data.tipoValues);
 
-                // Incluir aquí también grupos con 'NO LLEVA' — este render es para "Asignar #Trf"
+                // Si tipo-transfer es NO LLEVA y n.transfxpda viene vac�o/LLEVA?, forzar NO LLEVA.
+                const tipoUpper = (tipoRepresentativo || '').toString().toUpperCase().trim();
+                const nTransfUpper = (nTransfCalculado || '').toString().toUpperCase().trim();
+                if (tipoUpper === 'NO LLEVA' && (nTransfUpper === '' || nTransfUpper === 'LLEVA?')) {
+                    nTransfCalculado = 'NO LLEVA';
+                }
+
+                // Incluir aqu� tambi�n grupos con 'NO LLEVA' � este render es para "Asignar #Trf"
                 estiloMap.set(key, {
                     cliente: data.cliente,
                     estilo: data.estilo,
@@ -11082,6 +11325,36 @@
             window._pendingWasherUpdate = null;
         }
 
+        function askEnumeradoConfirmModal() {
+            return new Promise(function(resolve) {
+                try {
+                    window._resolveEnumeradoConfirm = resolve;
+                    const modal = document.getElementById('modal-confirm-enumerado');
+                    if (modal) modal.classList.add('active');
+                    else resolve(false);
+                } catch (e) {
+                    console.error('Error abriendo modal confirm enumerado', e);
+                    resolve(false);
+                }
+            });
+        }
+
+        window.cerrarModalConfirmEnumerado = function() {
+            const modal = document.getElementById('modal-confirm-enumerado');
+            if (modal) modal.classList.remove('active');
+            const resolver = window._resolveEnumeradoConfirm;
+            window._resolveEnumeradoConfirm = null;
+            if (typeof resolver === 'function') resolver(false);
+        };
+
+        window.handleConfirmEnumerado = function(confirmed) {
+            const modal = document.getElementById('modal-confirm-enumerado');
+            if (modal) modal.classList.remove('active');
+            const resolver = window._resolveEnumeradoConfirm;
+            window._resolveEnumeradoConfirm = null;
+            if (typeof resolver === 'function') resolver(!!confirmed);
+        };
+
         // FUNCIONES PARA MODAL INGRESO A COSTURA
         let currentIngresoCosturaRowIndex = -1;
         let currentIngresoCosturaData = {};
@@ -12127,6 +12400,8 @@ NOTA: Por favor adjunte los archivos descargados (${fileName}.xlsx y ${fileName}
             document.body.classList.remove('print-bloqueo-prog');
             document.body.classList.remove('print-corte-prog');
             document.body.classList.remove('print-habilitado-prog');
+            const habPageStyle = document.getElementById('tmp-print-habilitado-page-style');
+            if (habPageStyle) habPageStyle.remove();
             // Restaurar fechas completas Bloqueo
             const tbody = document.getElementById('tbody-bloqueo');
             if (tbody) {
@@ -12322,6 +12597,14 @@ NOTA: Por favor adjunte los archivos descargados (${fileName}.xlsx y ${fileName}
         // --- Imprimir Habilitado PROG (3 turnos) ---
         window.printHabilitadoProg = function() {
             try {
+                let pageStyleEl = document.getElementById('tmp-print-habilitado-page-style');
+                if (!pageStyleEl) {
+                    pageStyleEl = document.createElement('style');
+                    pageStyleEl.id = 'tmp-print-habilitado-page-style';
+                    pageStyleEl.textContent = '@media print { @page { size: A4 landscape; margin: 5mm; } }';
+                    document.head.appendChild(pageStyleEl);
+                }
+
                 const container = document.getElementById('print-habilitado-container');
                 if (!container) return;
                 container.innerHTML = '';
@@ -12452,7 +12735,7 @@ NOTA: Por favor adjunte los archivos descargados (${fileName}.xlsx y ${fileName}
                         if (idxEv !== -1 && row[idxEv] !== undefined) ev = row[idxEv];
                         else ev = getVal(row, 'estado_enumerado') || '';
                         const evNorm = (ev || '').toString().toUpperCase().trim();
-                        if (evNorm !== 'OK ENM' && evNorm !== 'OK S/ENM') continue;
+                        if (evNorm !== 'OK ENM' && evNorm !== 'OK S/ENM' && evNorm !== 'OK PAQUETEO') continue;
 
                         let habilVal = '';
                         if (idxHabil !== -1 && row[idxHabil] !== undefined) habilVal = row[idxHabil];
@@ -12763,3 +13046,7 @@ NOTA: Por favor adjunte los archivos descargados (${fileName}.xlsx y ${fileName}
 
     </body>
     </html>
+
+
+
+
