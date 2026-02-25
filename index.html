@@ -179,6 +179,25 @@
             color: inherit;
         }
         .sub-tab.active .kg-badge { background-color: rgba(37, 99, 235, 0.1); color: var(--primary); }
+        .xhabi-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            margin-left: 8px;
+            padding: 4px 10px;
+            border-radius: 999px;
+            border: 1px solid #f59e0b;
+            background: #fde68a;
+            color: #92400e;
+            font-size: 12px;
+            font-weight: 700;
+            line-height: 1;
+            white-space: nowrap;
+        }
+        .xhabi-pill strong {
+            font-weight: 800;
+            color: #78350f;
+        }
 
         /* --- TABLA MODERNIZADA Y COMPACTA --- */
         .table-container {
@@ -800,6 +819,32 @@
         .btn-tendido:hover {
             background: var(--primary);
             color: white;
+        }
+        .tendido-pds-wrap {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .tendido-pds-wrap input[type="number"] {
+            flex: 1 1 auto;
+        }
+        .btn-tendido-delete {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 24px;
+            height: 24px;
+            border: 1px solid #ef4444;
+            border-radius: 4px;
+            background: #fee2e2;
+            color: #b91c1c;
+            cursor: pointer;
+            transition: all 0.2s;
+            flex: 0 0 auto;
+        }
+        .btn-tendido-delete:hover {
+            background: #ef4444;
+            color: #ffffff;
         }
         
         /* --- MENÚ CONTEXTUAL DE FILTRO --- */
@@ -1951,6 +1996,7 @@
                         <button id="btn-print-habilitado-prog" class="btn-print-circle" onclick="printHabilitadoProg()" style="display:none;" title="Imprimir Programado (3 turnos)" aria-label="Imprimir Programado">
                             <i class="ph ph-printer"></i>
                         </button>
+                        <span id="habilitado-xhab-pill" class="xhabi-pill">xHabilitar: <strong id="habilitado-xhab-total">0pds</strong></span>
                     </div>
                     <!-- Badges de filtros activos -->
                     <div id="habilitado-active-filters" style="display:none; flex-wrap:wrap; gap:6px; margin-bottom:8px; padding:4px 0;"></div>
@@ -3554,6 +3600,78 @@
                 if (input.value.length > 3) {
                     input.value = input.value.slice(0, 3);
                 }
+            });
+        }
+
+        // --- FUNCION PARA EDITAR PDS CON DOBLE CLICK EN HABILITADO ---
+        function editPds(cell, rowIndex) {
+            // PROTECCION: No permitir escritura en encabezados
+            if (rowIndex < 1 || !rawData[rowIndex]) {
+                console.error('PROTECCION editPds: rowIndex invalido=' + rowIndex);
+                return;
+            }
+            // Evitar abrir mas de un editor en la misma celda
+            if (cell.querySelector('input')) return;
+
+            const idxPdsGiradas = findHeaderIndexCaseInsensitive('PDS GIRADAS');
+            const idxPds = findHeaderIndexCaseInsensitive('PDS');
+            const targetColIndex = (idxPdsGiradas !== -1) ? idxPdsGiradas : idxPds;
+            if (targetColIndex === -1) {
+                console.error('editPds: no se encontro columna PDS GIRADAS / PDS');
+                return;
+            }
+
+            const currentRaw = rawData[rowIndex][targetColIndex];
+            const currentValue = Math.max(0, Math.round(parseFloat(currentRaw) || 0));
+
+            const input = document.createElement('input');
+            input.type = 'number';
+            input.min = '0';
+            input.step = '1';
+            input.value = String(currentValue);
+            input.className = 'pds-input';
+            input.style.cssText = 'width: 72px; text-align: center; padding: 2px 4px; border: 1px solid var(--primary); border-radius: 4px; font-size: 11px; outline: none;';
+
+            cell.innerHTML = '';
+            cell.appendChild(input);
+            input.focus();
+            input.select();
+
+            let finished = false;
+            const finish = (keepChanges) => {
+                if (finished) return;
+                finished = true;
+
+                let newValue = currentValue;
+                if (keepChanges) {
+                    const parsed = parseInt(input.value, 10);
+                    if (Number.isInteger(parsed) && parsed >= 0) newValue = parsed;
+                }
+
+                cell.setAttribute('data-value', String(newValue));
+                cell.textContent = formatThousands(newValue, 0);
+
+                if (keepChanges && newValue !== currentValue) {
+                    rawData[rowIndex][targetColIndex] = newValue;
+                    const colToSave = (targetColIndex === idxPdsGiradas) ? 'PDS GIRADAS' : 'PDS';
+                    updateRow(rowIndex, colToSave, newValue, null);
+                    setTimeout(() => { try { renderHabilitado(); } catch(e) {} }, 120);
+                }
+            };
+
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    finish(true);
+                } else if (e.key === 'Escape') {
+                    e.preventDefault();
+                    finish(false);
+                }
+            });
+
+            input.addEventListener('blur', () => finish(true));
+            input.addEventListener('input', () => {
+                input.value = String(input.value || '').replace(/[^\d]/g, '');
             });
         }
 
@@ -5374,6 +5492,7 @@
             
             // Contadores de PDS por sub-tab
             let pdsXProg = 0, pds1T = 0, pds2T = 0, pds3T = 0, pdsSDestino = 0;
+            let pdsXHabilitar = 0;
             
             // Recopilar índices válidos según el sub-tab seleccionado
             // Para "Por Programar" (X PROG): todas las filas con estado_habilitado vacío o X PROG
@@ -5383,6 +5502,7 @@
             const idxHabil = findHeaderIndexCaseInsensitive('estado_habilitado');
             let idxValidacion = findHeaderIndexCaseInsensitive('VALIDACION');
             if (idxValidacion === -1) idxValidacion = findHeaderIndexCaseInsensitive('VALIDA');
+
             for (let i = 1; i < rawData.length; i++) {
                 const row = rawData[i];
                 let ev = '';
@@ -5412,6 +5532,14 @@
                 
                 // Calcular PDS por sub-tab para los badges (SIEMPRE, independiente del filtro activo)
                 const pdsVal = parseFloat(getVal(row, 'PDS GIRADAS')) || 0;
+                // xHabilitar: suma de PDS GIRADAS donde
+                // estado_enumerado = OK ENM | OK S/ENM | OK PAQUETEO
+                // y estado_habilitado != OK | OK S/DESTINO
+                const esEnumOk = (evNorm === 'OK ENM' || evNorm === 'OK S/ENM' || evNorm === 'OK PAQUETEO');
+                const esHabPendiente = (habilNorm !== 'OK' && habilNorm !== 'OK S/DESTINO');
+                if (esEnumOk && esHabPendiente) {
+                    pdsXHabilitar += pdsVal;
+                }
                 if (!validaMarcado) {
                     if (habilNorm === '' || habilNorm === 'X PROG') {
                         pdsXProg += pdsVal;
@@ -5448,12 +5576,30 @@
                 }
             }
             
-            // Ordenar índices válidos: primero por OP TELA+PARTIDA (agrupar juntos), luego por P y HOD
+            // Helper: clave de orden por OC (usa OC; fallback OP-CORTE; fallback OP TELA-PARTIDA)
+            const getOcSortKey = (row) => {
+                const ocDirecto = String(getVal(row, 'OC') || '').trim();
+                if (ocDirecto) return ocDirecto.toLowerCase();
+                const op = String(getVal(row, 'OP') || '').trim();
+                const corte = String(getVal(row, 'CORTE') || '').trim();
+                if (op || corte) return `${op}-${corte}`.toLowerCase();
+                const opTela = String(getVal(row, 'OP TELA') || '').trim();
+                const partida = String(getVal(row, 'PARTIDA') || '').trim();
+                return `${opTela}-${partida}`.toLowerCase();
+            };
+
+            // Ordenar índices válidos: OC, luego OP TELA+PARTIDA, luego P y HOD
             validIndices.sort((a, b) => {
                 const rowA = rawData[a];
                 const rowB = rawData[b];
+
+                // 1. Ordenar por OC
+                const ocA = getOcSortKey(rowA);
+                const ocB = getOcSortKey(rowB);
+                const cmpOc = ocA.localeCompare(ocB, undefined, { numeric: true, sensitivity: 'base' });
+                if (cmpOc !== 0) return cmpOc;
                 
-                // 1. Primero agrupar por OP TELA + PARTIDA
+                // 2. Luego agrupar por OP TELA + PARTIDA
                 const opTelaA = String(rowA[colMap["OP TELA"]] || "").trim();
                 const partidaA = String(rowA[colMap["PARTIDA"]] || "").trim();
                 const opPtdaA = (opTelaA + "-" + partidaA).toLowerCase();
@@ -5465,7 +5611,7 @@
                 const cmpOpPtda = opPtdaA.localeCompare(opPtdaB, undefined, { numeric: true, sensitivity: 'base' });
                 if (cmpOpPtda !== 0) return cmpOpPtda;
                 
-                // 2. Dentro del mismo grupo, ordenar por columna P
+                // 3. Dentro del mismo grupo, ordenar por columna P
                 const idxP = findHeaderIndexCaseInsensitive('P');
                 let pA = '';
                 let pB = '';
@@ -5477,7 +5623,7 @@
                 const pNumB = pB === '' ? Infinity : parseInt(pB) || Infinity;
                 if (pNumA !== pNumB) return pNumA - pNumB;
                 
-                // 3. Luego por fecha de despacho (más reciente primero)
+                // 4. Luego por fecha de despacho (más reciente primero)
                 const dateA = rowA[colMap["HOD"]] || 0;
                 const dateB = rowB[colMap["HOD"]] || 0;
                 return dateB - dateA;
@@ -5515,7 +5661,13 @@
                         return orderA - orderB;
                     }
                     
-                    // 2. Agrupar por OP TELA + PARTIDA
+                    // 2. Ordenar por OC
+                    const ocA = getOcSortKey(rowA);
+                    const ocB = getOcSortKey(rowB);
+                    const cmpOc = ocA.localeCompare(ocB, undefined, { numeric: true, sensitivity: 'base' });
+                    if (cmpOc !== 0) return cmpOc;
+
+                    // 3. Agrupar por OP TELA + PARTIDA
                     const opTelaA = String(rowA[colMap["OP TELA"]] || "").trim();
                     const partidaA = String(rowA[colMap["PARTIDA"]] || "").trim();
                     const opPtdaA = (opTelaA + "-" + partidaA).toLowerCase();
@@ -5525,7 +5677,7 @@
                     const cmpOpPtda = opPtdaA.localeCompare(opPtdaB, undefined, { numeric: true, sensitivity: 'base' });
                     if (cmpOpPtda !== 0) return cmpOpPtda;
                     
-                    // 3. Dentro del mismo grupo, ordenar por P
+                    // 4. Dentro del mismo grupo, ordenar por P
                     const idxP = findHeaderIndexCaseInsensitive('P');
                     let pA = '';
                     let pB = '';
@@ -5537,7 +5689,7 @@
                     const pNumB = pB === '' ? Infinity : parseInt(pB) || Infinity;
                     if (pNumA !== pNumB) return pNumA - pNumB;
                     
-                    // 4. Luego por fecha
+                    // 5. Luego por fecha
                     const dateA = rowA[colMap["HOD"]] || 0;
                     const dateB = rowB[colMap["HOD"]] || 0;
                     return dateB - dateA;
@@ -6064,7 +6216,7 @@
                         <td style="text-align:center;" title="${cliente}">${cliente}</td>
                         ${ocHtml}
                         <td class="cell-color" title="${color}">${color}</td>
-                        <td class="kg-cell" style="text-align:center;">${pdsStr}</td>
+                        <td class="kg-cell pds-cell" style="text-align:center;" data-row="${i}" data-value="${pdsRaw}" ondblclick="editPds(this, ${i})">${pdsStr}</td>
                         <td class="cell-pda" title="${prenda}"><span class="oc-link" onclick="abrirModalOC(${i});">${prenda}</span></td>
                         <td class="cell-cert" title="${tipoCert}">${tipoCert}</td>
                         ${compOtrosHtml}
@@ -6110,6 +6262,7 @@
             try { document.getElementById('habilitado-pds-2t').innerText = `[${formatThousands(pds2T, 0)}pds]`; } catch(e){}
             try { document.getElementById('habilitado-pds-3t').innerText = `[${formatThousands(pds3T, 0)}pds]`; } catch(e){}
             try { document.getElementById('habilitado-pds-sdestino').innerText = `[${formatThousands(pdsSDestino, 0)}pds]`; } catch(e){}
+            try { document.getElementById('habilitado-xhab-total').innerText = `${formatThousands(pdsXHabilitar, 0)}pds`; } catch(e){}
             
             // Inicializar eventos de los selectores de fecha
             initializeDateInputs();
@@ -10959,6 +11112,138 @@
         // FUNCIONES DEL MODAL DE TENDIDO
         // ===============================
 
+        function collectModalTendidoInputValues() {
+            const values = [];
+            const numTendidos = (modalTendidoData && modalTendidoData.tendidos) ? modalTendidoData.tendidos.length : 0;
+            for (let i = 0; i < numTendidos; i++) {
+                const input = document.getElementById(`pds-tendido-${i}`);
+                values.push(input ? input.value : '');
+            }
+            return values;
+        }
+
+        function renderModalTendidoRows(prefillValues) {
+            const tbody = document.getElementById('modal-tendido-tbody');
+            if (!tbody) return;
+
+            const tendidos = (modalTendidoData && Array.isArray(modalTendidoData.tendidos)) ? modalTendidoData.tendidos : [];
+            const total = parseFloat(modalTendidoData && modalTendidoData.pdsTotal) || 0;
+
+            let html = '';
+            for (let i = 0; i < tendidos.length; i++) {
+                const tendido = tendidos[i];
+                const isLast = (i === tendidos.length - 1);
+                const btnAddHtml = isLast
+                    ? `<button class="btn-tendido" onclick="agregarTendidoModal()" title="Agregar tendido">+</button>`
+                    : '';
+                const btnDeleteHtml = (isLast && tendidos.length > 1)
+                    ? `<button class="btn-tendido-delete" onclick="eliminarUltimoTendidoModal()" title="Eliminar último tendido"><i class="ph ph-trash"></i></button>`
+                    : '';
+
+                const rawValue = (prefillValues && prefillValues[i] !== undefined && prefillValues[i] !== null) ? String(prefillValues[i]) : '';
+                const safeValue = rawValue.replace(/"/g, '&quot;');
+                const valueAttr = safeValue !== '' ? ` value="${safeValue}"` : '';
+
+                const placeholder = (tendidos.length === 1)
+                    ? 'Ingrese PDS'
+                    : (isLast ? 'Ingrese PDS (diferencia)' : 'Ingrese PDS');
+                const oninputAttr = (tendidos.length > 1 && !isLast) ? ' oninput="recalcularTendidosModal()"' : '';
+
+                html += `<tr>
+                    <td style="font-weight: 600; text-align: center;">${btnAddHtml}${tendido}</td>
+                    <td>
+                        <div class="tendido-pds-wrap">
+                            <input type="number" id="pds-tendido-${i}"${valueAttr} placeholder="${placeholder}"${oninputAttr} min="0" max="${total}">
+                            ${btnDeleteHtml}
+                        </div>
+                    </td>
+                </tr>`;
+            }
+
+            tbody.innerHTML = html;
+            if (tendidos.length <= 1) {
+                const residualDelete = tbody.querySelector('.btn-tendido-delete');
+                if (residualDelete) residualDelete.remove();
+            }
+        }
+
+        window.eliminarUltimoTendidoModal = function() {
+            try {
+                if (!modalTendidoData || !Array.isArray(modalTendidoData.tendidos) || modalTendidoData.tendidos.length <= 1) {
+                    alert('Debe existir al menos un tendido.');
+                    return;
+                }
+
+                const lastIdx = modalTendidoData.tendidos.length - 1;
+                const lastTendido = modalTendidoData.tendidos[lastIdx];
+                const currentValues = collectModalTendidoInputValues();
+                const lastPds = parseFloat(currentValues[lastIdx]) || 0;
+
+                const isPersistedRow = (
+                    modalTendidoData.modo === 'editar' &&
+                    Array.isArray(modalTendidoData.tendidoRows) &&
+                    lastIdx < modalTendidoData.tendidoRows.length &&
+                    typeof modalTendidoData.tendidoRows[lastIdx] === 'number'
+                );
+
+                const confirmMsg = isPersistedRow
+                    ? `Se eliminará el tendido ${lastTendido} del sheet. ¿Continuar?`
+                    : `¿Quitar el tendido ${lastTendido} del modal?`;
+                if (!confirm(confirmMsg)) return;
+
+                if (isPersistedRow) {
+                    const rowIdxRaw = modalTendidoData.tendidoRows[lastIdx];
+                    const excelRow = rowIdxRaw + 1;
+
+                    if (rowIdxRaw >= 1 && rowIdxRaw < rawData.length) {
+                        rawData.splice(rowIdxRaw, 1);
+                    }
+
+                    modalTendidoData.tendidoRows.splice(lastIdx, 1);
+                    for (let j = 0; j < modalTendidoData.tendidoRows.length; j++) {
+                        if (typeof modalTendidoData.tendidoRows[j] === 'number' && modalTendidoData.tendidoRows[j] > rowIdxRaw) {
+                            modalTendidoData.tendidoRows[j] = modalTendidoData.tendidoRows[j] - 1;
+                        }
+                    }
+                    if (typeof modalTendidoData.rowIndex === 'number' && modalTendidoData.rowIndex > rowIdxRaw) {
+                        modalTendidoData.rowIndex = modalTendidoData.rowIndex - 1;
+                    }
+
+                    modalTendidoData.pdsTotal = Math.max(0, (parseFloat(modalTendidoData.pdsTotal) || 0) - lastPds);
+                    try {
+                        const url = WEB_APP_URL + '?action=deleteRecord&rowIndex=' + encodeURIComponent(excelRow);
+                        const img = new Image();
+                        img.src = url;
+                        img.onload = function() { console.log('Delete tendido enviada (imagen cargada)'); };
+                        img.onerror = function() { console.log('Delete tendido enviada (imagen error)'); };
+                    } catch (e) {
+                        console.error('Error eliminando tendido del sheet', e);
+                    }
+                }
+
+                modalTendidoData.tendidos.splice(lastIdx, 1);
+                const remainingValues = currentValues.slice(0, lastIdx);
+                renderModalTendidoRows(remainingValues);
+
+                const subtitleEl = document.getElementById('modal-tendido-subtitle');
+                if (subtitleEl) {
+                    subtitleEl.innerText = `COLOR: ${modalTendidoData.color} | PDS: ${formatThousands(parseFloat(modalTendidoData.pdsTotal) || 0, 0)}`;
+                }
+
+                try {
+                    if ((modalTendidoData.tendidos || []).length > 1) recalcularTendidosModal();
+                } catch (e) {}
+
+                try {
+                    updateCounters();
+                    renderCorte();
+                } catch (e) {}
+            } catch (e) {
+                console.error('Error eliminando ultimo tendido', e);
+                alert('No se pudo eliminar el tendido.');
+            }
+        };
+
         window.abrirModalTendido = function(rowIndex, op, corte, color, pdsTotal) {
             // Detectar si el CORTE es ya un tendido (termina en 01, 02, etc.)
             const corteStr = String(corte);
@@ -10989,28 +11274,10 @@
             document.getElementById('modal-tendido-title').innerText = `OC: ${op}-${corte}`;
             document.getElementById('modal-tendido-subtitle').innerText = `COLOR: ${color} | PDS: ${formatThousands(pdsTotal, 0)}`;
 
-            const tbody = document.getElementById('modal-tendido-tbody');
             const tendido1 = `${corte}01`;
-
             modalTendidoData.tendidos = [tendido1];
 
-            let html = '';
-            for (let i = 0; i < modalTendidoData.tendidos.length; i++) {
-                const tendido = modalTendidoData.tendidos[i];
-                const isLast = (i === modalTendidoData.tendidos.length - 1);
-                const btnHTML = isLast ? `<button class="btn-tendido" onclick="agregarTendidoModal()" style="margin-right: 6px;" title="Agregar tendido">+</button>` : '';
-                
-                if (modalTendidoData.tendidos.length === 1) {
-                    // Solo 1 tendido: editable libremente sin recálculo
-                    html += `<tr><td style="font-weight: 600; text-align: center;">${btnHTML}${tendido}</td><td><input type="number" id="pds-tendido-${i}" placeholder="Ingrese PDS" min="0" max="${pdsTotal}"></td></tr>`;
-                } else if (isLast) {
-                    // Último tendido (cuando hay más de 1): editable manualmente sin recálculo automático
-                    html += `<tr><td style="font-weight: 600; text-align: center;">${btnHTML}${tendido}</td><td><input type="number" id="pds-tendido-${i}" placeholder="Ingrese PDS (diferencia)" min="0" max="${pdsTotal}"></td></tr>`;
-                } else {
-                    html += `<tr><td style="font-weight: 600; text-align: center;">${btnHTML}${tendido}</td><td><input type="number" id="pds-tendido-${i}" placeholder="Ingrese PDS" oninput="recalcularTendidosModal()" min="0" max="${pdsTotal}"></td></tr>`;
-                }
-            }
-            tbody.innerHTML = html;
+            renderModalTendidoRows();
             document.getElementById('modal-tendido').classList.add('active');
         };
 
@@ -11063,21 +11330,7 @@
             document.getElementById('modal-tendido-title').innerText = `OC: ${op}-${corteBase}`;
             document.getElementById('modal-tendido-subtitle').innerText = `COLOR: ${color} | PDS: ${formatThousands(totalPds, 0)}`;
 
-            const tbody = document.getElementById('modal-tendido-tbody');
-            let html = '';
-            for (let i = 0; i < sortedTendidos.length; i++) {
-                const tendido = sortedTendidos[i];
-                const pds = sortedPds[i];
-                const isLast = (i === sortedTendidos.length - 1);
-                const btnHTML = isLast ? `<button class="btn-tendido" onclick="agregarTendidoModal()" style="margin-right: 6px;" title="Agregar tendido">+</button>` : '';
-                // Último tendido: editable manualmente sin recálculo automático
-                if (isLast) {
-                    html += `<tr><td style="font-weight: 600; text-align: center;">${btnHTML}${tendido}</td><td><input type="number" id="pds-tendido-${i}" value="${pds}" min="0" max="${totalPds}"></td></tr>`;
-                } else {
-                    html += `<tr><td style="font-weight: 600; text-align: center;">${btnHTML}${tendido}</td><td><input type="number" id="pds-tendido-${i}" value="${pds}" oninput="recalcularTendidosModal()" min="0" max="${totalPds}"></td></tr>`;
-                }
-            }
-            tbody.innerHTML = html;
+            renderModalTendidoRows(sortedPds);
             document.getElementById('modal-tendido').classList.add('active');
         };
 
@@ -11137,27 +11390,9 @@
             
             modalTendidoData.tendidos.push(nuevoTendido);
             
-            const tbody = document.getElementById('modal-tendido-tbody');
-            const total = modalTendidoData.pdsTotal;
-            
-            let html = '';
-            for (let i = 0; i < modalTendidoData.tendidos.length; i++) {
-                const tendido = modalTendidoData.tendidos[i];
-                const isLast = (i === modalTendidoData.tendidos.length - 1);
-                const btnHTML = isLast ? `<button class="btn-tendido" onclick="agregarTendidoModal()" style="margin-right: 6px;" title="Agregar tendido">+</button>` : '';
-                
-                let inputVal = '';
-                const oldInput = document.getElementById(`pds-tendido-${i}`);
-                if (oldInput) inputVal = oldInput.value;
-                
-                // Último tendido: editable manualmente sin recálculo automático
-                if (isLast) {
-                    html += `<tr><td style="font-weight: 600; text-align: center;">${btnHTML}${tendido}</td><td><input type="number" id="pds-tendido-${i}" value="${inputVal}" placeholder="Ingrese PDS (diferencia)" min="0" max="${total}"></td></tr>`;
-                } else {
-                    html += `<tr><td style="font-weight: 600; text-align: center;">${btnHTML}${tendido}</td><td><input type="number" id="pds-tendido-${i}" value="${inputVal}" oninput="recalcularTendidosModal()" min="0" max="${total}"></td></tr>`;
-                }
-            }
-            tbody.innerHTML = html;
+            const oldValues = collectModalTendidoInputValues();
+            renderModalTendidoRows(oldValues);
+            if ((modalTendidoData.tendidos || []).length > 1) recalcularTendidosModal();
         };
 
         window.cerrarModalTendido = function() {
