@@ -198,6 +198,105 @@
             font-weight: 800;
             color: #78350f;
         }
+        .btn-habilitado-ingresos {
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            border: 1px solid #16a34a;
+            background: #22c55e;
+            color: #ffffff;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 800;
+            line-height: 1;
+            margin-left: 6px;
+            transition: all 0.18s ease;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+        }
+        .btn-habilitado-ingresos:hover {
+            background: #16a34a;
+            transform: translateY(-1px);
+        }
+        .btn-habilitado-ingresos.active {
+            background: #15803d;
+            border-color: #14532d;
+            box-shadow: 0 0 0 2px rgba(34,197,94,0.18);
+        }
+        .habilitado-ingresos-filters {
+            display: none;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-bottom: 8px;
+            padding: 4px 0;
+        }
+        .habilitado-ingresos-filters label {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--gray-600);
+        }
+        .habilitado-ingresos-filters select {
+            min-width: 120px;
+            padding: 4px 8px;
+            font-size: 12px;
+            border: 1px solid var(--gray-300);
+            border-radius: 6px;
+            background: #fff;
+            color: var(--gray-800);
+        }
+        .habilitado-ingresos-plant-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--gray-600);
+            margin-left: 8px;
+        }
+        .habilitado-ingresos-plant-pills {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+        .habilitado-ingresos-plant-pill {
+            border: 1px solid var(--gray-300);
+            background: #ffffff;
+            color: var(--gray-700);
+            border-radius: 999px;
+            padding: 4px 10px;
+            font-size: 11px;
+            font-weight: 700;
+            cursor: pointer;
+            line-height: 1.1;
+            transition: all 0.18s ease;
+            font-family: 'Calibri', 'Inter', sans-serif;
+        }
+        .habilitado-ingresos-plant-pill:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+        .habilitado-ingresos-plant-pill.active {
+            border-color: var(--primary);
+            background: var(--primary-light);
+            color: var(--primary);
+        }
+        .habilitado-ingresos-pds-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 10px;
+            border: 1px solid #dbeafe;
+            border-radius: 999px;
+            background: #eff6ff;
+            color: #1e3a8a;
+            font-size: 11px;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+        .habilitado-ingresos-pds-pill strong {
+            font-weight: 800;
+        }
 
         /* --- TABLA MODERNIZADA Y COMPACTA --- */
         .table-container {
@@ -269,6 +368,25 @@
             width: 55px !important;
             min-width: 55px !important;
             max-width: 55px !important;
+        }
+        /* Ajustes exclusivos para subtap Ingresos (estado_habilitado = OK) */
+        #table-habilitado[data-mode="ingresos"] th.col-color,
+        #table-habilitado[data-mode="ingresos"] td.cell-color {
+            width: 120px !important;
+            min-width: 120px !important;
+            max-width: 120px !important;
+        }
+        #table-habilitado[data-mode="ingresos"] th.col-comp-otros,
+        #table-habilitado[data-mode="ingresos"] td.col-comp-otros {
+            width: 100px !important;
+            min-width: 100px !important;
+            max-width: 100px !important;
+        }
+        #table-habilitado[data-mode="ingresos"] th.col-cert,
+        #table-habilitado[data-mode="ingresos"] td.cell-cert {
+            width: 90px !important;
+            min-width: 90px !important;
+            max-width: 90px !important;
         }
         /* PLANTA, LINEA y HAB al tamaño de F.ING */
         #table-habilitado th.col-planta,
@@ -1997,9 +2115,19 @@
                             <i class="ph ph-printer"></i>
                         </button>
                         <span id="habilitado-xhab-pill" class="xhabi-pill">xHabilitar: <strong id="habilitado-xhab-total">0pds</strong></span>
+                        <button id="btn-habilitado-ingresos" class="btn-habilitado-ingresos" onclick="toggleHabilitadoIngresosMode(this)" title="Ingresos (estado_habilitado = OK)" aria-label="Ingresos habilitado">i</button>
                     </div>
                     <!-- Badges de filtros activos -->
                     <div id="habilitado-active-filters" style="display:none; flex-wrap:wrap; gap:6px; margin-bottom:8px; padding:4px 0;"></div>
+                    <div id="habilitado-ingresos-filters" class="habilitado-ingresos-filters">
+                        <label for="habilitado-ingresos-date-filter">F.ING.REAL:</label>
+                        <select id="habilitado-ingresos-date-filter" onchange="onHabilitadoIngresosDateFilterChange(this.value)">
+                            <option value="">Todos</option>
+                        </select>
+                        <span class="habilitado-ingresos-plant-label">PLANTA:</span>
+                        <div id="habilitado-ingresos-plant-pills" class="habilitado-ingresos-plant-pills"></div>
+                        <span id="habilitado-ingresos-pds-pill" class="habilitado-ingresos-pds-pill">PDS: <strong>0pds</strong></span>
+                    </div>
                     <div class="table-container">
                         <table id="table-habilitado">
                             <thead>
@@ -2010,11 +2138,11 @@
                                     <th style="width: 55px; text-align:center;">STATUS</th>
                                     <th style="width: 45px; text-align:center;">CLI</th>
                                     <th style="width: 65px;">OC</th>
-                                    <th class="col-color" style="width: 55px;">COLOR</th>
+                                    <th class="col-color" style="width: 70px;">COLOR</th>
                                     <th style="width: 45px; text-align:center;">PDS</th>
                                     <th style="width: 55px;" class="col-pda">PDA</th>
                                     <th style="width: 55px;" class="col-cert">CERT</th>
-                                    <th class="col-comp-otros" style="width: 220px; text-align:left;">COMP/OTROS</th>
+                                    <th class="col-comp-otros" style="width: 70px; text-align:left;">COMP/OTROS</th>
                                     <th class="col-observaciones" style="width: 150px; text-align:left;">OBSERVACIONES</th>
                                     <th class="col-validacion" style="width: 56px; text-align:center;">VALIDA</th>
                                     <th class="col-planta" style="width: 62px; text-align:center;">PLANTA</th>
@@ -2191,6 +2319,10 @@
         let currentCorteBloquesFilter = 'X PROG';
         let currentTransferFilter = 'X PROG';
         let currentHabilitadoFilter = 'X PROG';
+        let isHabilitadoIngresosMode = false;
+        let habilitadoIngresosDateFilter = '';
+        let habilitadoIngresosPlantFilter = '';
+        let habilitadoHeaderNormalHtml = '';
 
         // Bases de tendidos creadas en esta sesión / previamente: persistidas en localStorage
         try {
@@ -3709,13 +3841,22 @@
                 if (keepChanges) {
                     const newValue = textarea.value.trim();
                     if (newValue !== currentValue.trim()) {
-                        const idxObs = findHeaderIndexCaseInsensitive('OBSERVACIONES');
+                        let idxObs = findHeaderIndexCaseInsensitive('OBSERVACIONES');
+                        let obsColName = 'OBSERVACIONES';
+                        if (idxObs === -1) {
+                            idxObs = findHeaderIndexCaseInsensitive('OBSERVACION');
+                            if (idxObs !== -1) obsColName = 'OBSERVACION';
+                        }
+                        if (idxObs === -1) {
+                            idxObs = findHeaderIndexCaseInsensitive('OBS');
+                            if (idxObs !== -1) obsColName = 'OBS';
+                        }
                         if (idxObs !== -1 && rawData[rowIndex]) {
                             rawData[rowIndex][idxObs] = newValue;
                         }
                         if (span) span.textContent = newValue;
                         cell.title = newValue;
-                        updateRow(rowIndex, 'OBSERVACIONES', newValue, null);
+                        updateRow(rowIndex, obsColName, newValue, null);
                     } else if (span) {
                         span.textContent = currentValue;
                     }
@@ -5482,10 +5623,562 @@
             initializeDateInputs();
         }
 
+        function escapeHtmlHabilitadoIngresos(txt) {
+            return String(txt || '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        function parseDateFromAnyHabilitado(raw) {
+            if (raw === null || raw === undefined || raw === '') return null;
+            if (raw instanceof Date && !isNaN(raw.getTime())) return raw;
+
+            const excelSerialToDate = (serial) => {
+                const n = Number(serial);
+                if (!isFinite(n) || n <= 0) return null;
+                const wholeDays = Math.floor(n);
+                const dayFraction = n - wholeDays;
+                const base = new Date(1899, 11, 30);
+                base.setDate(base.getDate() + wholeDays);
+                const totalSeconds = Math.round(dayFraction * 86400);
+                base.setSeconds(base.getSeconds() + totalSeconds);
+                return isNaN(base.getTime()) ? null : base;
+            };
+
+            if (typeof raw === 'number' && raw > 30000) {
+                return excelSerialToDate(raw);
+            }
+
+            const s = String(raw).trim();
+            if (!s) return null;
+
+            if (/^\d+(\.\d+)?$/.test(s)) {
+                const serial = parseFloat(s);
+                if (serial > 30000) {
+                    const serialDate = excelSerialToDate(serial);
+                    if (serialDate) return serialDate;
+                }
+            }
+
+            const mDate = s.match(/Date\((\d+)\s*,\s*(\d+)\s*,\s*(\d+)(?:\s*,\s*(\d+))?(?:\s*,\s*(\d+))?(?:\s*,\s*(\d+))?(?:\s*,\s*(\d+))?\)/i);
+            if (mDate) {
+                const y = parseInt(mDate[1], 10);
+                const m = parseInt(mDate[2], 10);
+                const d = parseInt(mDate[3], 10);
+                const hh = parseInt(mDate[4] || '0', 10);
+                const mm = parseInt(mDate[5] || '0', 10);
+                const ss = parseInt(mDate[6] || '0', 10);
+                const ms = parseInt(mDate[7] || '0', 10);
+                const dt = new Date(y, m, d, hh, mm, ss, ms);
+                return isNaN(dt.getTime()) ? null : dt;
+            }
+
+            const iso = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})(?:[T\s](\d{1,2}):(\d{2})(?::(\d{2}))?)?/);
+            if (iso) {
+                const y = parseInt(iso[1], 10);
+                const m = parseInt(iso[2], 10) - 1;
+                const d = parseInt(iso[3], 10);
+                const hh = parseInt(iso[4] || '0', 10);
+                const mm = parseInt(iso[5] || '0', 10);
+                const ss = parseInt(iso[6] || '0', 10);
+                const dt = new Date(y, m, d, hh, mm, ss);
+                return isNaN(dt.getTime()) ? null : dt;
+            }
+
+            const dm = s.match(/^(\d{1,2})[\/\-](\d{1,2}|[A-Za-z]{3,})[\/\-](\d{2,4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?/i);
+            if (dm) {
+                const day = parseInt(dm[1], 10);
+                const monthRaw = String(dm[2]).toLowerCase();
+                let month = -1;
+                if (/^\d+$/.test(monthRaw)) {
+                    month = parseInt(monthRaw, 10) - 1;
+                } else {
+                    const monthMap = {
+                        ene: 0, feb: 1, mar: 2, abr: 3, may: 4, jun: 5,
+                        jul: 6, ago: 7, sep: 8, oct: 9, nov: 10, dic: 11
+                    };
+                    month = monthMap[monthRaw.slice(0, 3)] ?? -1;
+                }
+                let year = parseInt(dm[3], 10);
+                if (year < 100) year += 2000;
+                const hh = parseInt(dm[4] || '0', 10);
+                const mm = parseInt(dm[5] || '0', 10);
+                const ss = parseInt(dm[6] || '0', 10);
+                if (month >= 0) {
+                    const dt = new Date(year, month, day, hh, mm, ss);
+                    return isNaN(dt.getTime()) ? null : dt;
+                }
+            }
+
+            const parsed = new Date(s);
+            return isNaN(parsed.getTime()) ? null : parsed;
+        }
+
+        function formatDayMonthEsFromDate(dateObj) {
+            if (!dateObj || isNaN(dateObj.getTime())) return '';
+            const mesesEs = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+            const dd = String(dateObj.getDate()).padStart(2, '0');
+            const mmm = mesesEs[dateObj.getMonth()] || '';
+            return mmm ? `${dd}/${mmm}` : '';
+        }
+
+        function getFIngRealDayMonthLabel(rawVal) {
+            const dt = parseDateFromAnyHabilitado(rawVal);
+            return formatDayMonthEsFromDate(dt);
+        }
+
+        function getFIngRealDayMonthKey(rawVal) {
+            const dt = parseDateFromAnyHabilitado(rawVal);
+            if (!dt || isNaN(dt.getTime())) return '';
+            const mm = String(dt.getMonth() + 1).padStart(2, '0');
+            const dd = String(dt.getDate()).padStart(2, '0');
+            return `${mm}-${dd}`;
+        }
+
+        function getFIngRealTimeLabel(rawVal) {
+            const dt = parseDateFromAnyHabilitado(rawVal);
+            if (!dt || isNaN(dt.getTime())) return '';
+            const rawStr = String(rawVal || '').trim();
+            const hasTimeFromNumber = (typeof rawVal === 'number') && Math.abs(rawVal - Math.trunc(rawVal)) > 0.000001;
+            const hasTimeFromText = /(?:\d{1,2}:\d{2})/.test(rawStr);
+            const hasNonZeroClock = dt.getHours() !== 0 || dt.getMinutes() !== 0 || dt.getSeconds() !== 0;
+            if (!hasTimeFromNumber && !hasTimeFromText && !hasNonZeroClock) return '';
+            let hh = dt.getHours();
+            const mm = String(dt.getMinutes()).padStart(2, '0');
+            const suffix = hh >= 12 ? 'pm' : 'am';
+            hh = hh % 12;
+            if (hh === 0) hh = 12;
+            return `${String(hh).padStart(2, '0')}:${mm}${suffix}`;
+        }
+
+        function getRawFIngRealFromRow(row) {
+            const direct = getVal(row, 'F.ING.REAL') || getVal(row, 'F ING REAL') || getVal(row, 'F. ING. REAL') || '';
+            if (direct !== '') return direct;
+
+            const candidates = ['F.ING.REAL', 'F ING REAL', 'F. ING. REAL', 'F.ING REAL', 'FINGREAL'];
+            for (const name of candidates) {
+                const idx = findHeaderIndexCaseInsensitive(name);
+                if (idx !== -1 && row[idx] !== undefined && row[idx] !== null && String(row[idx]).trim() !== '') {
+                    return row[idx];
+                }
+            }
+
+            try {
+                if (rawData && rawData.length > 0 && Array.isArray(rawData[0])) {
+                    const headers = rawData[0];
+                    const norm = (v) => String(v || '')
+                        .toLowerCase()
+                        .normalize('NFD')
+                        .replace(/[\u0300-\u036f]/g, '')
+                        .replace(/[^a-z0-9]/g, '');
+                    for (let i = 0; i < headers.length; i++) {
+                        const key = norm(headers[i]);
+                        const looksLikeFingReal = (
+                            key === 'fingreal' ||
+                            key.includes('fingreal') ||
+                            key.includes('fingresoreal') ||
+                            key.includes('fechaingresoreal') ||
+                            (key.startsWith('fing') && key.includes('real'))
+                        );
+                        if (!looksLikeFingReal) continue;
+                        if (row[i] !== undefined && row[i] !== null && String(row[i]).trim() !== '') {
+                            return row[i];
+                        }
+                    }
+                }
+            } catch (e) {}
+            return '';
+        }
+
+        function normalizeCompStatusText(value) {
+            return String(value === undefined || value === null ? '' : value).replace(/\s+/g, ' ').trim();
+        }
+
+        function normalizeCompStatusNorm(value) {
+            return normalizeCompStatusText(value).toUpperCase();
+        }
+
+        function isCompStatusInactive(normVal) {
+            const norm = String(normVal || '').toUpperCase().trim();
+            if (!norm || norm === '-' || norm === 'X') return true;
+            if (norm.indexOf('NO LLEVA') !== -1) return true;
+            if (norm === 'OK' || norm.indexOf('OK ') === 0) return true;
+            return false;
+        }
+
+        // COMP/OTROS normalizado: mostrar solo piezas relevantes.
+        function getCompOtrosNormalizedParts(input) {
+            const inObj = input || {};
+            const out = [];
+
+            const ribNorm = normalizeCompStatusNorm(inObj.rib);
+            if (!isCompStatusInactive(ribNorm)) out.push('RIB');
+
+            const collNorm = normalizeCompStatusNorm(inObj.coll);
+            if (!isCompStatusInactive(collNorm)) out.push('COLL/TAP');
+
+            const trsfTipoNorm = normalizeCompStatusNorm(inObj.trsfTipo);
+            const trsfEstadoNorm = normalizeCompStatusNorm(inObj.trsfEstado);
+            const trsfRawNorm = normalizeCompStatusNorm(inObj.trsfRaw);
+            const hasEnPrenda = trsfTipoNorm.indexOf('EN PRENDA') !== -1 || trsfRawNorm.indexOf('EN PRENDA') !== -1 || trsfEstadoNorm.indexOf('EN PRENDA') !== -1;
+            const hasEnPieza = trsfTipoNorm.indexOf('EN PIEZA') !== -1 || trsfRawNorm.indexOf('EN PIEZA') !== -1 || trsfEstadoNorm.indexOf('EN PIEZA') !== -1;
+            if (hasEnPrenda && !hasEnPieza) out.push('TRSF: En prenda');
+
+            return Array.from(new Set(out));
+        }
+
+        function ensureHabilitadoHeaderNormalSnapshot() {
+            if (habilitadoHeaderNormalHtml) return;
+            const thead = document.querySelector('#table-habilitado thead');
+            if (thead) habilitadoHeaderNormalHtml = thead.innerHTML;
+        }
+
+        function setHabilitadoHeaderForIngresosMode(enabled) {
+            ensureHabilitadoHeaderNormalSnapshot();
+            const thead = document.querySelector('#table-habilitado thead');
+            const table = document.getElementById('table-habilitado');
+            if (!thead) return;
+
+            if (enabled) {
+                if (thead.getAttribute('data-mode') !== 'ingresos') {
+                    thead.innerHTML = `<tr>
+                        <th style="width: 68px; text-align: center;">F.ING.REAL</th>
+                        <th style="width: 62px; text-align: center;">HOD</th>
+                        <th class="col-planta" style="width: 62px; text-align:center;">PLANTA</th>
+                        <th class="col-linea" style="width: 62px; text-align:center;">LINEA</th>
+                        <th style="width: 45px; text-align:center;">CLI</th>
+                        <th style="width: 65px;">OC</th>
+                        <th class="col-color" style="width: 120px;">COLOR</th>
+                        <th style="width: 45px; text-align:center;">PDS</th>
+                        <th style="width: 55px;" class="col-pda">PDA</th>
+                        <th style="width: 90px;" class="col-cert">CERT</th>
+                        <th class="col-comp-otros" style="width: 100px; text-align:left;">COMP/OTROS</th>
+                        <th class="col-observaciones" style="width: 150px; text-align:left;">OBSERVACIONES</th>
+                    </tr>`;
+                }
+                thead.setAttribute('data-mode', 'ingresos');
+                if (table) table.setAttribute('data-mode', 'ingresos');
+            } else {
+                if (habilitadoHeaderNormalHtml && thead.getAttribute('data-mode') === 'ingresos') {
+                    thead.innerHTML = habilitadoHeaderNormalHtml;
+                }
+                thead.setAttribute('data-mode', 'normal');
+                if (table) table.setAttribute('data-mode', 'normal');
+            }
+        }
+
+        function updateHabilitadoIngresosControls() {
+            const btn = document.getElementById('btn-habilitado-ingresos');
+            if (btn) btn.classList.toggle('active', !!isHabilitadoIngresosMode);
+
+            const wrap = document.getElementById('habilitado-ingresos-filters');
+            if (wrap) wrap.style.display = isHabilitadoIngresosMode ? 'flex' : 'none';
+
+            const btnPrint = document.getElementById('btn-print-habilitado-prog');
+            if (btnPrint) {
+                if (isHabilitadoIngresosMode) {
+                    btnPrint.style.display = 'none';
+                } else {
+                    const isProgSubtab = (currentHabilitadoFilter === 'PROG 1T' || currentHabilitadoFilter === 'PROG 2T' || currentHabilitadoFilter === 'PROG 3T');
+                    btnPrint.style.display = isProgSubtab ? 'inline-flex' : 'none';
+                }
+            }
+
+            try {
+                const activeWrap = document.getElementById('habilitado-active-filters');
+                if (activeWrap) {
+                    if (isHabilitadoIngresosMode) activeWrap.style.display = 'none';
+                    else if (typeof renderHabilitadoActiveFilters === 'function') renderHabilitadoActiveFilters();
+                }
+            } catch (e) {}
+        }
+
+        function renderHabilitadoIngresosDateOptions(rowsOk) {
+            const select = document.getElementById('habilitado-ingresos-date-filter');
+            if (!select) return;
+
+            const byKey = new Map();
+            let hasEmpty = false;
+
+            rowsOk.forEach(obj => {
+                const row = obj.row || obj;
+                const rawFIngReal = getRawFIngRealFromRow(row);
+                const key = getFIngRealDayMonthKey(rawFIngReal);
+                const label = getFIngRealDayMonthLabel(rawFIngReal);
+                if (key && label) {
+                    if (!byKey.has(key)) byKey.set(key, label);
+                } else {
+                    hasEmpty = true;
+                }
+            });
+
+            const sorted = Array.from(byKey.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+
+            // Filtro por defecto: ayer (dd/mmm) cuando el usuario aún no eligió uno.
+            if (!habilitadoIngresosDateFilter) {
+                const yesterday = new Date();
+                yesterday.setDate(yesterday.getDate() - 1);
+                const yesterdayLabel = formatDayMonthEsFromDate(yesterday);
+                const hasYesterday = sorted.some((entry) => entry[1] === yesterdayLabel);
+                if (hasYesterday) habilitadoIngresosDateFilter = yesterdayLabel;
+            }
+
+            if (habilitadoIngresosDateFilter === '__EMPTY__' && !hasEmpty) {
+                habilitadoIngresosDateFilter = '';
+            }
+            if (habilitadoIngresosDateFilter && habilitadoIngresosDateFilter !== '__EMPTY__') {
+                const exists = sorted.some((entry) => entry[1] === habilitadoIngresosDateFilter);
+                if (!exists) habilitadoIngresosDateFilter = '';
+            }
+
+            let html = '<option value="">Todos</option>';
+            sorted.forEach((entry) => {
+                const label = entry[1];
+                const selected = (habilitadoIngresosDateFilter === label) ? ' selected' : '';
+                html += `<option value="${escapeHtmlHabilitadoIngresos(label)}"${selected}>${escapeHtmlHabilitadoIngresos(label)}</option>`;
+            });
+            if (hasEmpty) {
+                const selected = (habilitadoIngresosDateFilter === '__EMPTY__') ? ' selected' : '';
+                html += `<option value="__EMPTY__"${selected}>VACIO</option>`;
+            }
+
+            select.innerHTML = html;
+            if (!habilitadoIngresosDateFilter) select.value = '';
+        }
+
+        function getHabilitadoIngresosPlantValue(row) {
+            return String(getVal(row, 'PLANTA') || '').trim();
+        }
+
+        function renderHabilitadoIngresosPlantPills(rowsBase) {
+            const container = document.getElementById('habilitado-ingresos-plant-pills');
+            if (!container) return;
+
+            const seen = new Set();
+            const plants = [];
+            let hasEmpty = false;
+
+            (rowsBase || []).forEach((obj) => {
+                const row = obj.row || obj;
+                const planta = getHabilitadoIngresosPlantValue(row);
+                if (!planta) {
+                    hasEmpty = true;
+                    return;
+                }
+                if (seen.has(planta)) return;
+                seen.add(planta);
+                plants.push(planta);
+            });
+
+            plants.sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
+
+            const options = [{ value: '', label: 'Todas' }]
+                .concat(plants.map((planta) => ({ value: planta, label: planta })));
+            if (hasEmpty) options.push({ value: '__EMPTY__', label: 'VACIO' });
+
+            if (!options.some((opt) => opt.value === habilitadoIngresosPlantFilter)) {
+                habilitadoIngresosPlantFilter = '';
+            }
+
+            container.innerHTML = options.map((opt) => {
+                const active = opt.value === habilitadoIngresosPlantFilter ? ' active' : '';
+                return `<button type="button" class="habilitado-ingresos-plant-pill${active}" data-value="${escapeHtmlHabilitadoIngresos(opt.value)}">${escapeHtmlHabilitadoIngresos(opt.label)}</button>`;
+            }).join('');
+
+            container.querySelectorAll('.habilitado-ingresos-plant-pill').forEach((btn) => {
+                btn.addEventListener('click', () => {
+                    window.onHabilitadoIngresosPlantFilterChange(btn.getAttribute('data-value') || '');
+                });
+            });
+        }
+
+        function updateHabilitadoIngresosPdsPill(rowsFiltered) {
+            const pill = document.getElementById('habilitado-ingresos-pds-pill');
+            if (!pill) return;
+
+            let totalPds = 0;
+            (rowsFiltered || []).forEach((obj) => {
+                const row = obj.row || obj;
+                totalPds += parseFloat(getVal(row, 'PDS GIRADAS')) || 0;
+            });
+
+            pill.innerHTML = `PDS: <strong>${escapeHtmlHabilitadoIngresos(formatThousands(totalPds, 0))}pds</strong>`;
+        }
+
+        function renderHabilitadoIngresosView(tbody) {
+            setHabilitadoHeaderForIngresosMode(true);
+            updateHabilitadoIngresosControls();
+
+            const rowsOk = [];
+            const idxHabil = findHeaderIndexCaseInsensitive('estado_habilitado');
+
+            for (let i = 1; i < rawData.length; i++) {
+                const row = rawData[i];
+                let habilVal = '';
+                if (idxHabil !== -1 && row[idxHabil] !== undefined) habilVal = row[idxHabil];
+                else habilVal = getVal(row, 'estado_habilitado') || getVal(row, 'ESTADO_HABILITADO') || '';
+                const habilNorm = String(habilVal || '').toUpperCase().trim();
+                if (habilNorm === 'OK') rowsOk.push({ idx: i, row: row });
+            }
+
+            const getOcSortKey = (row) => {
+                const ocDirecto = String(getVal(row, 'OC') || '').trim();
+                if (ocDirecto) return ocDirecto.toLowerCase();
+                const op = String(getVal(row, 'OP') || '').trim();
+                const corte = String(getVal(row, 'CORTE') || '').trim();
+                if (op || corte) return `${op}-${corte}`.toLowerCase();
+                const opTela = String(getVal(row, 'OP TELA') || '').trim();
+                const partida = String(getVal(row, 'PARTIDA') || '').trim();
+                return `${opTela}-${partida}`.toLowerCase();
+            };
+
+            rowsOk.sort((a, b) => {
+                const cmpOc = getOcSortKey(a.row).localeCompare(getOcSortKey(b.row), undefined, { numeric: true, sensitivity: 'base' });
+                if (cmpOc !== 0) return cmpOc;
+                const dateA = parseDateFromAnyHabilitado(getVal(a.row, 'HOD'));
+                const dateB = parseDateFromAnyHabilitado(getVal(b.row, 'HOD'));
+                const timeA = dateA ? dateA.getTime() : 0;
+                const timeB = dateB ? dateB.getTime() : 0;
+                return timeB - timeA;
+            });
+
+            renderHabilitadoIngresosDateOptions(rowsOk);
+
+            const rowsAfterDateFilter = rowsOk.filter((obj) => {
+                if (!habilitadoIngresosDateFilter) return true;
+                const rawFIngReal = getRawFIngRealFromRow(obj.row);
+                const label = getFIngRealDayMonthLabel(rawFIngReal);
+                if (habilitadoIngresosDateFilter === '__EMPTY__') return !label;
+                return label === habilitadoIngresosDateFilter;
+            });
+
+            renderHabilitadoIngresosPlantPills(rowsAfterDateFilter);
+
+            const filteredRows = rowsAfterDateFilter.filter((obj) => {
+                if (!habilitadoIngresosPlantFilter) return true;
+                const planta = getHabilitadoIngresosPlantValue(obj.row);
+                if (habilitadoIngresosPlantFilter === '__EMPTY__') return !planta;
+                return planta === habilitadoIngresosPlantFilter;
+            });
+
+            updateHabilitadoIngresosPdsPill(filteredRows);
+
+            if (filteredRows.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="12" style="text-align:center; padding:16px;">No hay ingresos habilitados con estado OK para el filtro seleccionado.</td></tr>';
+                try { markFilteredColumns('view-habilitado', []); } catch (e) {}
+                return;
+            }
+
+            let lastOpPtda = null;
+            let currentRowGroup = 'a';
+            filteredRows.forEach((obj) => {
+                const i = obj.idx;
+                const row = obj.row;
+                const tr = document.createElement('tr');
+
+                const opTela = String(getVal(row, 'OP TELA') || '').trim();
+                const partida = String(getVal(row, 'PARTIDA') || '').trim();
+                const currentOpPtda = `${opTela}-${partida}`;
+                if (lastOpPtda !== null && currentOpPtda !== lastOpPtda) {
+                    currentRowGroup = (currentRowGroup === 'a') ? 'b' : 'a';
+                }
+                lastOpPtda = currentOpPtda;
+                tr.classList.add(`group-${currentRowGroup}`);
+
+                const idxP = findHeaderIndexCaseInsensitive('P');
+                if (idxP !== -1) {
+                    const pValue = String(row[idxP] || '').trim();
+                    if (pValue === '1') tr.classList.add('priority-1');
+                }
+
+                const rawFIngReal = getRawFIngRealFromRow(row);
+                const fIngReal = getFIngRealDayMonthLabel(rawFIngReal) || '-';
+                const fIngRealTime = getFIngRealTimeLabel(rawFIngReal);
+                const hod = formatValue(getVal(row, 'HOD'), 'date') || '';
+                const cli = normalizeClientName(getVal(row, 'CLIENTE')) || '';
+                const op = String(getVal(row, 'OP') || '').trim();
+                const corte = String(getVal(row, 'CORTE') || '').trim();
+                const oc = `${op}-${corte}`;
+                const color = abbreviateHeather(getVal(row, 'COLOR')) || '';
+                const pdsRaw = parseFloat(getVal(row, 'PDS GIRADAS')) || 0;
+                const pds = formatThousands(pdsRaw, 0);
+                const prenda = normalizePrenda(getVal(row, 'PRENDA')) || '';
+                const tipoCert = normalizeTipoCert(getVal(row, 'TIPO CERTIFICADO')) || '';
+
+                const ribVal = String(getVal(row, 'estado_rib') || getVal(row, 'RIB') || '').trim();
+                const bloqVal = String(getVal(row, 'estado_bloques') || getVal(row, 'ESTADO_BLOQUES') || '').trim();
+                const collVal = String(getVal(row, 'estado_coll_tap') || getVal(row, 'COLL o TAP?') || '').trim();
+                const trsfTipo = String(getVal(row, 'tipo-transfer') || getVal(row, 'TIPO-TRANSFER') || getVal(row, 'tipo_transfer') || '').trim();
+                const trsfVal = String(getVal(row, 'estado_transfer') || getVal(row, 'ESTADO_TRANSFER') || '').trim();
+                const bordVal = String(getVal(row, 'estado_bordado') || '').trim();
+                const estmVal = String(getVal(row, 'estado_estampado') || '').trim();
+                const compOtros = getCompOtrosNormalizedParts({
+                    rib: ribVal,
+                    bloq: bloqVal,
+                    coll: collVal,
+                    trsfTipo: trsfTipo,
+                    trsfEstado: trsfVal,
+                    bord: bordVal,
+                    estm: estmVal
+                }).join(' | ');
+
+                const observaciones = String(getVal(row, 'OBSERVACIONES') || getVal(row, 'OBSERVACION') || getVal(row, 'OBS') || '').trim();
+                const planta = String(getVal(row, 'PLANTA') || '').trim() || 'XASIG';
+                const linea = String(getVal(row, 'LINEA') || '').trim() || 'XASIG';
+
+                tr.setAttribute('data-row-index', i);
+                tr.innerHTML = `
+                    <td class="date-cell" style="text-align:center;" title="${escapeHtmlHabilitadoIngresos(fIngRealTime ? 'Hora ingreso: ' + fIngRealTime : '')}">${escapeHtmlHabilitadoIngresos(fIngReal)}</td>
+                    <td class="date-cell" style="text-align:center;">${escapeHtmlHabilitadoIngresos(hod)}</td>
+                    <td class="cell-planta" style="text-align:center;">${escapeHtmlHabilitadoIngresos(planta)}</td>
+                    <td class="linea-cell" style="text-align:center;">${escapeHtmlHabilitadoIngresos(linea)}</td>
+                    <td style="text-align:center;" title="${escapeHtmlHabilitadoIngresos(cli)}">${escapeHtmlHabilitadoIngresos(cli)}</td>
+                    <td class="op-cell" title="${escapeHtmlHabilitadoIngresos(oc)}">${escapeHtmlHabilitadoIngresos(oc)}</td>
+                    <td class="cell-color" title="${escapeHtmlHabilitadoIngresos(color)}">${escapeHtmlHabilitadoIngresos(color)}</td>
+                    <td class="kg-cell pds-cell" style="text-align:center;">${escapeHtmlHabilitadoIngresos(pds)}</td>
+                    <td class="cell-pda" title="${escapeHtmlHabilitadoIngresos(prenda)}">${escapeHtmlHabilitadoIngresos(prenda)}</td>
+                    <td class="cell-cert" title="${escapeHtmlHabilitadoIngresos(tipoCert)}">${escapeHtmlHabilitadoIngresos(tipoCert)}</td>
+                    <td class="wrap-text col-comp-otros" style="text-align:left;" title="${escapeHtmlHabilitadoIngresos(compOtros)}">${escapeHtmlHabilitadoIngresos(compOtros)}</td>
+                    <td class="wrap-text observaciones-cell col-observaciones" style="text-align:left;" title="${escapeHtmlHabilitadoIngresos(observaciones)}" ondblclick="editObservaciones(this, ${i})"><span class="observaciones-display">${escapeHtmlHabilitadoIngresos(observaciones)}</span></td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            try { markFilteredColumns('view-habilitado', []); } catch (e) {}
+        }
+
+        window.toggleHabilitadoIngresosMode = function() {
+            isHabilitadoIngresosMode = !isHabilitadoIngresosMode;
+            if (!isHabilitadoIngresosMode) {
+                habilitadoIngresosDateFilter = '';
+                habilitadoIngresosPlantFilter = '';
+            }
+            renderHabilitado();
+        };
+
+        window.onHabilitadoIngresosDateFilterChange = function(value) {
+            habilitadoIngresosDateFilter = value || '';
+            if (isHabilitadoIngresosMode) renderHabilitado();
+        };
+
+        window.onHabilitadoIngresosPlantFilterChange = function(value) {
+            habilitadoIngresosPlantFilter = value || '';
+            if (isHabilitadoIngresosMode) renderHabilitado();
+        };
+
         function renderHabilitado() {
             const tbody = document.getElementById('tbody-habilitado');
             if (!tbody) return;
             tbody.innerHTML = "";
+            if (isHabilitadoIngresosMode) {
+                renderHabilitadoIngresosView(tbody);
+                return;
+            }
+            setHabilitadoHeaderForIngresosMode(false);
+            updateHabilitadoIngresosControls();
             let count = 0;
             let lastOpPtda = null;
             let currentRowGroup = 'a'; // Para alternar sombreado de filas
@@ -6024,6 +6717,11 @@
                             estampHtml = `<td style="text-align:center;" title="${estampVal}">${estampVal}</td>`;
                         }
                     } catch(e) { estampHtml = `<td style="text-align:center;" title="${estampVal}">${estampVal}</td>`; }
+                    const escapeHtml = (txt) => String(txt || '')
+                        .replace(/&/g, '&amp;')
+                        .replace(/</g, '&lt;')
+                        .replace(/>/g, '&gt;')
+                        .replace(/"/g, '&quot;');
                     const extractCompText = (cellHtml) => {
                         const plain = String(cellHtml || '')
                             .replace(/<[^>]*>/g, ' ')
@@ -6049,11 +6747,6 @@
                     if (trsfComp) compItems.push({ label: 'TRSF', value: trsfComp });
                     if (bordComp) compItems.push({ label: 'BORD', value: bordComp });
                     if (estmComp) compItems.push({ label: 'ESTM', value: estmComp });
-                    const escapeHtml = (txt) => String(txt || '')
-                        .replace(/&/g, '&amp;')
-                        .replace(/</g, '&lt;')
-                        .replace(/>/g, '&gt;')
-                        .replace(/"/g, '&quot;');
                     const compOtrosText = compItems.map(item => `${item.label}: ${item.value}`).join(' | ');
                     const compOtrosSafe = escapeHtml(compOtrosText);
                     const compOtrosRich = compItems
@@ -8706,6 +9399,9 @@
         
         window.filterHabilitado = function(filterState, btn) {
             currentHabilitadoFilter = filterState;
+            isHabilitadoIngresosMode = false;
+            habilitadoIngresosDateFilter = '';
+            habilitadoIngresosPlantFilter = '';
             document.querySelectorAll('#view-habilitado .sub-tab').forEach(el => el.classList.remove('active'));
             if (btn) btn.classList.add('active');
             // Limpiar filtros de encabezado cuando se cambia de sub-tab
