@@ -484,6 +484,22 @@
 
         /* --- ESTILOS DE CELDA --- */
         .op-cell { font-weight: 600; color: var(--gray-800); }
+        /* OC must always be fully visible, even with browser zoom changes */
+        tbody td.oc-cell {
+            white-space: normal !important;
+            overflow: visible !important;
+            text-overflow: clip !important;
+            overflow-wrap: anywhere;
+            word-break: break-word;
+            min-width: 86px;
+            line-height: 1.15;
+        }
+        tbody td.oc-cell .oc-link {
+            white-space: normal !important;
+            overflow-wrap: anywhere;
+            word-break: break-word;
+            display: inline;
+        }
         .kg-cell { font-family: 'Calibri', 'Inter', sans-serif; font-weight: 600; font-size: 12px; }
         .date-cell { color: var(--gray-800); font-size: 12px; text-align: center; }
 
@@ -2296,7 +2312,7 @@
 
     <script>
         // --- CONFIGURACIÓN ---
-        const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzO3f8HVWbYN3aSdmKwdt16bbKfxNeGxcLxpvoLExme2UFAVPIc_sENIXYwgXtYkpT-Ow/exec"; 
+        const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzzGXRNq89ltyVEiLGESdOQ50DiMXWdSdW1-wTkM1ksAw2RLI7ohJY5wblJ9EnEBrwCUw/exec"; 
         const SHEET_ID = "18cQuwqerdMggAeJ8TCUKA7-gujXsA91-CRMUTNpr8aQ";
 
         let rawData = [];
@@ -5456,6 +5472,7 @@
                         
                         // OC: usar columna OC si existe, sino concatenar OP y CORTE (ej: 39579-29)
                         const tdOC = document.createElement('td');
+                        tdOC.className = 'op-cell oc-cell';
                         let ocVal = getVal(row, 'OC') || '';
                         if ((!ocVal || String(ocVal).trim() === '')) {
                             const opVal = getVal(row, 'OP') || getVal(row, 'OP TELA') || getVal(row, 'OP-PTDA') || '';
@@ -6136,7 +6153,7 @@
                     <td class="cell-planta" style="text-align:center;">${escapeHtmlHabilitadoIngresos(planta)}</td>
                     <td class="linea-cell" style="text-align:center;">${escapeHtmlHabilitadoIngresos(linea)}</td>
                     <td style="text-align:center;" title="${escapeHtmlHabilitadoIngresos(cli)}">${escapeHtmlHabilitadoIngresos(cli)}</td>
-                    <td class="op-cell" title="${escapeHtmlHabilitadoIngresos(oc)}">${escapeHtmlHabilitadoIngresos(oc)}</td>
+                    <td class="op-cell oc-cell" title="${escapeHtmlHabilitadoIngresos(oc)}">${escapeHtmlHabilitadoIngresos(oc)}</td>
                     <td class="cell-color" title="${escapeHtmlHabilitadoIngresos(color)}">${escapeHtmlHabilitadoIngresos(color)}</td>
                     <td class="kg-cell pds-cell" style="text-align:center;">${escapeHtmlHabilitadoIngresos(pds)}</td>
                     <td class="cell-pda" title="${escapeHtmlHabilitadoIngresos(prenda)}">${escapeHtmlHabilitadoIngresos(prenda)}</td>
@@ -6544,7 +6561,7 @@
                     const op = getVal(row, 'OP') || '';
                     const corte = getVal(row, 'CORTE') || '';
                     const oc = (op || corte) ? `${op}-${corte}` : '';
-                    const ocHtml = `<td class="op-cell" title="${oc}">${oc}</td>`;
+                    const ocHtml = `<td class="op-cell oc-cell" title="${oc}">${oc}</td>`;
 
                     // COLOR
                     const color = abbreviateHeather(getVal(row, 'COLOR')) || '';
@@ -7509,7 +7526,7 @@
                     ${type === "bloqueo" ? `<td title="${ruta}">${ruta}</td>` : ''}
                     <!-- TOOLTIP TITLE PARA VER TEXTO COMPLETO -->
                     <td class="op-cell wrap-text" title="${opPtda}">${opPtda}</td>
-                    <td class="op-cell" title="${oc}">${oc}</td>
+                    <td class="op-cell oc-cell" title="${oc}">${oc}</td>
                     <td title="${color}">${color}</td>
                     <td class="kg-cell" style="text-align:right;">${kg}</td>
                     <td title="${articulo}">${articulo}</td>
@@ -7648,7 +7665,7 @@
                     ${fIngCostHtml}
                     <td title="${cliente}">${cliente}</td>
                     <td title="${rutaVal}">${rutaDisplay}</td>
-                    <td class="op-cell" title="${oc}">${tendidoBtnHtml}<span class="oc-link" onclick="if(isHabilitadoView()) abrirModalOC(${rowIndex});">${oc}</span></td>
+                    <td class="op-cell oc-cell" title="${oc}">${tendidoBtnHtml}<span class="oc-link" onclick="if(isHabilitadoView()) abrirModalOC(${rowIndex});">${oc}</span></td>
                     <td title="${color}">${color}</td>
                     <td class="op-cell wrap-text" title="${opPtda}">${opPtdaHtml}</td>
                     <td class="kg-cell" style="text-align:center;">${pdsStr}</td>
@@ -11068,6 +11085,7 @@
 
                 // OC
                 const tdOC = document.createElement('td');
+                tdOC.className = 'op-cell oc-cell';
                 let ocVal = getVal(row, 'OC') || '';
                 if ((!ocVal || String(ocVal).trim() === '')) {
                     const opVal = getVal(row, 'OP') || getVal(row, 'OP TELA') || getVal(row, 'OP-PTDA') || '';
@@ -11227,7 +11245,7 @@
                 // CLIENTE
                 const tdCliente = document.createElement('td'); tdCliente.innerText = normalizeClientForTransfer(getVal(row, 'CLIENTE') || ''); tr.appendChild(tdCliente);
                 // OC
-                const tdOC = document.createElement('td'); let ocVal = getVal(row, 'OC') || ''; if ((!ocVal || String(ocVal).trim() === '')) { const opVal = getVal(row, 'OP') || getVal(row, 'OP TELA') || getVal(row, 'OP-PTDA') || ''; const corteVal = getVal(row, 'CORTE') || getVal(row, 'PARTIDA') || ''; if (opVal && corteVal) ocVal = `${String(opVal).trim()}-${String(corteVal).trim()}`; } tdOC.innerText = ocVal; tr.appendChild(tdOC);
+                const tdOC = document.createElement('td'); tdOC.className = 'op-cell oc-cell'; let ocVal = getVal(row, 'OC') || ''; if ((!ocVal || String(ocVal).trim() === '')) { const opVal = getVal(row, 'OP') || getVal(row, 'OP TELA') || getVal(row, 'OP-PTDA') || ''; const corteVal = getVal(row, 'CORTE') || getVal(row, 'PARTIDA') || ''; if (opVal && corteVal) ocVal = `${String(opVal).trim()}-${String(corteVal).trim()}`; } tdOC.innerText = ocVal; tr.appendChild(tdOC);
                 // COLOR
                 const tdColor = document.createElement('td'); tdColor.innerText = abbreviateHeather(getVal(row, 'COLOR') || ''); tr.appendChild(tdColor);
                 // PDS
@@ -11817,6 +11835,23 @@
             return values;
         }
 
+        let tendidoDeleteInFlight = false;
+
+        async function deleteTendidoInSheet(opValue, corteValue, fallbackExcelRow) {
+            const payload = {
+                action: 'deleteRecord',
+                rowIndex: fallbackExcelRow,
+                op: String(opValue || '').trim(),
+                corte: String(corteValue || '').trim(),
+                reason: 'deleteTendido'
+            };
+            await fetch(WEB_APP_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                body: JSON.stringify(payload)
+            });
+        }
+
         function renderModalTendidoRows(prefillValues) {
             const tbody = document.getElementById('modal-tendido-tbody');
             if (!tbody) return;
@@ -11862,7 +11897,9 @@
             }
         }
 
-        window.eliminarUltimoTendidoModal = function() {
+        window.eliminarUltimoTendidoModal = async function() {
+            if (tendidoDeleteInFlight) return;
+            tendidoDeleteInFlight = true;
             try {
                 if (!modalTendidoData || !Array.isArray(modalTendidoData.tendidos) || modalTendidoData.tendidos.length <= 1) {
                     alert('Debe existir al menos un tendido.');
@@ -11890,6 +11927,20 @@
                     const rowIdxRaw = modalTendidoData.tendidoRows[lastIdx];
                     const excelRow = rowIdxRaw + 1;
 
+                    const opIdx = colMap["OP"];
+                    const corteIdx = colMap["CORTE"];
+                    const rowToDelete = (rowIdxRaw >= 1 && rowIdxRaw < rawData.length) ? rawData[rowIdxRaw] : null;
+                    const opToDelete = (rowToDelete && opIdx !== undefined && opIdx !== -1) ? rowToDelete[opIdx] : modalTendidoData.op;
+                    const corteToDelete = (rowToDelete && corteIdx !== undefined && corteIdx !== -1) ? rowToDelete[corteIdx] : lastTendido;
+
+                    try {
+                        await deleteTendidoInSheet(opToDelete, corteToDelete, excelRow);
+                    } catch (e) {
+                        console.error('Error eliminando tendido del sheet', e);
+                        alert('No se pudo eliminar el tendido en el sheet. Intente nuevamente.');
+                        return;
+                    }
+
                     if (rowIdxRaw >= 1 && rowIdxRaw < rawData.length) {
                         rawData.splice(rowIdxRaw, 1);
                     }
@@ -11903,17 +11954,7 @@
                     if (typeof modalTendidoData.rowIndex === 'number' && modalTendidoData.rowIndex > rowIdxRaw) {
                         modalTendidoData.rowIndex = modalTendidoData.rowIndex - 1;
                     }
-
                     modalTendidoData.pdsTotal = Math.max(0, (parseFloat(modalTendidoData.pdsTotal) || 0) - lastPds);
-                    try {
-                        const url = WEB_APP_URL + '?action=deleteRecord&rowIndex=' + encodeURIComponent(excelRow);
-                        const img = new Image();
-                        img.src = url;
-                        img.onload = function() { console.log('Delete tendido enviada (imagen cargada)'); };
-                        img.onerror = function() { console.log('Delete tendido enviada (imagen error)'); };
-                    } catch (e) {
-                        console.error('Error eliminando tendido del sheet', e);
-                    }
                 }
 
                 modalTendidoData.tendidos.splice(lastIdx, 1);
@@ -11936,6 +11977,8 @@
             } catch (e) {
                 console.error('Error eliminando ultimo tendido', e);
                 alert('No se pudo eliminar el tendido.');
+            } finally {
+                tendidoDeleteInFlight = false;
             }
         };
 
