@@ -1307,6 +1307,26 @@
         }
         .btn-print-circle i { font-size: 14px; }
 
+        /* Boton circular para "Nuevo corte" en Corte PROG 1T/2T/3T */
+        .btn-new-corte-circle {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            border: 1px solid #f59e0b;
+            background: #ffedd5;
+            color: #c2410c;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .btn-new-corte-circle:hover {
+            background: #f59e0b;
+            color: var(--white);
+        }
+        .btn-new-corte-circle i { font-size: 14px; font-weight: 700; }
+
         @media print {
             @page { margin-top: 5mm; margin-bottom: 5mm; margin-left: 5mm; margin-right: 5mm; }
             /* --- BLOQUEO PROGRAMADO --- */
@@ -1645,6 +1665,44 @@
             <div class="modal-buttons">
                 <button class="btn-modal btn-limpiar" onclick="limpiarModalTendido()">Limpiar</button>
                 <button class="btn-modal btn-guardar" onclick="guardarModalTendido()">Guardar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL NUEVO CORTE -->
+    <div id="modal-nuevo-corte" class="modal-overlay" onclick="if(event.target === this) cerrarModalNuevoCorte()">
+        <div class="modal-content" style="max-width: 720px; width: 76%;">
+            <div class="modal-header">
+                <div>
+                    <div class="modal-title">Nuevo corte</div>
+                    <div class="modal-subtitle" id="modal-nuevo-corte-subtitle">Seleccione una OC y agregue nuevos tendidos</div>
+                </div>
+                <button class="modal-close" onclick="cerrarModalNuevoCorte()">&times;</button>
+            </div>
+
+            <div style="display:flex; gap:10px; align-items:center; margin: 8px 0 12px;">
+                <input type="text" id="modal-nuevo-corte-oc-input" placeholder="Buscar OC (ej: 40644-2)" style="flex:1; padding:10px 12px; border:1px solid var(--gray-300); border-radius:8px; font-size:13px;" onkeydown="if(event.key==='Enter'){event.preventDefault();buscarOCNuevoCorte();}">
+                <button class="btn-modal btn-guardar" style="min-width:92px; padding:10px 16px;" onclick="buscarOCNuevoCorte()">Buscar</button>
+            </div>
+
+            <div id="modal-nuevo-corte-oc-info" style="display:none; margin-bottom:10px; font-size:12px; color:var(--gray-600); background:#f8fafc; border:1px solid var(--gray-200); border-radius:8px; padding:8px 10px;"></div>
+
+            <table class="modal-table">
+                <thead>
+                    <tr>
+                        <th style="width: 30%;">TENDIDO</th>
+                        <th style="width: 30%;">PDS</th>
+                        <th style="width: 40%;">EQUIPO_CORTE</th>
+                    </tr>
+                </thead>
+                <tbody id="modal-nuevo-corte-tbody">
+                    <tr><td colspan="3" style="text-align:center; color:var(--gray-500);">Busque una OC para comenzar</td></tr>
+                </tbody>
+            </table>
+
+            <div class="modal-buttons">
+                <button class="btn-modal btn-limpiar" onclick="limpiarModalNuevoCorte()">Limpiar</button>
+                <button class="btn-modal btn-guardar" onclick="guardarModalNuevoCorte()">Guardar</button>
             </div>
         </div>
     </div>
@@ -2248,6 +2306,9 @@
                 <button id="btn-print-corte-prog" class="btn-print-circle" onclick="printCorteProg()" style="display:none;" title="Imprimir programación de los 3 turnos">
                     <i class="ph ph-printer"></i>
                 </button>
+                <button id="btn-nuevo-corte" class="btn-new-corte-circle" onclick="abrirModalNuevoCorte()" style="display:none;" title="Nuevo corte">
+                    <i class="ph ph-plus"></i>
+                </button>
                     <!-- Filtros por RUTA a la derecha -->
                     <div class="sub-filters" id="corte-route-filters" style="display:flex;">
                         <label class="filter-item"><input type="checkbox" id="flt-lv" onchange="onRouteFilterChange('LV-ok', this.checked)"><span>LV-ok</span></label>
@@ -2333,7 +2394,7 @@
 
     <script>
         // --- CONFIGURACIÓN ---
-        const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzzGXRNq89ltyVEiLGESdOQ50DiMXWdSdW1-wTkM1ksAw2RLI7ohJY5wblJ9EnEBrwCUw/exec"; 
+        const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxuCzW770E6oZd9gt6tVdFiNgOPFCdRO-N3lC-Vg-fSZjXupolsMlyaQOWlP0qlcBULAw/exec"; 
         const SHEET_ID = "18cQuwqerdMggAeJ8TCUKA7-gujXsA91-CRMUTNpr8aQ";
 
         let rawData = [];
@@ -2383,6 +2444,17 @@
             corte: '',
             color: '',
             pdsTotal: 0
+        };
+
+        // Variables para el modal "Nuevo corte"
+        let modalNuevoCorteData = {
+            sourceRowIndex: null,
+            op: '',
+            corteBase: '',
+            color: '',
+            pdsTotal: 0,
+            estadoCorteTarget: '',
+            rows: []
         };
 
         // Maneja cambios en el select de n.transfxpda; si está marcado 'Para todo'
@@ -10666,6 +10738,15 @@
                             btnPrintCorte.style.display = isProg ? 'inline-flex' : 'none';
                         }
                     } catch (e) {}
+                    // Mostrar/ocultar boton "Nuevo corte" solo en sub-tabs PROG 1T/2T/3T
+                    try {
+                        const btnNuevoCorte = document.getElementById('btn-nuevo-corte');
+                        if (btnNuevoCorte) {
+                            const isProgTurn = (filterState === 'PROG 1T' || filterState === 'PROG 2T' || filterState === 'PROG 3T');
+                            btnNuevoCorte.style.display = isProgTurn ? 'inline-flex' : 'none';
+                            if (!isProgTurn && typeof cerrarModalNuevoCorte === 'function') cerrarModalNuevoCorte();
+                        }
+                    } catch (e) {}
                     renderCorte();
         };
 
@@ -12328,6 +12409,439 @@
         window.cerrarModalTendido = function() {
             document.getElementById('modal-tendido').classList.remove('active');
             modalTendidoData = { rowIndex: null, oc: '', op: '', corte: '', color: '', pdsTotal: 0 };
+        };
+
+        function esSubtabProgCorteNuevoCorte(filterState) {
+            const v = String(filterState || '').toUpperCase().trim();
+            return (v === 'PROG 1T' || v === 'PROG 2T' || v === 'PROG 3T');
+        }
+
+        function estadoCorteFilaNuevoCorte(row) {
+            const raw = (getVal(row, 'STATUS_CORTE') || getVal(row, 'STATUS') || getVal(row, 'status') || getVal(row, 'ESTADO CORTE') || getVal(row, 'ESTADO_CORTE') || getVal(row, 'estado_corte') || '');
+            const v = String(raw || '').toUpperCase().trim();
+            return v || 'X PROG';
+        }
+
+        function escapeRegExpNuevoCorte(value) {
+            return String(value || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        }
+
+        function getCorteBaseNuevoCorte(corteValue) {
+            const corteStr = String(corteValue || '').trim();
+            if (!corteStr) return '';
+            const lastTwo = corteStr.slice(-2);
+            const isTendido = /^0[1-9]$|^[1-9]\d$/.test(lastTwo) && corteStr.length > 2;
+            return isTendido ? corteStr.slice(0, -2) : corteStr;
+        }
+
+        function splitOcNuevoCorte(value) {
+            const txt = String(value || '').trim().toUpperCase();
+            const dash = txt.indexOf('-');
+            if (dash <= 0 || dash >= txt.length - 1) return { op: '', corte: '' };
+            return {
+                op: txt.slice(0, dash).trim(),
+                corte: txt.slice(dash + 1).trim()
+            };
+        }
+
+        function findSourceRowNuevoCorte(ocQuery, estadoTarget) {
+            const q = splitOcNuevoCorte(ocQuery);
+            if (!q.op || !q.corte) return { anyRow: -1, targetRow: -1 };
+
+            let anyExactRow = -1;
+            let targetExactRow = -1;
+            let anyBaseRow = -1;
+            let targetBaseRow = -1;
+            for (let i = 1; i < rawData.length; i++) {
+                const row = rawData[i];
+                if (!row) continue;
+
+                const op = String(getVal(row, 'OP') || '').trim().toUpperCase();
+                const corte = String(getVal(row, 'CORTE') || '').trim().toUpperCase();
+                if (!op || !corte) continue;
+                if (op !== q.op) continue;
+
+                const rowBase = String(getCorteBaseNuevoCorte(corte) || '').trim().toUpperCase();
+                const queryBase = String(getCorteBaseNuevoCorte(q.corte) || '').trim().toUpperCase();
+                const isExact = (corte === q.corte);
+                const isBaseMatch = (!isExact && rowBase && queryBase && rowBase === queryBase);
+                if (!isExact && !isBaseMatch) continue;
+
+                const matchesTarget = (estadoCorteFilaNuevoCorte(row) === estadoTarget);
+                if (isExact) {
+                    if (anyExactRow === -1) anyExactRow = i;
+                    if (matchesTarget && targetExactRow === -1) targetExactRow = i;
+                    if (targetExactRow !== -1) break;
+                } else {
+                    if (anyBaseRow === -1) anyBaseRow = i;
+                    if (matchesTarget && targetBaseRow === -1) targetBaseRow = i;
+                }
+            }
+            return {
+                anyRow: anyExactRow !== -1 ? anyExactRow : anyBaseRow,
+                targetRow: targetExactRow !== -1 ? targetExactRow : targetBaseRow
+            };
+        }
+
+        function getNextTendidoNuevoCorte() {
+            if (!modalNuevoCorteData || modalNuevoCorteData.sourceRowIndex === null) return '';
+            const base = String(modalNuevoCorteData.corteBase || '').trim();
+            const op = String(modalNuevoCorteData.op || '').trim();
+            if (!base || !op) return '';
+
+            const corteIdx = findHeaderIndexCaseInsensitive('CORTE');
+            const opIdx = findHeaderIndexCaseInsensitive('OP');
+            if (corteIdx === -1 || opIdx === -1) return '';
+
+            const re = new RegExp(`^${escapeRegExpNuevoCorte(base)}(\\d{2})$`);
+            let maxSuffix = 0;
+
+            for (let i = 1; i < rawData.length; i++) {
+                const row = rawData[i];
+                if (!row) continue;
+                const rowOp = String(row[opIdx] || '').trim();
+                if (rowOp !== op) continue;
+                const rowCorte = String(row[corteIdx] || '').trim();
+                const m = rowCorte.match(re);
+                if (!m) continue;
+                const suf = parseInt(m[1], 10) || 0;
+                if (suf > maxSuffix) maxSuffix = suf;
+            }
+
+            (modalNuevoCorteData.rows || []).forEach(item => {
+                const m = String(item && item.corte ? item.corte : '').match(re);
+                if (!m) return;
+                const suf = parseInt(m[1], 10) || 0;
+                if (suf > maxSuffix) maxSuffix = suf;
+            });
+
+            return `${base}${String(maxSuffix + 1).padStart(2, '0')}`;
+        }
+
+        function collectModalNuevoCorteValues() {
+            const out = [];
+            const rows = (modalNuevoCorteData && Array.isArray(modalNuevoCorteData.rows)) ? modalNuevoCorteData.rows : [];
+            for (let i = 0; i < rows.length; i++) {
+                const pdsInput = document.getElementById(`nuevo-corte-pds-${i}`);
+                const eqSelect = document.getElementById(`nuevo-corte-equipo-${i}`);
+                out.push({
+                    pds: pdsInput ? pdsInput.value : '',
+                    equipo: eqSelect ? eqSelect.value : ''
+                });
+            }
+            return out;
+        }
+
+        function renderModalNuevoCorteRows(prefillValues) {
+            const tbody = document.getElementById('modal-nuevo-corte-tbody');
+            if (!tbody) return;
+
+            const rows = (modalNuevoCorteData && Array.isArray(modalNuevoCorteData.rows)) ? modalNuevoCorteData.rows : [];
+            if (rows.length === 0) {
+                const msg = modalNuevoCorteData && modalNuevoCorteData.sourceRowIndex !== null
+                    ? 'Agregue filas con + para crear nuevos cortes'
+                    : 'Busque una OC para comenzar';
+                tbody.innerHTML = `<tr><td colspan="3" style="text-align:center; color:var(--gray-500);">${msg}</td></tr>`;
+                return;
+            }
+
+            let equiposHtml = '<option value="">-- Seleccionar --</option>';
+            const equipos = Array.isArray(equiposCorteData) ? equiposCorteData : [];
+            equipos.forEach(eq => {
+                const nombre = String(eq && eq.nombre ? eq.nombre : '').trim();
+                if (!nombre) return;
+                const safe = nombre.replace(/"/g, '&quot;');
+                equiposHtml += `<option value="${safe}">${safe}</option>`;
+            });
+
+            let html = '';
+            for (let i = 0; i < rows.length; i++) {
+                const item = rows[i] || {};
+                const isLast = (i === rows.length - 1);
+                const btnAddHtml = isLast ? `<button class="btn-tendido" onclick="agregarFilaNuevoCorte()" title="Agregar tendido">+</button>` : '';
+                const btnDeleteHtml = (isLast && rows.length > 1)
+                    ? `<button class="btn-tendido-delete" onclick="eliminarUltimaFilaNuevoCorte()" title="Eliminar ultimo tendido"><i class="ph ph-trash"></i></button>`
+                    : '';
+
+                const prefill = (prefillValues && prefillValues[i]) ? prefillValues[i] : {};
+                const pdsVal = (prefill.pds !== undefined && prefill.pds !== null) ? String(prefill.pds) : '';
+                const eqVal = (prefill.equipo !== undefined && prefill.equipo !== null) ? String(prefill.equipo) : (item.equipo || '');
+                const pdsSafe = pdsVal.replace(/"/g, '&quot;');
+                const corteSafe = String(item.corte || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+                html += `<tr>
+                    <td style="font-weight:600; text-align:center;">${btnAddHtml}${corteSafe}</td>
+                    <td>
+                        <div class="tendido-pds-wrap">
+                            <input type="number" id="nuevo-corte-pds-${i}" value="${pdsSafe}" placeholder="Ingrese PDS" min="0">
+                            ${btnDeleteHtml}
+                        </div>
+                    </td>
+                    <td>
+                        <select id="nuevo-corte-equipo-${i}" class="table-select" style="width:100%;">
+                            ${equiposHtml}
+                        </select>
+                    </td>
+                </tr>`;
+            }
+
+            tbody.innerHTML = html;
+            for (let i = 0; i < rows.length; i++) {
+                const prefill = (prefillValues && prefillValues[i]) ? prefillValues[i] : {};
+                const eqVal = (prefill.equipo !== undefined && prefill.equipo !== null) ? String(prefill.equipo) : String((rows[i] && rows[i].equipo) || '');
+                const sel = document.getElementById(`nuevo-corte-equipo-${i}`);
+                if (sel) sel.value = eqVal;
+            }
+        }
+
+        window.abrirModalNuevoCorte = function() {
+            const target = String(currentCorteFilter || '').toUpperCase().trim();
+            if (!esSubtabProgCorteNuevoCorte(target)) {
+                alert('Nuevo corte solo esta disponible en PROG 1T, PROG 2T o PROG 3T.');
+                return;
+            }
+
+            try {
+                if (!Array.isArray(equiposCorteData) || equiposCorteData.length === 0) {
+                    cargarEquiposCorteBackground();
+                }
+            } catch (e) {}
+
+            modalNuevoCorteData = {
+                sourceRowIndex: null,
+                op: '',
+                corteBase: '',
+                color: '',
+                pdsTotal: 0,
+                estadoCorteTarget: target,
+                rows: []
+            };
+
+            const subtitle = document.getElementById('modal-nuevo-corte-subtitle');
+            if (subtitle) subtitle.innerText = `Sub-tab actual: ${target}`;
+            const info = document.getElementById('modal-nuevo-corte-oc-info');
+            if (info) {
+                info.style.display = 'none';
+                info.innerText = '';
+            }
+            const input = document.getElementById('modal-nuevo-corte-oc-input');
+            if (input) {
+                input.value = '';
+                setTimeout(() => { try { input.focus(); } catch (e) {} }, 80);
+            }
+            renderModalNuevoCorteRows();
+            const modal = document.getElementById('modal-nuevo-corte');
+            if (modal) modal.classList.add('active');
+        };
+
+        window.buscarOCNuevoCorte = function(ocQuery) {
+            const input = document.getElementById('modal-nuevo-corte-oc-input');
+            const info = document.getElementById('modal-nuevo-corte-oc-info');
+            const queryRaw = (ocQuery !== undefined && ocQuery !== null) ? ocQuery : (input ? input.value : '');
+            const query = String(queryRaw || '').trim().toUpperCase();
+            const target = String((modalNuevoCorteData && modalNuevoCorteData.estadoCorteTarget) || currentCorteFilter || '').toUpperCase().trim();
+
+            if (!query) {
+                alert('Ingrese una OC valida. Ejemplo: 40644-2');
+                return;
+            }
+            if (!esSubtabProgCorteNuevoCorte(target)) {
+                alert('Debe estar en PROG 1T, PROG 2T o PROG 3T.');
+                return;
+            }
+
+            const result = findSourceRowNuevoCorte(query, target);
+            if (result.targetRow === -1) {
+                modalNuevoCorteData.sourceRowIndex = null;
+                modalNuevoCorteData.rows = [];
+                renderModalNuevoCorteRows();
+                if (info) {
+                    info.style.display = 'block';
+                    if (result.anyRow !== -1) info.innerText = `La OC ${query} existe, pero no esta en ${target}.`;
+                    else info.innerText = `No se encontro la OC ${query}.`;
+                }
+                return;
+            }
+
+            const row = rawData[result.targetRow];
+            const op = String(getVal(row, 'OP') || '').trim();
+            const corteRaw = String(getVal(row, 'CORTE') || '').trim();
+            const corteBase = getCorteBaseNuevoCorte(corteRaw);
+            const color = abbreviateHeather(getVal(row, 'COLOR') || '');
+            const pdsTotal = parseFloat(getVal(row, 'PDS GIRADAS') || getVal(row, 'PDS') || 0) || 0;
+            const equipoDefault = String(getVal(row, 'equipo_corte') || getVal(row, 'EQUIPO CORTE') || getVal(row, 'EQUIPO_CORTE') || '').trim();
+
+            modalNuevoCorteData.sourceRowIndex = result.targetRow;
+            modalNuevoCorteData.op = op;
+            modalNuevoCorteData.corteBase = corteBase;
+            modalNuevoCorteData.color = color;
+            modalNuevoCorteData.pdsTotal = pdsTotal;
+            modalNuevoCorteData.estadoCorteTarget = target;
+            modalNuevoCorteData.rows = [];
+
+            const firstCode = getNextTendidoNuevoCorte();
+            if (!firstCode) {
+                alert('No se pudo generar el nuevo corte. Revise la OC seleccionada.');
+                renderModalNuevoCorteRows();
+                return;
+            }
+            modalNuevoCorteData.rows.push({ corte: firstCode, equipo: equipoDefault });
+            renderModalNuevoCorteRows();
+
+            if (info) {
+                info.style.display = 'block';
+                info.innerText = `OC: ${op}-${corteRaw} | COLOR: ${color || '-'} | PDS: ${formatThousands(pdsTotal, 0)} | Estado destino: ${target}`;
+            }
+        };
+
+        window.agregarFilaNuevoCorte = function() {
+            if (!modalNuevoCorteData || modalNuevoCorteData.sourceRowIndex === null) {
+                alert('Primero busque una OC.');
+                return;
+            }
+
+            const previousValues = collectModalNuevoCorteValues();
+            const nextCode = getNextTendidoNuevoCorte();
+            if (!nextCode) {
+                alert('No se pudo generar el siguiente tendido.');
+                return;
+            }
+
+            let defaultEquipo = '';
+            if (previousValues.length > 0) {
+                defaultEquipo = String(previousValues[previousValues.length - 1].equipo || '').trim();
+            }
+            if (!defaultEquipo && modalNuevoCorteData.rows.length > 0) {
+                defaultEquipo = String(modalNuevoCorteData.rows[modalNuevoCorteData.rows.length - 1].equipo || '').trim();
+            }
+
+            modalNuevoCorteData.rows.push({ corte: nextCode, equipo: defaultEquipo });
+            previousValues.push({ pds: '', equipo: defaultEquipo });
+            renderModalNuevoCorteRows(previousValues);
+        };
+
+        window.eliminarUltimaFilaNuevoCorte = function() {
+            if (!modalNuevoCorteData || !Array.isArray(modalNuevoCorteData.rows) || modalNuevoCorteData.rows.length <= 1) return;
+            const prevValues = collectModalNuevoCorteValues();
+            modalNuevoCorteData.rows.pop();
+            prevValues.pop();
+            renderModalNuevoCorteRows(prevValues);
+        };
+
+        window.limpiarModalNuevoCorte = function() {
+            if (!modalNuevoCorteData || !Array.isArray(modalNuevoCorteData.rows)) return;
+            for (let i = 0; i < modalNuevoCorteData.rows.length; i++) {
+                const pdsInput = document.getElementById(`nuevo-corte-pds-${i}`);
+                const eqSelect = document.getElementById(`nuevo-corte-equipo-${i}`);
+                if (pdsInput) pdsInput.value = '';
+                if (eqSelect) eqSelect.value = '';
+            }
+        };
+
+        window.cerrarModalNuevoCorte = function() {
+            const modal = document.getElementById('modal-nuevo-corte');
+            if (modal) modal.classList.remove('active');
+            modalNuevoCorteData = {
+                sourceRowIndex: null,
+                op: '',
+                corteBase: '',
+                color: '',
+                pdsTotal: 0,
+                estadoCorteTarget: '',
+                rows: []
+            };
+        };
+
+        window.guardarModalNuevoCorte = async function() {
+            if (!modalNuevoCorteData || modalNuevoCorteData.sourceRowIndex === null || !rawData[modalNuevoCorteData.sourceRowIndex]) {
+                alert('Primero busque una OC valida.');
+                return;
+            }
+
+            const targetEstado = String(modalNuevoCorteData.estadoCorteTarget || '').toUpperCase().trim();
+            if (!esSubtabProgCorteNuevoCorte(targetEstado)) {
+                alert('El estado destino debe ser PROG 1T, PROG 2T o PROG 3T.');
+                return;
+            }
+
+            const rowsValues = collectModalNuevoCorteValues();
+            if (!rowsValues.length || !modalNuevoCorteData.rows.length) {
+                alert('No hay filas para guardar.');
+                return;
+            }
+
+            const clearColumns = [
+                'estado_corte_bloques', 'estado_bloques', 'estado_rib', 'estado_enumerado', 'estado_coll_tap', 'estado_rectilineo',
+                'estado_habilitado', 'estado_transfer', 'estado_bordado', 'estado_estampado', 'estado_ingreso',
+                'F.ING.REAL', 'OBSERVACIONES', 'VALIDA', 'VALIDACION'
+            ];
+
+            const sourceRow = rawData[modalNuevoCorteData.sourceRowIndex];
+            const idxCorte = findHeaderIndexCaseInsensitive('CORTE');
+            const idxPds = findHeaderIndexCaseInsensitive('PDS GIRADAS');
+            const idxEquipo = findHeaderIndexCaseInsensitive('equipo_corte');
+            const idxEstado = findHeaderIndexCaseInsensitive('estado_corte');
+            const clearIdxs = clearColumns
+                .map(name => findHeaderIndexCaseInsensitive(name))
+                .filter(idx => idx !== -1);
+
+            let createdCount = 0;
+            for (let i = 0; i < modalNuevoCorteData.rows.length; i++) {
+                const rowCfg = modalNuevoCorteData.rows[i] || {};
+                const corteCode = String(rowCfg.corte || '').trim();
+                const pdsNum = parseFloat(rowsValues[i] && rowsValues[i].pds) || 0;
+                const equipoVal = String(rowsValues[i] && rowsValues[i].equipo || '').trim();
+
+                if (!corteCode) {
+                    alert(`Fila ${i + 1}: corte invalido.`);
+                    return;
+                }
+                if (!(pdsNum > 0)) {
+                    alert(`Fila ${i + 1}: ingrese un PDS valido.`);
+                    return;
+                }
+                if (!equipoVal) {
+                    alert(`Fila ${i + 1}: seleccione equipo_corte.`);
+                    return;
+                }
+
+                const newRow = [...sourceRow];
+                if (idxCorte !== -1) newRow[idxCorte] = corteCode;
+                if (idxPds !== -1) newRow[idxPds] = pdsNum;
+                if (idxEquipo !== -1) newRow[idxEquipo] = equipoVal;
+                if (idxEstado !== -1) newRow[idxEstado] = targetEstado;
+                clearIdxs.forEach(idx => { newRow[idx] = ''; });
+                try { newRow._inserted = Date.now(); } catch (e) {}
+                rawData.push(newRow);
+
+                const payload = {
+                    action: 'duplicateRow',
+                    sourceRow: modalNuevoCorteData.sourceRowIndex,
+                    newCorte: corteCode,
+                    newPds: pdsNum,
+                    estadoCorte: targetEstado,
+                    equipoCorte: equipoVal,
+                    clearColumns: clearColumns
+                };
+                fetch(WEB_APP_URL, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    body: JSON.stringify(payload)
+                }).catch(e => console.error('Error creando nuevo corte', e));
+
+                createdCount++;
+            }
+
+            try {
+                window._ocSearchState = null;
+                window._ocSearchDataStamp = Date.now();
+            } catch (e) {}
+
+            await new Promise(resolve => setTimeout(resolve, 350));
+            cerrarModalNuevoCorte();
+            updateCounters();
+            renderCorte();
+            alert(`Se crearon ${createdCount} nuevo(s) corte(s) en ${targetEstado}.`);
         };
 
         // Modal para mostrar información OC (RUTA, EQUIPO_CORTE, ESTADO_ENUMERADO)
