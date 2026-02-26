@@ -500,6 +500,22 @@
             word-break: break-word;
             display: inline;
         }
+        /* Habilitado: OC siempre en una sola línea y visible completo */
+        #view-habilitado #table-habilitado th:nth-child(6),
+        #view-habilitado #table-habilitado td.oc-cell {
+            width: auto !important;
+            min-width: 110px !important;
+        }
+        #view-habilitado #table-habilitado td.oc-cell,
+        #view-habilitado #table-habilitado td.oc-cell .oc-link {
+            white-space: nowrap !important;
+            overflow-wrap: normal !important;
+            word-break: normal !important;
+        }
+        #view-habilitado #table-habilitado td.oc-cell {
+            overflow: visible !important;
+            text-overflow: clip !important;
+        }
         .kg-cell { font-family: 'Calibri', 'Inter', sans-serif; font-weight: 600; font-size: 12px; }
         .date-cell { color: var(--gray-800); font-size: 12px; text-align: center; }
 
