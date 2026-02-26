@@ -358,23 +358,28 @@
             padding-right: 4px;
             white-space: nowrap;
         }
-        /* COLOR y CERT al tamaño de STATUS */
-        #table-habilitado th.col-color,
+        /* CERT y PDA al tamaño de STATUS */
         #table-habilitado th.col-cert,
         #table-habilitado th.col-pda,
-        #table-habilitado td.cell-color,
         #table-habilitado td.cell-cert,
         #table-habilitado td.cell-pda {
             width: 55px !important;
             min-width: 55px !important;
             max-width: 55px !important;
         }
+        /* COLOR: ancho ajustado */
+        #table-habilitado th.col-color,
+        #table-habilitado td.cell-color {
+            width: 86px !important;
+            min-width: 86px !important;
+            max-width: 86px !important;
+        }
         /* Ajustes exclusivos para subtap Ingresos (estado_habilitado = OK) */
         #table-habilitado[data-mode="ingresos"] th.col-color,
         #table-habilitado[data-mode="ingresos"] td.cell-color {
-            width: 120px !important;
-            min-width: 120px !important;
-            max-width: 120px !important;
+            width: 144px !important;
+            min-width: 144px !important;
+            max-width: 144px !important;
         }
         #table-habilitado[data-mode="ingresos"] th.col-comp-otros,
         #table-habilitado[data-mode="ingresos"] td.col-comp-otros {
