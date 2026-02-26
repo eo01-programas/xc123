@@ -7682,7 +7682,8 @@
                             try {
                                 const onCorteView = document.getElementById('view-corte') && document.getElementById('view-corte').classList.contains('active');
                                 // En PROG 1T/2T/3T: si NO LLEVA mostrar pill, si SI LLEVA mostrar desplegable con estado_rib
-                                const isProgSubtab = (currentCorteFilter === 'PROG 1T' || currentCorteFilter === 'PROG 2T' || currentCorteFilter === 'PROG 3T');
+                                const corteFilterNorm = String(currentCorteFilter || '').toUpperCase().trim();
+                                const isProgSubtab = (corteFilterNorm.startsWith('PROG ') && corteFilterNorm !== 'X PROG');
                                 if (onCorteView && isProgSubtab) {
                                     if (ribOriginal === 'NO LLEVA') {
                                         return `<span class="pill pill-rib-no-lleva" title="NO LLEVA">NO LLEVA</span>`;
@@ -8038,6 +8039,27 @@
                 const corteBase = corteNumStr.slice(0, -1); // Remover último dígito
                 
                 console.log('Serie de corte identificada:', corteBase + 'x');
+
+                // En Corte PROG 1T/2T/3T solo propagar a filas visibles actualmente en la tabla.
+                const onCorteView = !!(document.getElementById('view-corte') && document.getElementById('view-corte').classList.contains('active'));
+                const corteFilterNorm = String(currentCorteFilter || '').toUpperCase().trim();
+                const isProgTurno = (corteFilterNorm.startsWith('PROG ') && corteFilterNorm !== 'X PROG');
+                const restrictToVisibleRows = onCorteView && isProgTurno;
+                const visibleRows = new Set();
+                if (restrictToVisibleRows) {
+                    try {
+                        const tbody = document.getElementById('tbody-corte');
+                        if (tbody) {
+                            const trs = tbody.querySelectorAll('tr[data-row-index]');
+                            trs.forEach(tr => {
+                                const idx = parseInt(tr.getAttribute('data-row-index'));
+                                if (!isNaN(idx)) visibleRows.add(idx);
+                            });
+                        }
+                    } catch (e) {
+                        console.error('Error leyendo filas visibles para propagación:', e);
+                    }
+                }
                 
                 // Recopilar todas las filas que deben actualizarse
                 const rowsToUpdate = [];
@@ -8045,6 +8067,7 @@
                 // Buscar todas las filas con el mismo OP y mismo corteBase
                 for (let j = 1; j < rawData.length; j++) {
                     if (j === rowIndex) continue; // Saltar la fila actual
+                    if (restrictToVisibleRows && !visibleRows.has(j)) continue;
                     
                     const otherOP = String(rawData[j][opIdx] || '').trim();
                     const otherCorte = String(rawData[j][corteIdx] || '').trim();
@@ -8134,7 +8157,8 @@
             updateRow(rowIndex, 'estado_rib', value, selectElement, true);
 
             // 2. Solo propagar en sub-tabs PROG 1T/2T/3T de la vista Corte
-            const isProgSubtab = (currentCorteFilter === 'PROG 1T' || currentCorteFilter === 'PROG 2T' || currentCorteFilter === 'PROG 3T');
+            const corteFilterNorm = String(currentCorteFilter || '').toUpperCase().trim();
+            const isProgSubtab = (corteFilterNorm.startsWith('PROG ') && corteFilterNorm !== 'X PROG');
             if (!isProgSubtab) return;
 
             // 3. Obtener OP-PTDA de la fila actual
@@ -8161,10 +8185,26 @@
             if (ribColIdx === -1) { console.warn('No se encontró columna estado_rib'); return; }
             const sendColName = (rawData[0] && rawData[0][ribColIdx]) ? rawData[0][ribColIdx] : 'estado_rib';
 
-            // 5. Iterar TODOS los rawData (no solo DOM) para encontrar filas con mismo OP-PTDA
+            // 5. Limitar propagación a filas visibles en la tabla actual
+            const visibleRowIndices = new Set();
+            try {
+                const tbody = document.getElementById('tbody-corte');
+                if (tbody) {
+                    const rows = tbody.querySelectorAll('tr[data-row-index]');
+                    rows.forEach(tr => {
+                        const idx = parseInt(tr.getAttribute('data-row-index'));
+                        if (!isNaN(idx)) visibleRowIndices.add(idx);
+                    });
+                }
+            } catch (e) {
+                console.error('Error leyendo filas visibles para RIB:', e);
+            }
+
+            // 6. Iterar filas visibles para encontrar filas con mismo OP-PTDA
             const rowsToUpdate = [];
             for (let j = 1; j < rawData.length; j++) {
                 if (j === rowIndex) continue;
+                if (!visibleRowIndices.has(j)) continue;
                 const r = rawData[j];
                 if (!r) continue;
                 const ot = String(getVal(r, 'OP TELA') || '').trim();
@@ -8187,7 +8227,7 @@
                 return;
             }
 
-            // 6. Actualizar rawData y guardar en backend con delays escalonados
+            // 7. Actualizar rawData y guardar en backend con delays escalonados
             console.log(`RIB propagación: ${rowsToUpdate.length} filas con OP-PTDA=${currentOpPtda}`);
             
             // Mostrar modal de carga
@@ -8239,10 +8279,11 @@
         // =============================================
         window.handleBloquesChangeCorte = function(rowIndex, value, selectElement) {
             // 1. Actualizar la fila actual
-            updateRow(rowIndex, 'ESTADO_BLOQUES', value, selectElement);
+            updateRow(rowIndex, 'ESTADO_BLOQUES', value, selectElement, true);
 
             // 2. Solo propagar en sub-tabs PROG 1T/2T/3T de la vista Corte
-            const isProgSubtab = (currentCorteFilter === 'PROG 1T' || currentCorteFilter === 'PROG 2T' || currentCorteFilter === 'PROG 3T');
+            const corteFilterNorm = String(currentCorteFilter || '').toUpperCase().trim();
+            const isProgSubtab = (corteFilterNorm.startsWith('PROG ') && corteFilterNorm !== 'X PROG');
             if (!isProgSubtab) return;
 
             // 3. Obtener OP-PTDA de la fila actual
@@ -8282,10 +8323,11 @@
         // =============================================
         window.handleCollTapChangeCorte = function(rowIndex, value, selectElement) {
             // 1. Actualizar la fila actual
-            updateRow(rowIndex, 'ESTADO_COLL_TAP', value, selectElement);
+            updateRow(rowIndex, 'ESTADO_COLL_TAP', value, selectElement, true);
 
             // 2. Solo propagar en sub-tabs PROG 1T/2T/3T de la vista Corte
-            const isProgSubtab = (currentCorteFilter === 'PROG 1T' || currentCorteFilter === 'PROG 2T' || currentCorteFilter === 'PROG 3T');
+            const corteFilterNorm = String(currentCorteFilter || '').toUpperCase().trim();
+            const isProgSubtab = (corteFilterNorm.startsWith('PROG ') && corteFilterNorm !== 'X PROG');
             if (!isProgSubtab) return;
 
             // 3. Obtener OP-PTDA de la fila actual
@@ -8382,7 +8424,8 @@
                 const valNorm = (value || '').toString().toUpperCase().trim();
                 const onCorteView = document.getElementById('view-corte') && document.getElementById('view-corte').classList.contains('active');
                 const isProgSubtab = (currentCorteFilter && currentCorteFilter.toString().toUpperCase().startsWith('PROG ') && currentCorteFilter !== 'X PROG');
-                const isProgTurno = (currentCorteFilter === 'PROG 1T' || currentCorteFilter === 'PROG 2T' || currentCorteFilter === 'PROG 3T');
+                const corteFilterNormTurno = String(currentCorteFilter || '').toUpperCase().trim();
+                const isProgTurno = (corteFilterNormTurno.startsWith('PROG ') && corteFilterNormTurno !== 'X PROG');
 
                 const isStatusCol = (colName === 'estado_corte' || (typeof colName === 'string' && colName.toUpperCase() === 'STATUS') || (typeof colName === 'string' && colName.toUpperCase().includes('STATUS_CORTE')));
                 const isDirectUiChange = !!(selectElement && document.body && document.body.contains(selectElement));
