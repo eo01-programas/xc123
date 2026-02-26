@@ -8521,6 +8521,7 @@
                 const isProgSubtab = (currentCorteFilter && currentCorteFilter.toString().toUpperCase().startsWith('PROG ') && currentCorteFilter !== 'X PROG');
                 const corteFilterNormTurno = String(currentCorteFilter || '').toUpperCase().trim();
                 const isProgTurno = (corteFilterNormTurno.startsWith('PROG ') && corteFilterNormTurno !== 'X PROG');
+                const isProgTarget = (valNorm === 'PROG 1T' || valNorm === 'PROG 2T' || valNorm === 'PROG 3T');
 
                 const isStatusCol = (colName === 'estado_corte' || (typeof colName === 'string' && colName.toUpperCase() === 'STATUS') || (typeof colName === 'string' && colName.toUpperCase().includes('STATUS_CORTE')));
                 const isDirectUiChange = !!(selectElement && document.body && document.body.contains(selectElement));
@@ -8545,17 +8546,22 @@
                         return;
                     }
 
-                    // VALIDACIÓN 1: Verificar que tenga equipo_corte al cambiar de X PROG a PROG 1T/2T/3T
-                    if (isStatusCol && (valNorm === 'PROG 1T' || valNorm === 'PROG 2T' || valNorm === 'PROG 3T') && onCorteView && currentCorteFilter === 'X PROG') {
+                    // VALIDACIÓN 1: Nunca permitir programar (PROG 1T/2T/3T) si no tiene equipo_corte
+                    if (isStatusCol && isProgTarget) {
                         const equipoCorteIdx = findColIndexNormalized('equipo_corte');
-                        const equipoCorte = (equipoCorteIdx !== -1 && rawData[rowIndex] && rawData[rowIndex][equipoCorteIdx]) ? String(rawData[rowIndex][equipoCorteIdx]).trim() : '';
+                        let equipoCorte = (equipoCorteIdx !== -1 && rawData[rowIndex] && rawData[rowIndex][equipoCorteIdx]) ? String(rawData[rowIndex][equipoCorteIdx]).trim() : '';
+                        try {
+                            if (!equipoCorte && typeof pendingProgramarCorte !== 'undefined' && pendingProgramarCorte[rowIndex] && pendingProgramarCorte[rowIndex].equipo_corte) {
+                                equipoCorte = String(pendingProgramarCorte[rowIndex].equipo_corte || '').trim();
+                            }
+                        } catch (e) {}
                         
                         if (!equipoCorte || equipoCorte === '') {
                             // Revertir selección visual al valor anterior
                             const prev = (writeIdx !== undefined && writeIdx !== -1 && rawData[rowIndex] && rawData[rowIndex][writeIdx]) ? rawData[rowIndex][writeIdx] : '';
                             try { if (selectElement) selectElement.value = prev; } catch (e) {}
                             try { if (selectElement) { selectElement.style.border = '2px solid #ef4444'; setTimeout(()=>{ selectElement.style.border=''; }, 1600); } } catch(e){}
-                            alert('No ha seleccionado un equipo de corte');
+                            alert('Debe seleccionar equipo_corte antes de programar (PROG 1T/2T/3T).');
                             return; // cancelar guardado
                         }
                     }
@@ -8633,6 +8639,30 @@
                             try { if (selectElement) { selectElement.style.border = '2px solid #ef4444'; setTimeout(()=>{ selectElement.style.border=''; }, 1600); } } catch(e){}
                             alert('Completar BLOQUES/COLL/TAP');
                             return; // cancelar guardado y propagación
+                        }
+                    }
+
+                    // VALIDACIÓN 3: No permitir vaciar equipo_corte si la fila está programada en PROG 1T/2T/3T.
+                    const isEquipoCol = (typeof colName === 'string' && colName.toUpperCase().replace(/[^A-Z0-9]/g, '') === 'EQUIPOCORTE');
+                    if (isEquipoCol) {
+                        const nextEquipo = String(value || '').trim();
+                        if (nextEquipo === '') {
+                            const estadoCandidates = ['STATUS_CORTE', 'STATUS', 'status', 'estado_corte', 'ESTADO CORTE', 'ESTADO_CORTE'];
+                            let estadoActual = '';
+                            for (let k = 0; k < estadoCandidates.length; k++) {
+                                const idxEstado = findColIndexNormalized(estadoCandidates[k]);
+                                if (idxEstado !== -1 && rawData[rowIndex]) {
+                                    const v = String(rawData[rowIndex][idxEstado] || '').toUpperCase().trim();
+                                    if (v !== '') { estadoActual = v; break; }
+                                }
+                            }
+                            if (estadoActual === 'PROG 1T' || estadoActual === 'PROG 2T' || estadoActual === 'PROG 3T') {
+                                const prevEq = (writeIdx !== undefined && writeIdx !== -1 && rawData[rowIndex] && rawData[rowIndex][writeIdx]) ? rawData[rowIndex][writeIdx] : '';
+                                try { if (selectElement) selectElement.value = prevEq; } catch (e) {}
+                                try { if (selectElement) { selectElement.style.border = '2px solid #ef4444'; setTimeout(()=>{ selectElement.style.border=''; }, 1600); } } catch(e){}
+                                alert('No se puede dejar equipo_corte vacío mientras STATUS_CORTE esté en PROG 1T/2T/3T.');
+                                return;
+                            }
                         }
                     }
             } catch (e) {
@@ -8847,6 +8877,7 @@
                     const valNorm = (value || '').toString().toUpperCase().trim();
                     const onCorteView = document.getElementById('view-corte') && document.getElementById('view-corte').classList.contains('active');
                     const isProgSubtab = (currentCorteFilter && currentCorteFilter.toString().toUpperCase().startsWith('PROG ') && currentCorteFilter !== 'X PROG');
+                    const isProgTarget = (valNorm === 'PROG 1T' || valNorm === 'PROG 2T' || valNorm === 'PROG 3T');
 
                     const shouldPropagate = !(valNorm === 'OK' && onCorteView && isProgSubtab);
 
@@ -8861,12 +8892,22 @@
                         // Obtener el equipo_corte de la fila actual para propagarlo también
                         const equipoCorteIdx = findColIndexNormalized('equipo_corte');
                         const equipoCorteValue = (equipoCorteIdx !== -1 && rawData[rowIndex] && rawData[rowIndex][equipoCorteIdx]) ? rawData[rowIndex][equipoCorteIdx] : '';
+                        let skippedNoEquipo = 0;
 
                         for (let j = 1; j < rawData.length; j++) {
                             if (j === rowIndex) continue;
                             const otherOp = String(rawData[j][opTelaIdx] || '').trim().toLowerCase();
                             const otherPart = String(rawData[j][partidaIdx] || '').trim().toLowerCase();
                             if ((otherOp + '-' + otherPart) === key) {
+                                // No propagar estados PROG a filas sin equipo_corte.
+                                if (isProgTarget && equipoCorteIdx !== -1) {
+                                    const targetEquipo = (rawData[j] && rawData[j][equipoCorteIdx]) ? String(rawData[j][equipoCorteIdx]).trim() : '';
+                                    if (!targetEquipo) {
+                                        skippedNoEquipo++;
+                                        continue;
+                                    }
+                                }
+
                                 const prev = rawData[j][writeIdx];
                                 if (prev !== value) {
                                     rawData[j][writeIdx] = value;
@@ -8892,6 +8933,19 @@
                                     }
                                 }
                             }
+                        }
+
+                        if (isProgTarget && skippedNoEquipo > 0) {
+                            const msgSkip = `Se omitieron ${skippedNoEquipo} fila(s) sin equipo_corte para evitar programar sin equipo.`;
+                            try {
+                                const isDirectUiChange = !!(selectElement && document.body && document.body.contains(selectElement));
+                                if (isDirectUiChange) {
+                                    if (typeof showToast === 'function') showToast(msgSkip, 'warning');
+                                    else alert(msgSkip);
+                                } else {
+                                    console.warn(msgSkip);
+                                }
+                            } catch (e) { console.warn(msgSkip); }
                         }
                     }
 
