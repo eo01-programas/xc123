@@ -953,6 +953,20 @@
             background: #1d4ed8;
         }
 
+        /* Select del modal de cambio de equipo en OC */
+        #modal-corte-oc-equipo-select {
+            height: 40px !important;
+            min-height: 40px;
+            padding: 8px 34px 8px 10px !important;
+            font-size: 14px !important;
+            line-height: 1.2;
+            box-sizing: border-box;
+            background-position: right 10px center;
+        }
+        #modal-corte-oc-equipo-select option {
+            font-size: 14px;
+        }
+
         /* Botón de más para tendido */
         .btn-tendido {
             display: inline-flex;
@@ -1747,7 +1761,7 @@
             </div>
             <div style="padding: 10px 6px; font-size: 13px; color: var(--gray-700);">
                 <div style="margin-bottom: 8px;"><strong>Nuevo equipo:</strong></div>
-                <select id="modal-corte-oc-equipo-select" class="table-select" style="width:100%; padding:8px; font-size:13px;">
+                <select id="modal-corte-oc-equipo-select" class="table-select" style="width:100%;">
                     <option value="">-- Seleccionar --</option>
                 </select>
                 <div id="modal-corte-oc-equipo-info" style="margin-top:10px; font-size:12px; color:var(--gray-500);"></div>
@@ -2552,11 +2566,12 @@
             rows: []
         };
 
-        // Variables para modal de cambio de equipo_corte desde OC (doble click)
+        // Variables para modal de cambio de equipo_corte desde OC (click derecho)
         let modalCorteOcEquipoData = {
             rowIndices: [],
             opPtda: ''
         };
+        let corteOcContextMenuRowIndex = null;
 
         // Maneja cambios en el select de n.transfxpda; si está marcado 'Para todo'
         // aplica el mismo valor a todos los grupos visibles y dispara el guardado.
@@ -7975,7 +7990,7 @@
                     ${fIngCostHtml}
                     <td title="${cliente}">${cliente}</td>
                     <td title="${rutaVal}">${rutaDisplay}</td>
-                    <td class="op-cell oc-cell" title="${oc}">${tendidoBtnHtml}<span class="oc-link" onclick="if(isHabilitadoView()) abrirModalOC(${rowIndex});" ondblclick="abrirModalEquipoCorteOC(${rowIndex});">${oc}</span></td>
+                    <td class="op-cell oc-cell" title="${oc}">${tendidoBtnHtml}<span class="oc-link" onclick="if(isHabilitadoView()) abrirModalOC(${rowIndex});" oncontextmenu="showCorteOcContextMenu(event, ${rowIndex}); return false;">${oc}</span></td>
                     <td title="${color}">${color}</td>
                     <td class="op-cell wrap-text" title="${opPtda}">${opPtdaHtml}</td>
                     <td class="kg-cell" style="text-align:center;">${pdsStr}</td>
@@ -13713,8 +13728,62 @@
         };
 
         // ===============================
-        // MODAL CAMBIO EQUIPO_CORTE DESDE OC (DOBLE CLICK)
+        // MENÚ CONTEXTUAL OC (CLICK DERECHO) Y MODAL CAMBIO EQUIPO_CORTE
         // ===============================
+        window.showCorteOcContextMenu = function(event, rowIndex) {
+            try {
+                if (event) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                }
+
+                const viewCorte = document.getElementById('view-corte');
+                const corteFilterNorm = String(currentCorteFilter || '').toUpperCase().trim();
+                const isProgSubtab = (corteFilterNorm === 'PROG 1T' || corteFilterNorm === 'PROG 2T' || corteFilterNorm === 'PROG 3T');
+                if (!viewCorte || !viewCorte.classList.contains('active') || !isProgSubtab || isHabilitadoView()) return false;
+                if (!Number.isInteger(rowIndex) || rowIndex < 1 || !rawData || !rawData[rowIndex]) return false;
+
+                const menu = document.getElementById('corte-oc-context-menu');
+                if (!menu) return false;
+
+                corteOcContextMenuRowIndex = rowIndex;
+                menu.classList.add('active');
+
+                const menuWidth = menu.offsetWidth || 240;
+                const menuHeight = menu.offsetHeight || 44;
+                const maxLeft = Math.max(8, window.innerWidth - menuWidth - 8);
+                const maxTop = Math.max(8, window.innerHeight - menuHeight - 8);
+                const left = Math.min(Math.max(8, event.clientX), maxLeft);
+                const top = Math.min(Math.max(8, event.clientY), maxTop);
+
+                menu.style.left = left + 'px';
+                menu.style.top = top + 'px';
+            } catch (e) {
+                console.error('Error showCorteOcContextMenu:', e);
+            }
+            return false;
+        };
+
+        window.hideCorteOcContextMenu = function() {
+            const menu = document.getElementById('corte-oc-context-menu');
+            if (menu) menu.classList.remove('active');
+            corteOcContextMenuRowIndex = null;
+        };
+
+        window.abrirModalEquipoCorteOCDesdeMenu = function() {
+            const rowIndex = corteOcContextMenuRowIndex;
+            hideCorteOcContextMenu();
+            if (!Number.isInteger(rowIndex) || rowIndex < 1) return;
+            abrirModalEquipoCorteOC(rowIndex);
+        };
+
+        document.addEventListener('click', function(e) {
+            const menu = document.getElementById('corte-oc-context-menu');
+            if (menu && !menu.contains(e.target)) {
+                hideCorteOcContextMenu();
+            }
+        });
+
         function getEquipoCorteColumnIndex() {
             let idx = findHeaderIndexCaseInsensitive('equipo_corte');
             if (idx === -1) idx = findHeaderIndexCaseInsensitive('EQUIPO CORTE');
@@ -15047,6 +15116,11 @@ NOTA: Por favor adjunte los archivos descargados (${fileName}.xlsx y ${fileName}
             <button class="context-menu-btn cancel" onclick="clearEnumeradoFilter()" style="background: #ef4444; color: white;">Limpiar</button>
             <button class="context-menu-btn apply" onclick="applyEnumeradoFilter()">Aplicar</button>
         </div>
+    </div>
+
+    <!-- MENÚ CONTEXTUAL PARA OC EN CORTE PZAS -->
+    <div id="corte-oc-context-menu" class="context-menu" style="width:240px; min-width:240px;">
+        <div class="context-menu-item" onclick="abrirModalEquipoCorteOCDesdeMenu()">Cambiar de equipo de corte</div>
     </div>
 
     <!-- AUTO-REFRESH TIMER -->
