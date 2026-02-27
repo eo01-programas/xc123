@@ -1735,6 +1735,30 @@
         </div>
     </div>
 
+    <!-- MODAL CAMBIO EQUIPO_CORTE (DOBLE CLICK EN OC) -->
+    <div id="modal-corte-oc-equipo" class="modal-overlay" onclick="if(event.target === this) cerrarModalEquipoCorteOC()">
+        <div class="modal-content" style="max-width:460px; width:50%;">
+            <div class="modal-header">
+                <div>
+                    <div class="modal-title">Cambiar equipo_corte</div>
+                    <div class="modal-subtitle" id="modal-corte-oc-equipo-subtitle">OP-PTDA: --</div>
+                </div>
+                <button class="modal-close" onclick="cerrarModalEquipoCorteOC()">&times;</button>
+            </div>
+            <div style="padding: 10px 6px; font-size: 13px; color: var(--gray-700);">
+                <div style="margin-bottom: 8px;"><strong>Nuevo equipo:</strong></div>
+                <select id="modal-corte-oc-equipo-select" class="table-select" style="width:100%; padding:8px; font-size:13px;">
+                    <option value="">-- Seleccionar --</option>
+                </select>
+                <div id="modal-corte-oc-equipo-info" style="margin-top:10px; font-size:12px; color:var(--gray-500);"></div>
+            </div>
+            <div style="display:flex; justify-content:flex-end; gap:8px; padding-top:8px;">
+                <button class="btn-modal btn-limpiar" onclick="cerrarModalEquipoCorteOC()">Cancelar</button>
+                <button class="btn-modal btn-guardar" onclick="guardarModalEquipoCorteOC()">Aplicar</button>
+            </div>
+        </div>
+    </div>
+
     <!-- MODAL OC INFO -->
     <div id="modal-oc" class="modal-overlay" onclick="if(event.target === this) cerrarModalOC()">
         <div class="modal-content" style="max-width:420px; width:50%">
@@ -2436,6 +2460,77 @@
             } catch (e) { console.error('Error saving created tendido base', e); }
         }
 
+        // Orden temporal de filas en Corte PROG para mantener posicion tras crear/expandir tendidos
+        // en la interaccion actual. Se limpia al cambiar de sub-tab o de vista.
+        window._corteProgTempOrder = null;
+
+        function clearCorteProgTempOrder() {
+            window._corteProgTempOrder = null;
+        }
+
+        function getCorteOcKeyFromRow(row) {
+            if (!row) return '';
+            const op = String(getVal(row, 'OP') || '').trim().toUpperCase();
+            const corte = String(getVal(row, 'CORTE') || '').trim().toUpperCase();
+            if (!op && !corte) return '';
+            return `${op}::${corte}`;
+        }
+
+        function rememberCorteProgTempOrder(sourceRowIndex, replacementCortes) {
+            try {
+                const filterNorm = String(currentCorteFilter || '').toUpperCase().trim();
+                const isProgTurn = (filterNorm === 'PROG 1T' || filterNorm === 'PROG 2T' || filterNorm === 'PROG 3T');
+                const viewCorte = document.getElementById('view-corte');
+                if (!isProgTurn || !viewCorte || !viewCorte.classList.contains('active')) return;
+
+                const tbody = document.getElementById('tbody-corte');
+                if (!tbody) return;
+
+                const sequence = [];
+                const rows = tbody.querySelectorAll('tr[data-row-index]');
+                rows.forEach(tr => {
+                    const idx = parseInt(tr.getAttribute('data-row-index'), 10);
+                    if (!Number.isInteger(idx) || idx < 1 || !rawData[idx]) return;
+                    const key = getCorteOcKeyFromRow(rawData[idx]);
+                    if (key) sequence.push(key);
+                });
+                if (!sequence.length) return;
+
+                let sourceKey = '';
+                let sourceOp = '';
+                if (Number.isInteger(sourceRowIndex) && sourceRowIndex >= 1 && rawData[sourceRowIndex]) {
+                    const sourceRow = rawData[sourceRowIndex];
+                    sourceKey = getCorteOcKeyFromRow(sourceRow);
+                    sourceOp = String(getVal(sourceRow, 'OP') || '').trim().toUpperCase();
+                }
+
+                let nextSequence = sequence.slice();
+                if (sourceKey && sourceOp && Array.isArray(replacementCortes) && replacementCortes.length) {
+                    const replacementKeys = replacementCortes
+                        .map(c => `${sourceOp}::${String(c || '').trim().toUpperCase()}`)
+                        .filter(k => k && k !== `${sourceOp}::`);
+                    if (replacementKeys.length) {
+                        const pos = nextSequence.indexOf(sourceKey);
+                        if (pos !== -1) nextSequence.splice(pos, 1, ...replacementKeys);
+                        else nextSequence.push(...replacementKeys);
+                    }
+                }
+
+                const orderMap = {};
+                nextSequence.forEach((key, idx) => {
+                    if (!Object.prototype.hasOwnProperty.call(orderMap, key)) orderMap[key] = idx;
+                });
+
+                window._corteProgTempOrder = {
+                    filter: filterNorm,
+                    map: orderMap,
+                    at: Date.now()
+                };
+            } catch (e) {
+                console.error('Error rememberCorteProgTempOrder:', e);
+            }
+        }
+
         // Variables para el modal de tendido
         let modalTendidoData = {
             rowIndex: null,
@@ -2455,6 +2550,12 @@
             pdsTotal: 0,
             estadoCorteTarget: '',
             rows: []
+        };
+
+        // Variables para modal de cambio de equipo_corte desde OC (doble click)
+        let modalCorteOcEquipoData = {
+            rowIndices: [],
+            opPtda: ''
         };
 
         // Maneja cambios en el select de n.transfxpda; si está marcado 'Para todo'
@@ -5099,6 +5200,11 @@
                 const eqIdxB = colMap["EQUIPO_CORTE"];
                 const eqIdxC = colMap["equipo_corte"];
                 const OP_FALLBACK_NUM = 999999999;
+                const tempOrderMap = (
+                    window._corteProgTempOrder &&
+                    window._corteProgTempOrder.filter === String(currentCorteFilter || '').toUpperCase().trim() &&
+                    window._corteProgTempOrder.map
+                ) ? window._corteProgTempOrder.map : null;
 
                 const getNumericOrFallback = (v) => {
                     const n = parseInt(String(v || '').replace(/[^0-9]/g, ''), 10);
@@ -5139,6 +5245,7 @@
                         opKey: opKey,
                         opNum: getNumericOrFallback(opVal),
                         corte: corteVal,
+                        ocKey: `${opKey}::${String(corteVal || '').trim().toUpperCase()}`,
                         parsed: parsed,
                         opBaseKey: opBaseKey,
                         opPtda: opTela + '-' + partida,
@@ -5158,6 +5265,20 @@
                     const ma = rowMeta[a] || {};
                     const mb = rowMeta[b] || {};
 
+                    // Si existe un orden temporal (post-crear tendidos), respetarlo primero.
+                    if (tempOrderMap) {
+                        const keyA = ma.ocKey || '';
+                        const keyB = mb.ocKey || '';
+                        const hasA = !!keyA && Object.prototype.hasOwnProperty.call(tempOrderMap, keyA);
+                        const hasB = !!keyB && Object.prototype.hasOwnProperty.call(tempOrderMap, keyB);
+                        if (hasA && hasB) {
+                            const delta = tempOrderMap[keyA] - tempOrderMap[keyB];
+                            if (delta !== 0) return delta;
+                        } else if (hasA !== hasB) {
+                            return hasA ? -1 : 1;
+                        }
+                    }
+
                     // 1. Primero agrupar por equipo_corte (segun orden EQ de equiposCorteData)
                     const findEqOrder = (nombre) => {
                         const equipo = equiposCorteData.find(eq => eq.nombre === nombre);
@@ -5167,6 +5288,16 @@
                     const orderA = findEqOrder(ma.equipo || '');
                     const orderB = findEqOrder(mb.equipo || '');
                     if (orderA !== orderB) return orderA - orderB;
+
+                    // Si comparten el mismo orden EQ, mantener agrupacion estable por nombre de equipo
+                    // para evitar que un mismo equipo quede partido en varios bloques.
+                    const equipoKeyA = String(ma.equipo || '').trim().toUpperCase();
+                    const equipoKeyB = String(mb.equipo || '').trim().toUpperCase();
+                    if (equipoKeyA !== equipoKeyB) {
+                        if (!equipoKeyA && equipoKeyB) return 1;   // SIN EQUIPO al final del mismo EQ
+                        if (equipoKeyA && !equipoKeyB) return -1;
+                        return equipoKeyA.localeCompare(equipoKeyB, undefined, { numeric: true, sensitivity: 'base' });
+                    }
 
                     // 2. Dentro del equipo: primero OCs con tendidos desglosados
                     if (!!ma.isSplit !== !!mb.isSplit) return ma.isSplit ? -1 : 1;
@@ -5195,16 +5326,17 @@
                 });
                 
                 // Agrupar por equipo y renderizar con headers
-                let lastEquipo = null;
+                let lastEquipoKey = null;
                 let lastOpPtda = null;
                 let currentGroup = 'a';
                 
                 validIndices.forEach(i => {
                     const row = rawData[i];
                     const equipoCorte = String(row[colMap["EQUIPO CORTE"]] || row[colMap["EQUIPO_CORTE"]] || row[colMap["equipo_corte"]] || "").trim();
+                    const equipoKey = equipoCorte.toUpperCase();
                     
                     // Si cambia el equipo, insertar fila de encabezado
-                    if (equipoCorte !== lastEquipo) {
+                    if (equipoKey !== lastEquipoKey) {
                         const headerRow = document.createElement('tr');
                         headerRow.style.backgroundColor = '#FFE699';
                         headerRow.style.color = '#1e40af';
@@ -5219,8 +5351,8 @@
                             pdsEquipo = validIndices.reduce((acc, idx2) => {
                                 try {
                                     const r = rawData[idx2];
-                                    const eq = String(r[colMap["EQUIPO CORTE"]] || r[colMap["EQUIPO_CORTE"]] || r[colMap["equipo_corte"]] || "").trim();
-                                    if (eq === equipoCorte) {
+                                    const eq = String(r[colMap["EQUIPO CORTE"]] || r[colMap["EQUIPO_CORTE"]] || r[colMap["equipo_corte"]] || "").trim().toUpperCase();
+                                    if (eq === equipoKey) {
                                         const pv = parseFloat(getVal(r, "PDS GIRADAS") || getVal(r, "PDS") || 0) || 0;
                                         return acc + pv;
                                     }
@@ -5234,7 +5366,7 @@
                         </td>`;
                         tbody.appendChild(headerRow);
                         
-                        lastEquipo = equipoCorte;
+                        lastEquipoKey = equipoKey;
                         lastOpPtda = null; // Reiniciar al cambiar de equipo
                     }
                     
@@ -7843,7 +7975,7 @@
                     ${fIngCostHtml}
                     <td title="${cliente}">${cliente}</td>
                     <td title="${rutaVal}">${rutaDisplay}</td>
-                    <td class="op-cell oc-cell" title="${oc}">${tendidoBtnHtml}<span class="oc-link" onclick="if(isHabilitadoView()) abrirModalOC(${rowIndex});">${oc}</span></td>
+                    <td class="op-cell oc-cell" title="${oc}">${tendidoBtnHtml}<span class="oc-link" onclick="if(isHabilitadoView()) abrirModalOC(${rowIndex});" ondblclick="abrirModalEquipoCorteOC(${rowIndex});">${oc}</span></td>
                     <td title="${color}">${color}</td>
                     <td class="op-cell wrap-text" title="${opPtda}">${opPtdaHtml}</td>
                     <td class="kg-cell" style="text-align:center;">${pdsStr}</td>
@@ -9548,6 +9680,7 @@
         window.switchView = function(viewName, btn) {
             // Limpiar filtro temporal de búsqueda por OC al cambiar de vista manualmente
             window._searchOpPtdaFilter = null;
+            if (viewName !== 'corte') clearCorteProgTempOrder();
             document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
             document.querySelectorAll('.nav-tab').forEach(el => el.classList.remove('active'));
             document.getElementById(`view-${viewName}`).classList.add('active');
@@ -10735,6 +10868,7 @@
         };
 
         window.filterCorte = function(filterState, btn) {
+            clearCorteProgTempOrder();
             currentCorteFilter = filterState;
             document.querySelectorAll('#view-corte .sub-tab').forEach(el => el.classList.remove('active'));
             btn.classList.add('active');
@@ -13401,6 +13535,12 @@
                     tendidosData.push({ corte: tendido, pds: pds });
                     alertMsg += `\n• ${tendido} con ${formatThousands(pds, 0)} PDS`;
                 }
+
+                // Mantener el orden visual actual en esta interaccion: reemplazar la fila origen
+                // por la secuencia de nuevos tendidos en la misma posicion.
+                try {
+                    rememberCorteProgTempOrder(rowIndex, tendidosData.map(t => t.corte));
+                } catch (e) { console.error('Error preparando orden temporal de Corte PROG:', e); }
                 
                 // Actualizar rawData localmente
                 // Primer tendido reemplaza la fila original
@@ -13477,6 +13617,16 @@
             try {
                 let alertMsg = 'Se han actualizado los tendidos:';
                 const corte = modalTendidoData.corte;
+
+                // Si se agregaran nuevos tendidos, congelar orden temporal para mantener
+                // la posicion actual hasta que el usuario cambie de sub-tab/vista.
+                if (pdsValues.length > tendidoRows.length) {
+                    try {
+                        const plannedCortes = pdsValues.map((_, i) => `${corte}${String(i + 1).padStart(2, '0')}`);
+                        const sourceOrderRow = (Array.isArray(tendidoRows) && tendidoRows.length > 0) ? tendidoRows[0] : modalTendidoData.rowIndex;
+                        rememberCorteProgTempOrder(sourceOrderRow, plannedCortes);
+                    } catch (e) { console.error('Error preparando orden temporal en edicion de tendidos:', e); }
+                }
                 
                 // Actualizar tendidos existentes
                 for (let i = 0; i < Math.min(pdsValues.length, tendidoRows.length); i++) {
@@ -13560,6 +13710,181 @@
             renderCorte();
 
             alert(alertMsg);
+        };
+
+        // ===============================
+        // MODAL CAMBIO EQUIPO_CORTE DESDE OC (DOBLE CLICK)
+        // ===============================
+        function getEquipoCorteColumnIndex() {
+            let idx = findHeaderIndexCaseInsensitive('equipo_corte');
+            if (idx === -1) idx = findHeaderIndexCaseInsensitive('EQUIPO CORTE');
+            if (idx === -1) idx = findHeaderIndexCaseInsensitive('EQUIPO_CORTE');
+            return idx;
+        }
+
+        function getVisibleCorteRowsSameOpPtda(rowIndex) {
+            const out = [];
+            if (!rawData || !rawData[rowIndex]) return out;
+
+            const opTelaIdx = (colMap["OP TELA"] !== undefined) ? colMap["OP TELA"] : findHeaderIndexCaseInsensitive('OP TELA');
+            const partidaIdx = (colMap["PARTIDA"] !== undefined) ? colMap["PARTIDA"] : findHeaderIndexCaseInsensitive('PARTIDA');
+            if (opTelaIdx === -1 || partidaIdx === -1) return out;
+
+            const baseOp = String(rawData[rowIndex][opTelaIdx] || '').trim().toLowerCase();
+            const basePart = String(rawData[rowIndex][partidaIdx] || '').trim().toLowerCase();
+            const key = baseOp + '-' + basePart;
+
+            const tbody = document.getElementById('tbody-corte');
+            if (!tbody) return out;
+
+            const visibleRows = tbody.querySelectorAll('tr[data-row-index]');
+            visibleRows.forEach(tr => {
+                // Respetar solo filas visibles en la interacción actual
+                if (tr.offsetParent === null || getComputedStyle(tr).display === 'none') return;
+                const idx = parseInt(tr.getAttribute('data-row-index'), 10);
+                if (!Number.isInteger(idx) || idx < 1 || !rawData[idx]) return;
+                const op = String(rawData[idx][opTelaIdx] || '').trim().toLowerCase();
+                const part = String(rawData[idx][partidaIdx] || '').trim().toLowerCase();
+                if ((op + '-' + part) === key) out.push(idx);
+            });
+
+            return out;
+        }
+
+        window.abrirModalEquipoCorteOC = function(rowIndex) {
+            try {
+                const viewCorte = document.getElementById('view-corte');
+                if (!viewCorte || !viewCorte.classList.contains('active')) return;
+                const corteFilterNorm = String(currentCorteFilter || '').toUpperCase().trim();
+                const isProgSubtab = (corteFilterNorm === 'PROG 1T' || corteFilterNorm === 'PROG 2T' || corteFilterNorm === 'PROG 3T');
+                if (!isProgSubtab || isHabilitadoView()) return;
+                if (!rawData || rowIndex < 1 || !rawData[rowIndex]) return;
+
+                if (!Array.isArray(equiposCorteData) || equiposCorteData.length === 0) {
+                    try { cargarEquiposCorteBackground(); } catch (e) {}
+                }
+
+                const row = rawData[rowIndex];
+                const opTela = String(getVal(row, 'OP TELA') || '').trim();
+                const partida = String(getVal(row, 'PARTIDA') || '').trim();
+                const opPtda = `${opTela}-${partida}`;
+                const rowIndices = getVisibleCorteRowsSameOpPtda(rowIndex);
+                if (!rowIndices.length) rowIndices.push(rowIndex);
+
+                const idxEquipo = getEquipoCorteColumnIndex();
+                const equipoValues = new Set();
+                rowIndices.forEach(idx => {
+                    if (idxEquipo !== -1 && rawData[idx]) {
+                        const ev = String(rawData[idx][idxEquipo] || '').trim();
+                        if (ev) equipoValues.add(ev);
+                    }
+                });
+                const singleEquipo = (equipoValues.size === 1) ? Array.from(equipoValues)[0] : '';
+
+                modalCorteOcEquipoData = {
+                    rowIndices: rowIndices,
+                    opPtda: opPtda
+                };
+
+                const subtitle = document.getElementById('modal-corte-oc-equipo-subtitle');
+                if (subtitle) subtitle.innerText = `OP-PTDA: ${opPtda || '-'} | Filas visibles: ${rowIndices.length}`;
+
+                const info = document.getElementById('modal-corte-oc-equipo-info');
+                if (info) {
+                    info.innerText = (equipoValues.size > 1)
+                        ? 'El grupo tiene equipos distintos. Seleccione uno para unificar.'
+                        : 'El cambio se aplicará a todas las filas visibles del mismo OP-PTDA en este subtab.';
+                }
+
+                const sel = document.getElementById('modal-corte-oc-equipo-select');
+                if (sel) {
+                    let options = '<option value="">-- Seleccionar --</option>';
+                    const equipos = Array.isArray(equiposCorteData) ? equiposCorteData.slice() : [];
+                    equipos.sort((a, b) => (parseInt(a.eq, 10) || 999) - (parseInt(b.eq, 10) || 999));
+                    equipos.forEach(eq => {
+                        const nombre = String(eq && eq.nombre ? eq.nombre : '').trim();
+                        if (!nombre) return;
+                        const safe = nombre.replace(/"/g, '&quot;');
+                        options += `<option value="${safe}">${safe}</option>`;
+                    });
+                    if (singleEquipo && !equipos.some(e => String((e && e.nombre) || '').trim() === singleEquipo)) {
+                        const safeSingle = singleEquipo.replace(/"/g, '&quot;');
+                        options = `<option value="${safeSingle}">${safeSingle}</option>` + options;
+                    }
+                    sel.innerHTML = options;
+                    sel.value = singleEquipo || '';
+                }
+
+                const modal = document.getElementById('modal-corte-oc-equipo');
+                if (modal) modal.classList.add('active');
+            } catch (e) {
+                console.error('Error abrirModalEquipoCorteOC:', e);
+            }
+        };
+
+        window.cerrarModalEquipoCorteOC = function() {
+            const modal = document.getElementById('modal-corte-oc-equipo');
+            if (modal) modal.classList.remove('active');
+            modalCorteOcEquipoData = { rowIndices: [], opPtda: '' };
+        };
+
+        window.guardarModalEquipoCorteOC = function() {
+            try {
+                const sel = document.getElementById('modal-corte-oc-equipo-select');
+                const value = String(sel && sel.value ? sel.value : '').trim();
+                if (!value) {
+                    alert('Seleccione un equipo_corte.');
+                    return;
+                }
+
+                const rows = (modalCorteOcEquipoData && Array.isArray(modalCorteOcEquipoData.rowIndices))
+                    ? modalCorteOcEquipoData.rowIndices.slice()
+                    : [];
+                if (!rows.length) {
+                    cerrarModalEquipoCorteOC();
+                    return;
+                }
+
+                const idxEquipo = getEquipoCorteColumnIndex();
+                if (idxEquipo === -1) {
+                    alert('No se encontró la columna equipo_corte en la hoja.');
+                    return;
+                }
+
+                const sendColName = (rawData[0] && rawData[0][idxEquipo]) ? rawData[0][idxEquipo] : 'equipo_corte';
+                const changedRows = [];
+                rows.forEach(idx => {
+                    if (!Number.isInteger(idx) || idx < 1 || !rawData[idx]) return;
+                    const prev = String(rawData[idx][idxEquipo] || '').trim();
+                    if (prev === value) return;
+                    rawData[idx][idxEquipo] = value;
+                    if (typeof pendingProgramarCorte !== 'undefined' && pendingProgramarCorte[idx]) {
+                        pendingProgramarCorte[idx].equipo_corte = value;
+                    }
+                    changedRows.push(idx);
+                });
+
+                cerrarModalEquipoCorteOC();
+                renderCorte();
+
+                changedRows.forEach((idx, i) => {
+                    setTimeout(() => {
+                        fetch(WEB_APP_URL, {
+                            method: 'POST',
+                            mode: 'no-cors',
+                            body: JSON.stringify({
+                                action: 'update',
+                                row: idx,
+                                colName: sendColName,
+                                value: value
+                            })
+                        }).catch(e => console.error('Error guardando equipo_corte por OC', e));
+                    }, i * 120);
+                });
+            } catch (e) {
+                console.error('Error guardarModalEquipoCorteOC:', e);
+                alert('No se pudo guardar el equipo_corte.');
+            }
         };
 
         // ===============================
