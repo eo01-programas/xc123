@@ -744,6 +744,11 @@
             background: rgba(245,158,11,0.08);
             border: 1px solid rgba(245,158,11,0.12);
         }
+        .route-xpedir {
+            color: #9a3412;
+            background: rgba(245,158,11,0.20);
+            border: 1px solid rgba(245,158,11,0.30);
+        }
         .route-xlav {
             color: #6d28d9; /* violet */
             background: rgba(124,58,237,0.06);
@@ -791,6 +796,12 @@
             color: #065f46;
             background: rgba(16,185,129,0.08);
             border: 1px solid rgba(16,185,129,0.12);
+        }
+        /* x pedir -> naranja medio transparente */
+        .pill-xpedir {
+            color: #9a3412;
+            background: rgba(245,158,11,0.20);
+            border: 1px solid rgba(245,158,11,0.30);
         }
         /* OK (fondo azul oscuro) for BLOQUES OK state */
         .pill-ok-dark {
@@ -2352,6 +2363,7 @@
                         <label class="filter-item"><input type="checkbox" id="flt-lv" onchange="onRouteFilterChange('LV-ok', this.checked)"><span>LV-ok</span></label>
                         <label class="filter-item"><input type="checkbox" id="flt-ac" onchange="onRouteFilterChange('AC', this.checked)"><span>AC</span></label>
                         <label class="filter-item"><input type="checkbox" id="flt-xl" onchange="onRouteFilterChange('x lavar', this.checked)"><span>x lavar</span></label>
+                        <label class="filter-item"><input type="checkbox" id="flt-xp" onchange="onRouteFilterChange('x pedir', this.checked)"><span>x pedir</span></label>
                         <label class="filter-item"><input type="checkbox" id="flt-xb" onchange="onRouteFilterChange('x bloq', this.checked)"><span>x bloq</span></label>
                         <label class="filter-item" style="display:none;"><input type="checkbox" id="flt-normal" onchange="onRouteFilterChange('NORMAL', this.checked)"><span>Normal</span></label>
                     </div>
@@ -2982,6 +2994,7 @@
             'LV-ok': false,
             'AC': false,
             'x lavar': false,
+            'x pedir': false,
             'x bloq': false,
             'NORMAL': false
         };
@@ -3002,10 +3015,11 @@
             if (rutaKey === 'ACABADA') return 'AC';
             if (rutaKey === 'LAVADA') {
                 const estadoBloqRaw = getVal(row, "estado_bloqueo");
-                const estadoBloq = (!estadoBloqRaw || estadoBloqRaw === "") ? "X PROG" : String(estadoBloqRaw).toUpperCase().trim();
+                const estadoBloq = String(estadoBloqRaw || '').toUpperCase().trim();
                 const estadoLavRaw = getVal(row, "estado_lavada");
                 const estadoLav = (!estadoLavRaw || estadoLavRaw === "") ? "" : String(estadoLavRaw).toUpperCase().trim();
 
+                if (estadoBloq === '') return 'x pedir';
                 if (estadoBloq.includes('PROG')) return 'x bloq';
                 if (estadoBloq === 'OK' && (estadoLav === '' || estadoLav === 'EN LAV')) return 'x lavar';
                 if (estadoLav === 'OK') return 'LV-ok';
@@ -5191,6 +5205,7 @@
                                 let cell = '';
                                 if (rutaTela === 'LAVADA') {
                                     if (estadoBloqueo === 'OK' && estadoLavada === 'OK') cell = 'LV-OK';
+                                    else if (estadoBloqueo === '') cell = 'X PEDIR';
                                     else if (estadoBloqueo !== 'OK') cell = 'X BLOQ';
                                     else if (estadoLavada !== 'OK') cell = 'X LAVAR';
                                 } else if (rutaTela === 'ACABADA') {
@@ -7172,7 +7187,9 @@
                         }
                     } else if (rutaTela === 'LAVADA') {
                         // RUTA TELA = LAVADA
-                        if (estadoBloqueo === '' || estadoBloqueo === 'X PROG') {
+                        if (estadoBloqueo === '') {
+                            statusValue = 'x pedir';
+                        } else if (estadoBloqueo === 'X PROG') {
                             statusValue = 'x bloq';
                         } else if (estadoBloqueo === 'PROG') {
                             statusValue = 'x Bloq';
@@ -7209,6 +7226,8 @@
                         statusHtml = `<td title="${statusValue}"><span class="pill pill-pda">${statusValue}</span></td>`;
                     } else if (statusUpper.indexOf('X HAB') !== -1) {
                         statusHtml = `<td title="${statusValue}"><span class="pill pill-ok-dark">${statusValue}</span></td>`;
+                    } else if (statusUpper.indexOf('X PEDIR') !== -1) {
+                        statusHtml = `<td title="${statusValue}"><span class="pill pill-xpedir">${statusValue}</span></td>`;
                     } else if (statusUpper.indexOf('X BLOQ') !== -1) {
                         statusHtml = `<td title="${statusValue}"><span class="pill pill-pda">${statusValue}</span></td>`;
                     } else if (statusUpper.indexOf('X LAVAR') !== -1) {
@@ -7601,11 +7620,13 @@
             } else if (rutaKey === 'LAVADA') {
                 if (row) {
                     const estadoBloqRaw = getVal(row, "estado_bloqueo");
-                    const estadoBloq = (!estadoBloqRaw || estadoBloqRaw === "") ? "X PROG" : String(estadoBloqRaw).toUpperCase().trim();
+                    const estadoBloq = String(estadoBloqRaw || '').toUpperCase().trim();
                     const estadoLavRaw = getVal(row, "estado_lavada");
                     const estadoLav = (!estadoLavRaw || estadoLavRaw === "") ? "" : String(estadoLavRaw).toUpperCase().trim();
 
-                    if (estadoBloq.includes('PROG')) {
+                    if (estadoBloq === '') {
+                        rutaDisplay = `<span class="route-badge route-xpedir">x pedir</span>`;
+                    } else if (estadoBloq.includes('PROG')) {
                         rutaDisplay = `<span class="route-badge route-bloq">x bloq</span>`;
                     } else if (estadoBloq === 'OK' && (estadoLav === '' || estadoLav === 'EN LAV')) {
                         rutaDisplay = `<span class="route-badge route-xlav">x lavar</span>`;
@@ -9787,7 +9808,9 @@
                             }
                         }
                     } else if (rutaTela === 'LAVADA') {
-                        if (estadoBloqueo === '' || estadoBloqueo === 'X PROG') {
+                        if (estadoBloqueo === '') {
+                            fieldValue = 'X PEDIR';
+                        } else if (estadoBloqueo === 'X PROG') {
                             fieldValue = 'X BLOQ';
                         } else if (estadoBloqueo === 'PROG') {
                             fieldValue = 'X BLOQ';
@@ -10066,7 +10089,9 @@
                                 }
                             }
                         } else if (rutaTela === 'LAVADA') {
-                            if (estadoBloqueo === '' || estadoBloqueo === 'X PROG') {
+                            if (estadoBloqueo === '') {
+                                fieldValue = 'x pedir';
+                            } else if (estadoBloqueo === 'X PROG') {
                                 fieldValue = 'x bloq';
                             } else if (estadoBloqueo === 'PROG') {
                                 fieldValue = 'x Bloq';
@@ -10645,6 +10670,7 @@
                         const estadoLavada = (getVal(row, 'estado_lavada') || '').toString().toUpperCase().trim();
                         if (rutaTela === 'LAVADA') {
                             if (estadoBloqueo === 'OK' && estadoLavada === 'OK') fieldValue = 'LV-ok';
+                            else if (estadoBloqueo === '') fieldValue = 'x pedir';
                             else if (estadoBloqueo !== 'OK') fieldValue = 'x bloq';
                             else if (estadoLavada !== 'OK') fieldValue = 'x lavar';
                         } else if (rutaTela === 'ACABADA') {
@@ -14980,7 +15006,8 @@ NOTA: Por favor adjunte los archivos descargados (${fileName}.xlsx y ${fileName}
                                             else cellValue = 'X ENM';
                                         }
                                     } else if (rutaTela2 === 'LAVADA') {
-                                        if (estadoBloqueo2 !== 'OK') cellValue = 'X BLOQ';
+                                        if (estadoBloqueo2 === '') cellValue = 'X PEDIR';
+                                        else if (estadoBloqueo2 !== 'OK') cellValue = 'X BLOQ';
                                         else if (estadoLavada2 !== 'OK') cellValue = 'X LAVAR';
                                         else if (estadoCorte2 === '' || estadoCorte2 === 'X PROG') cellValue = 'X CORTAR';
                                         else if (estadoCorte2.includes('PROG')) cellValue = 'PROC CORTE';
@@ -15193,7 +15220,4 @@ NOTA: Por favor adjunte los archivos descargados (${fileName}.xlsx y ${fileName}
 
     </body>
     </html>
-
-
-
 
