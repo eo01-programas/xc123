@@ -5092,97 +5092,106 @@
             const isProgSubtab = showAsProg && (currentCorteFilter === 'PROG 1T' || currentCorteFilter === 'PROG 2T' || currentCorteFilter === 'PROG 3T');
             
             if (isProgSubtab) {
-                // Ordenar validIndices por equipo_corte (según orden EQ de equiposCorteData)
-                // Antes de ordenar, detectar si alguna base de CORTE tiene tendidos creados
-                // Use localStorage-backed set of created bases to prioritize them
+                // Orden por equipo_corte y, dentro de cada equipo, priorizar OCs con tendidos desglosados.
                 const corteIdxForMap = colMap["CORTE"];
-                const baseHasInserted = {};
-                try {
-                    validIndices.forEach(idx => {
-                        const val = String(rawData[idx][corteIdxForMap] || '').trim();
-                        const base = (/\d{2}$/.test(val.slice(-2)) ? val.slice(0, -2) : val) || '';
-                        if (base) {
-                            baseHasInserted[base] = baseHasInserted[base] || (window._createdTendidoBases && window._createdTendidoBases.has(base));
-                        }
-                    });
+                const opIdxForMap = colMap["OP"];
+                const eqIdxA = colMap["EQUIPO CORTE"];
+                const eqIdxB = colMap["EQUIPO_CORTE"];
+                const eqIdxC = colMap["equipo_corte"];
+                const OP_FALLBACK_NUM = 999999999;
 
-                    // Reordenar globalmente poniendo primero los índices cuyas bases están registradas
-                    // en la lista de bases creadas. Esto hace que esas OC/bases aparezcan en primer lugar
-                    // en todo el tbody, antes de agrupar por equipo.
-                    const top = [];
-                    const rest = [];
-                    validIndices.forEach(idx => {
-                        try {
-                            const val = String(rawData[idx][corteIdxForMap] || '').trim();
-                            const base = (/\d{2}$/.test(val.slice(-2)) ? val.slice(0, -2) : val) || '';
-                            if (base && window._createdTendidoBases && window._createdTendidoBases.has(base)) top.push(idx);
-                            else rest.push(idx);
-                        } catch (e) { rest.push(idx); }
-                    });
-                    validIndices = top.concat(rest);
-                } catch (e) { /* ignore */ }
+                const getNumericOrFallback = (v) => {
+                    const n = parseInt(String(v || '').replace(/[^0-9]/g, ''), 10);
+                    return isNaN(n) ? OP_FALLBACK_NUM : n;
+                };
+
+                const parseCorteParts = (s) => {
+                    const v = String(s || '').trim();
+                    if (!v) return { raw: '', base: '', suf: 0, hasSuffix: false };
+                    // Convencion usada para tendidos: CORTE con 3+ digitos (base + sufijo de 2 digitos).
+                    if (/^\d{3,}$/.test(v)) {
+                        const base = v.slice(0, -2);
+                        const suf = parseInt(v.slice(-2), 10) || 0;
+                        return { raw: v, base: base, suf: suf, hasSuffix: true };
+                    }
+                    return { raw: v, base: v, suf: 0, hasSuffix: false };
+                };
+
+                const rowMeta = {};
+                const opBaseCount = {};
+
+                validIndices.forEach(idx => {
+                    const row = rawData[idx] || [];
+                    const opVal = String((opIdxForMap !== undefined && opIdxForMap !== -1) ? (row[opIdxForMap] || '') : (getVal(row, 'OP') || '')).trim();
+                    const corteVal = String((corteIdxForMap !== undefined && corteIdxForMap !== -1) ? (row[corteIdxForMap] || '') : (getVal(row, 'CORTE') || '')).trim();
+                    const parsed = parseCorteParts(corteVal);
+                    const opKey = opVal.toUpperCase();
+                    const opBaseKey = opKey + '::' + parsed.base;
+
+                    opBaseCount[opBaseKey] = (opBaseCount[opBaseKey] || 0) + 1;
+
+                    const opTela = String(row[colMap["OP TELA"]] || '').trim();
+                    const partida = String(row[colMap["PARTIDA"]] || '').trim();
+                    const equipoVal = String(row[eqIdxA] || row[eqIdxB] || row[eqIdxC] || "").trim();
+
+                    rowMeta[idx] = {
+                        op: opVal,
+                        opKey: opKey,
+                        opNum: getNumericOrFallback(opVal),
+                        corte: corteVal,
+                        parsed: parsed,
+                        opBaseKey: opBaseKey,
+                        opPtda: opTela + '-' + partida,
+                        equipo: equipoVal
+                    };
+                });
+
+                validIndices.forEach(idx => {
+                    const meta = rowMeta[idx];
+                    if (!meta) return;
+                    const createdBase = !!(window._createdTendidoBases && window._createdTendidoBases.has(meta.parsed.base));
+                    const repeatedBase = (opBaseCount[meta.opBaseKey] || 0) > 1;
+                    meta.isSplit = !!(meta.parsed.hasSuffix && (repeatedBase || createdBase));
+                });
 
                 validIndices.sort((a, b) => {
-                    // 1. Primero agrupar por equipo_corte (según orden EQ de equiposCorteData)
-                    const equipoA = String(rawData[a][colMap["EQUIPO CORTE"]] || rawData[a][colMap["EQUIPO_CORTE"]] || rawData[a][colMap["equipo_corte"]] || "").trim();
-                    const equipoB = String(rawData[b][colMap["EQUIPO CORTE"]] || rawData[b][colMap["EQUIPO_CORTE"]] || rawData[b][colMap["equipo_corte"]] || "").trim();
+                    const ma = rowMeta[a] || {};
+                    const mb = rowMeta[b] || {};
 
+                    // 1. Primero agrupar por equipo_corte (segun orden EQ de equiposCorteData)
                     const findEqOrder = (nombre) => {
                         const equipo = equiposCorteData.find(eq => eq.nombre === nombre);
                         return equipo ? (parseInt(equipo.eq) || 999) : 999;
                     };
 
-                    const orderA = findEqOrder(equipoA);
-                    const orderB = findEqOrder(equipoB);
+                    const orderA = findEqOrder(ma.equipo || '');
+                    const orderB = findEqOrder(mb.equipo || '');
                     if (orderA !== orderB) return orderA - orderB;
 
-                    // 2. Dentro de cada equipo, ordenar por OP-PTDA
-                    const opTelaA = String(rawData[a][colMap["OP TELA"]] || '').trim();
-                    const partidaA = String(rawData[a][colMap["PARTIDA"]] || '').trim();
-                    const opPtdaA = opTelaA + '-' + partidaA;
+                    // 2. Dentro del equipo: primero OCs con tendidos desglosados
+                    if (!!ma.isSplit !== !!mb.isSplit) return ma.isSplit ? -1 : 1;
 
-                    const opTelaB = String(rawData[b][colMap["OP TELA"]] || '').trim();
-                    const partidaB = String(rawData[b][colMap["PARTIDA"]] || '').trim();
-                    const opPtdaB = opTelaB + '-' + partidaB;
+                    // 3. Si ambos son desglosados: ordenar por OC y luego por tendido
+                    if (ma.isSplit && mb.isSplit) {
+                        if (ma.opNum !== mb.opNum) return ma.opNum - mb.opNum;
+                        const opCmp = (ma.opKey || '').localeCompare(mb.opKey || '', undefined, { numeric: true, sensitivity: 'base' });
+                        if (opCmp !== 0) return opCmp;
 
-                    if (opPtdaA !== opPtdaB) return opPtdaA.localeCompare(opPtdaB);
+                        const baseNumA = getNumericOrFallback(ma.parsed && ma.parsed.base);
+                        const baseNumB = getNumericOrFallback(mb.parsed && mb.parsed.base);
+                        if (baseNumA !== baseNumB) return baseNumA - baseNumB;
+                        const baseCmp = String((ma.parsed && ma.parsed.base) || '').localeCompare(String((mb.parsed && mb.parsed.base) || ''), undefined, { numeric: true, sensitivity: 'base' });
+                        if (baseCmp !== 0) return baseCmp;
 
-                    // 3. Dentro del mismo OP-PTDA, ordenar por base de CORTE y sufijo (tendido)
-                    const corteIdx = colMap["CORTE"];
-                    const rawA = String(rawData[a][corteIdx] || '').trim();
-                    const rawB = String(rawData[b][corteIdx] || '').trim();
-
-                    const parseCorte = (s) => {
-                        if (!s) return { base: '', suf: 0 };
-                        const last2 = s.slice(-2);
-                        if (/^\d{2}$/.test(last2)) {
-                            return { base: s.slice(0, -2), suf: parseInt(last2, 10) };
-                        }
-                        return { base: s, suf: 0 };
-                    };
-
-                    const pa = parseCorte(rawA);
-                    const pb = parseCorte(rawB);
-
-                    // Priorizar bases que tengan tendidos creados
-                    const baseA = pa.base || '';
-                    const baseB = pb.base || '';
-                    const aHas = baseHasInserted[baseA] || false;
-                    const bHas = baseHasInserted[baseB] || false;
-                    if (aHas !== bHas) return aHas ? -1 : 1;
-
-                    // Comparar base (numérico si posible)
-                    const numA = parseInt(pa.base.replace(/[^0-9]/g, ''), 10);
-                    const numB = parseInt(pb.base.replace(/[^0-9]/g, ''), 10);
-                    if (!isNaN(numA) && !isNaN(numB)) {
-                        if (numA !== numB) return numA - numB;
-                    } else {
-                        const cmp = (pa.base || '').localeCompare(pb.base || '');
-                        if (cmp !== 0) return cmp;
+                        const sufA = (ma.parsed && ma.parsed.suf) || 0;
+                        const sufB = (mb.parsed && mb.parsed.suf) || 0;
+                        if (sufA !== sufB) return sufA - sufB;
                     }
 
-                    // Finalmente ordenar por sufijo (tendido)
-                    return (pa.suf || 0) - (pb.suf || 0);
+                    // 4. Resto de casos: conservar orden por OP-PTDA y estabilidad por indice
+                    const opPtdaCmp = String(ma.opPtda || '').localeCompare(String(mb.opPtda || ''), undefined, { numeric: true, sensitivity: 'base' });
+                    if (opPtdaCmp !== 0) return opPtdaCmp;
+                    return a - b;
                 });
                 
                 // Agrupar por equipo y renderizar con headers
@@ -7772,6 +7781,8 @@
 
                 const op = getVal(row, "OP");
                 const corte = getVal(row, "CORTE");
+                const opEscaped = String(op || '').replace(/'/g, "\\'");
+                const corteEscaped = String(corte || '').replace(/'/g, "\\'");
                 const oc = (op || corte) ? `${op}-${corte}` : "";
 
                 const rutaVal = getVal(row, "RUTA TELA") || getVal(row, "RUTA") || "";
@@ -7809,7 +7820,7 @@
                 // Determinar si mostrar el botón de tendido (solo en sub-tabs PROG 1T/2T/3T)
                 const showTendidoBtn = (currentCorteFilter === 'PROG 1T' || currentCorteFilter === 'PROG 2T' || currentCorteFilter === 'PROG 3T') && !isHabilitadoView();
                 const tendidoBtnHtml = showTendidoBtn 
-                    ? `<button class="btn-tendido" onclick="abrirModalTendido(${rowIndex}, '${op}', '${corte}', '${String(color).replace(/'/g, "\\'")}', ${pdsRaw})" title="Dividir en tendidos">+</button>` 
+                    ? `<button class="btn-tendido" onclick="abrirModalTendido(${rowIndex}, '${opEscaped}', '${corteEscaped}', '${String(color).replace(/'/g, "\\'")}', ${pdsRaw})" title="Dividir en tendidos">+</button>` 
                     : '';
 
                 // Usar la función helper para renderizar el badge de RUTA
@@ -8316,8 +8327,62 @@
         }
 
         // =============================================
-        // PROPAGACIÓN DE RIB EN CORTE PZAS PROG 1T/2T/3T
-        // Al cambiar RIB, replicar a todas las filas con mismo OP-PTDA
+        // PROPAGACION DE RIB/BLOQUES/COLL EN CORTE PZAS PROG 1T/2T/3T
+        // Criterio: replicar por grupo de OC (prefijo OP) en filas visibles del sub-tab activo
+        // =============================================
+        function normalizeOcToken(v) {
+            const raw = String(v || '').trim().toUpperCase();
+            if (!raw) return '';
+            // Unificar valores numericos leidos como "39997.0" -> "39997"
+            if (/^\d+(\.0+)?$/.test(raw)) {
+                const n = parseInt(raw, 10);
+                if (!isNaN(n)) return String(n);
+            }
+            return raw.replace(/\s+/g, '');
+        }
+
+        function getOcCompositeForCorteRow(row) {
+            if (!row) return '';
+            const opVal = normalizeOcToken(getVal(row, 'OP'));
+            const corteVal = normalizeOcToken(getVal(row, 'CORTE'));
+            if (opVal && corteVal) return `${opVal}-${corteVal}`;
+            const ocVal = normalizeOcToken(getVal(row, 'OC'));
+            if (ocVal) return ocVal;
+            return '';
+        }
+
+        function getOcGroupKeyForCorteRow(row) {
+            const ocComposite = getOcCompositeForCorteRow(row);
+            if (!ocComposite) return '';
+            return normalizeOcToken((ocComposite.split('-')[0] || ''));
+        }
+
+        function getVisibleCorteRowsInOcGroup(rowIndex) {
+            const currentRow = rawData[rowIndex];
+            if (!currentRow) return { groupKey: '', rows: [] };
+            const groupKey = getOcGroupKeyForCorteRow(currentRow);
+            if (!groupKey) return { groupKey: '', rows: [] };
+
+            const tbody = document.getElementById('tbody-corte');
+            if (!tbody) return { groupKey, rows: [] };
+
+            const rows = [];
+            const allRows = tbody.querySelectorAll('tr[data-row-index]');
+            allRows.forEach(tr => {
+                const idx = parseInt(tr.getAttribute('data-row-index'), 10);
+                if (isNaN(idx) || idx === rowIndex) return;
+                const r = rawData[idx];
+                if (!r) return;
+                if (getOcGroupKeyForCorteRow(r) !== groupKey) return;
+                rows.push({ idx, row: r, tr });
+            });
+
+            return { groupKey, rows };
+        }
+
+        // =============================================
+        // PROPAGACION DE RIB EN CORTE PZAS PROG 1T/2T/3T
+        // Al cambiar RIB, replicar a las filas visibles del mismo grupo OC
         // =============================================
         window.handleRibChangeCorte = function(rowIndex, value, selectElement) {
             // 1. Actualizar la fila actual via updateRow (guarda en backend + actualiza rawData)
@@ -8328,15 +8393,7 @@
             const isProgSubtab = (corteFilterNorm.startsWith('PROG ') && corteFilterNorm !== 'X PROG');
             if (!isProgSubtab) return;
 
-            // 3. Obtener OP-PTDA de la fila actual
-            const currentRow = rawData[rowIndex];
-            if (!currentRow) return;
-            const opTela = String(getVal(currentRow, 'OP TELA') || '').trim();
-            const partida = String(getVal(currentRow, 'PARTIDA') || '').trim();
-            const currentOpPtda = opTela + '-' + partida;
-            if (!currentOpPtda || currentOpPtda === '-') return;
-
-            // 4. Encontrar el índice de la columna estado_rib en rawData
+            // 3. Encontrar el indice de la columna estado_rib en rawData
             const findColIdx = function(name) {
                 if (!rawData || rawData.length === 0) return -1;
                 const headers = rawData[0];
@@ -8349,53 +8406,49 @@
             };
             let ribColIdx = colMap['estado_rib'];
             if (ribColIdx === undefined || ribColIdx === -1) ribColIdx = findColIdx('estado_rib');
-            if (ribColIdx === -1) { console.warn('No se encontró columna estado_rib'); return; }
+            if (ribColIdx === -1) { console.warn('No se encontro columna estado_rib'); return; }
             const sendColName = (rawData[0] && rawData[0][ribColIdx]) ? rawData[0][ribColIdx] : 'estado_rib';
 
-            // 5. Limitar propagación a filas visibles en la tabla actual
-            const visibleRowIndices = new Set();
+            // 4. Limitar propagacion a filas visibles de la tabla y del mismo grupo OC
+            let groupKey = '';
+            let candidateRows = [];
             try {
-                const tbody = document.getElementById('tbody-corte');
-                if (tbody) {
-                    const rows = tbody.querySelectorAll('tr[data-row-index]');
-                    rows.forEach(tr => {
-                        const idx = parseInt(tr.getAttribute('data-row-index'));
-                        if (!isNaN(idx)) visibleRowIndices.add(idx);
-                    });
-                }
+                const groupData = getVisibleCorteRowsInOcGroup(rowIndex);
+                groupKey = groupData.groupKey;
+                candidateRows = groupData.rows || [];
             } catch (e) {
                 console.error('Error leyendo filas visibles para RIB:', e);
             }
+            if (!groupKey || !candidateRows.length) {
+                setTimeout(() => { renderCorte(); }, 300);
+                return;
+            }
 
-            // 6. Iterar filas visibles para encontrar filas con mismo OP-PTDA
+            // 5. Filtrar filas actualizables
             const rowsToUpdate = [];
-            for (let j = 1; j < rawData.length; j++) {
-                if (j === rowIndex) continue;
-                if (!visibleRowIndices.has(j)) continue;
-                const r = rawData[j];
-                if (!r) continue;
-                const ot = String(getVal(r, 'OP TELA') || '').trim();
-                const pt = String(getVal(r, 'PARTIDA') || '').trim();
-                if ((ot + '-' + pt) !== currentOpPtda) continue;
+            candidateRows.forEach(item => {
+                const j = item.idx;
+                const r = item.row;
+                if (!r) return;
 
                 // Verificar que esta fila no sea NO LLEVA
                 const ribOriginal = getVal(r, 'RIB') || 'NO LLEVA';
-                if (ribOriginal === 'NO LLEVA') continue;
+                if (ribOriginal === 'NO LLEVA') return;
 
-                // Solo actualizar si el valor cambió
+                // Solo actualizar si el valor cambio
                 const prevValue = r[ribColIdx];
-                if (String(prevValue || '').trim() === String(value || '').trim()) continue;
+                if (String(prevValue || '').trim() === String(value || '').trim()) return;
 
                 rowsToUpdate.push(j);
-            }
+            });
 
             if (rowsToUpdate.length === 0) {
                 setTimeout(() => { renderCorte(); }, 300);
                 return;
             }
 
-            // 7. Actualizar rawData y guardar en backend con delays escalonados
-            console.log(`RIB propagación: ${rowsToUpdate.length} filas con OP-PTDA=${currentOpPtda}`);
+            // 6. Actualizar rawData y guardar en backend con delays escalonados
+            console.log(`RIB propagacion: ${rowsToUpdate.length} filas en grupo OC=${groupKey}`);
             
             // Mostrar modal de carga
             const modalPropagacion = document.getElementById('modal-loading-propagacion');
@@ -8422,7 +8475,7 @@
                         completed++;
                         if (statusText) statusText.textContent = `Guardando RIB... (${completed}/${rowsToUpdate.length})`;
                         if (completed >= rowsToUpdate.length) {
-                            if (statusText) statusText.textContent = '¡Guardado completado!';
+                            if (statusText) statusText.textContent = 'Guardado completado';
                             setTimeout(() => {
                                 if (modalPropagacion) modalPropagacion.style.display = 'none';
                                 renderCorte();
@@ -8436,13 +8489,13 @@
                             renderCorte();
                         }
                     });
-                }, index * 150); // 150ms entre cada petición para evitar rate-limit
+                }, index * 150); // 150ms entre cada peticion para evitar rate-limit
             });
         };
 
         // =============================================
-        // PROPAGACIÓN DE BLOQUES? EN CORTE PZAS PROG 1T/2T/3T
-        // Al cambiar BLOQUES?, replicar a todas las filas con mismo OP-PTDA
+        // PROPAGACION DE BLOQUES? EN CORTE PZAS PROG 1T/2T/3T
+        // Al cambiar BLOQUES?, replicar a las filas visibles del mismo grupo OC
         // =============================================
         window.handleBloquesChangeCorte = function(rowIndex, value, selectElement) {
             // 1. Actualizar la fila actual
@@ -8453,40 +8506,23 @@
             const isProgSubtab = (corteFilterNorm.startsWith('PROG ') && corteFilterNorm !== 'X PROG');
             if (!isProgSubtab) return;
 
-            // 3. Obtener OP-PTDA de la fila actual
-            const currentRow = rawData[rowIndex];
-            if (!currentRow) return;
-            const opTela = String(getVal(currentRow, 'OP TELA') || '').trim();
-            const partida = String(getVal(currentRow, 'PARTIDA') || '').trim();
-            const currentOpPtda = opTela + '-' + partida;
-            if (!currentOpPtda || currentOpPtda === '-') return;
-
-            // 4. Buscar todas las filas visibles en tbody-corte con mismo OP-PTDA
-            const tbody = document.getElementById('tbody-corte');
-            if (!tbody) return;
-            const allRows = tbody.querySelectorAll('tr[data-row-index]');
-            allRows.forEach(tr => {
-                const idx = parseInt(tr.getAttribute('data-row-index'));
-                if (idx === rowIndex || isNaN(idx)) return;
-                const r = rawData[idx];
-                if (!r) return;
-                const ot = String(getVal(r, 'OP TELA') || '').trim();
-                const pt = String(getVal(r, 'PARTIDA') || '').trim();
-                const opPtda = ot + '-' + pt;
-                if (opPtda !== currentOpPtda) return;
+            // 3. Buscar todas las filas visibles en tbody-corte con mismo grupo OC
+            const groupData = getVisibleCorteRowsInOcGroup(rowIndex);
+            if (!groupData.groupKey) return;
+            groupData.rows.forEach(item => {
+                const idx = item.idx;
+                const tr = item.tr;
 
                 // Buscar el select de BLOQUES en esta fila y actualizar
                 const bloqSelect = tr.querySelector('select[onchange*="handleBloquesChangeCorte"]');
-                if (bloqSelect) {
-                    bloqSelect.value = value;
-                    updateRow(idx, 'ESTADO_BLOQUES', value, bloqSelect, true);
-                }
+                if (bloqSelect) bloqSelect.value = value;
+                updateRow(idx, 'ESTADO_BLOQUES', value, bloqSelect || null, true);
             });
         };
 
         // =============================================
-        // PROPAGACIÓN DE COLL o TAP? EN CORTE PZAS PROG 1T/2T/3T
-        // Al cambiar COLL o TAP?, replicar a todas las filas con mismo OP-PTDA
+        // PROPAGACION DE COLL o TAP? EN CORTE PZAS PROG 1T/2T/3T
+        // Al cambiar COLL o TAP?, replicar a las filas visibles del mismo grupo OC
         // =============================================
         window.handleCollTapChangeCorte = function(rowIndex, value, selectElement) {
             // 1. Actualizar la fila actual
@@ -8497,34 +8533,17 @@
             const isProgSubtab = (corteFilterNorm.startsWith('PROG ') && corteFilterNorm !== 'X PROG');
             if (!isProgSubtab) return;
 
-            // 3. Obtener OP-PTDA de la fila actual
-            const currentRow = rawData[rowIndex];
-            if (!currentRow) return;
-            const opTela = String(getVal(currentRow, 'OP TELA') || '').trim();
-            const partida = String(getVal(currentRow, 'PARTIDA') || '').trim();
-            const currentOpPtda = opTela + '-' + partida;
-            if (!currentOpPtda || currentOpPtda === '-') return;
-
-            // 4. Buscar todas las filas visibles en tbody-corte con mismo OP-PTDA
-            const tbody = document.getElementById('tbody-corte');
-            if (!tbody) return;
-            const allRows = tbody.querySelectorAll('tr[data-row-index]');
-            allRows.forEach(tr => {
-                const idx = parseInt(tr.getAttribute('data-row-index'));
-                if (idx === rowIndex || isNaN(idx)) return;
-                const r = rawData[idx];
-                if (!r) return;
-                const ot = String(getVal(r, 'OP TELA') || '').trim();
-                const pt = String(getVal(r, 'PARTIDA') || '').trim();
-                const opPtda = ot + '-' + pt;
-                if (opPtda !== currentOpPtda) return;
+            // 3. Buscar todas las filas visibles en tbody-corte con mismo grupo OC
+            const groupData = getVisibleCorteRowsInOcGroup(rowIndex);
+            if (!groupData.groupKey) return;
+            groupData.rows.forEach(item => {
+                const idx = item.idx;
+                const tr = item.tr;
 
                 // Buscar el select de COLL_TAP en esta fila y actualizar
                 const collSelect = tr.querySelector('select[onchange*="handleCollTapChangeCorte"]');
-                if (collSelect) {
-                    collSelect.value = value;
-                    updateRow(idx, 'ESTADO_COLL_TAP', value, collSelect, true);
-                }
+                if (collSelect) collSelect.value = value;
+                updateRow(idx, 'ESTADO_COLL_TAP', value, collSelect || null, true);
             });
         };
 
@@ -12633,6 +12652,56 @@
             const modal = document.getElementById('modal-nuevo-corte');
             if (modal) modal.classList.add('active');
         };
+
+        // Fallback robusto para asegurar funcionamiento del boton + en Corte Pzas (PROG 1T/2T/3T),
+        // incluso si algun onclick inline falla por render o cambios de DOM.
+        function initCortePlusFallbackHandlers() {
+            if (window._cortePlusFallbackHandlersInit) return;
+            window._cortePlusFallbackHandlersInit = true;
+
+            document.addEventListener('click', function(e) {
+                const target = e.target;
+                const isElement = target && typeof target.closest === 'function';
+                if (!isElement) return;
+
+                const rowPlusBtn = target.closest('#tbody-corte button.btn-tendido');
+                if (rowPlusBtn) {
+                    const viewCorte = document.getElementById('view-corte');
+                    if (!viewCorte || !viewCorte.classList.contains('active')) return;
+
+                    const tr = rowPlusBtn.closest('tr');
+                    if (!tr) return;
+                    const rowIndex = parseInt(tr.getAttribute('data-row-index'), 10);
+                    if (!Number.isInteger(rowIndex) || rowIndex < 1 || !rawData[rowIndex]) return;
+
+                    const row = rawData[rowIndex];
+                    const op = String(getVal(row, 'OP') || '').trim();
+                    const corte = String(getVal(row, 'CORTE') || '').trim();
+                    const color = abbreviateHeather(getVal(row, 'COLOR') || '');
+                    const pdsRaw = parseFloat(getVal(row, 'PDS GIRADAS') || getVal(row, 'PDS') || 0) || 0;
+
+                    if (typeof window.abrirModalTendido === 'function') {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        window.abrirModalTendido(rowIndex, op, corte, color, pdsRaw);
+                    }
+                    return;
+                }
+
+                const nuevoCorteBtn = target.closest('#btn-nuevo-corte');
+                if (nuevoCorteBtn) {
+                    const viewCorte = document.getElementById('view-corte');
+                    if (!viewCorte || !viewCorte.classList.contains('active')) return;
+                    if (typeof window.abrirModalNuevoCorte === 'function') {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        window.abrirModalNuevoCorte();
+                    }
+                }
+            }, true);
+        }
+
+        initCortePlusFallbackHandlers();
 
         window.buscarOCNuevoCorte = function(ocQuery) {
             const input = document.getElementById('modal-nuevo-corte-oc-input');
