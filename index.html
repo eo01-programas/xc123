@@ -225,6 +225,34 @@
             border-color: #14532d;
             box-shadow: 0 0 0 2px rgba(34,197,94,0.18);
         }
+        .btn-habilitado-devolucion {
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            border: 1px solid #c2410c;
+            background: #f97316;
+            color: #ffffff;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 9px;
+            font-weight: 800;
+            line-height: 1;
+            margin-left: 6px;
+            transition: all 0.18s ease;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+            letter-spacing: 0.1px;
+        }
+        .btn-habilitado-devolucion:hover {
+            background: #ea580c;
+            transform: translateY(-1px);
+        }
+        .btn-habilitado-devolucion.active {
+            background: #9a3412;
+            border-color: #7c2d12;
+            box-shadow: 0 0 0 2px rgba(249,115,22,0.22);
+        }
         .habilitado-ingresos-filters {
             display: none;
             align-items: center;
@@ -296,6 +324,22 @@
         }
         .habilitado-ingresos-pds-pill strong {
             font-weight: 800;
+        }
+        .modal-devolucion-table-wrap {
+            border: 1px solid var(--gray-200);
+            border-radius: 10px;
+            max-height: 360px;
+            overflow: auto;
+            background: #ffffff;
+        }
+        .modal-devolucion-table-wrap table {
+            min-width: 0;
+        }
+        .modal-devolucion-empty {
+            text-align: center;
+            color: var(--gray-500);
+            font-size: 12px;
+            padding: 16px 10px;
         }
 
         /* --- TABLA MODERNIZADA Y COMPACTA --- */
@@ -1900,6 +1944,45 @@
         </div>
     </div>
 
+    <!-- MODAL DEVOLUCION DE CORTES (HABILITADO) -->
+    <div id="modal-devolucion-habilitado" class="modal-overlay" onclick="if(event.target === this) cerrarModalDevolucionHabilitado()">
+        <div class="modal-content" style="max-width:920px; width:88%;">
+            <div class="modal-header">
+                <div>
+                    <div class="modal-title">Devolucion de cortes</div>
+                    <div class="modal-subtitle">Buscar por grupo de OC y regresar de OK a PROG 1T/2T/3T</div>
+                </div>
+                <button class="modal-close" onclick="cerrarModalDevolucionHabilitado()">&times;</button>
+            </div>
+            <div style="display:flex; gap:8px; align-items:center; margin-bottom:10px;">
+                <input id="modal-devolucion-habilitado-oc" type="text" placeholder="Buscar OC (ej: 39997-4)" style="flex:1; padding:10px 12px; border:1px solid var(--gray-300); border-radius:8px; font-size:13px;" onkeydown="if(event.key==='Enter'){event.preventDefault();buscarOCHabilitadoDevolucion();}">
+                <button class="btn-modal btn-guardar" style="min-width:96px; padding:10px 16px;" onclick="buscarOCHabilitadoDevolucion()">Buscar</button>
+            </div>
+            <div id="modal-devolucion-habilitado-info" style="display:none; margin-bottom:10px; font-size:12px; color:var(--gray-600); background:#f8fafc; border:1px solid var(--gray-200); border-radius:8px; padding:8px 10px;"></div>
+            <div class="modal-devolucion-table-wrap">
+                <table class="modal-table" style="width:100%; margin:0;">
+                    <thead>
+                        <tr>
+                            <th style="width: 120px;">CLIENTE</th>
+                            <th style="width: 120px;">OC</th>
+                            <th style="width: 60px; text-align:center;">PDS</th>
+                            <th style="width: 90px; text-align:center;">PLANTA</th>
+                            <th style="width: 90px; text-align:center;">LINEA</th>
+                            <th style="width: 110px; text-align:center;">HAB</th>
+                        </tr>
+                    </thead>
+                    <tbody id="modal-devolucion-habilitado-tbody">
+                        <tr><td colspan="6" class="modal-devolucion-empty">Ingrese una OC y presione Buscar.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="modal-buttons">
+                <button class="btn-modal btn-limpiar" onclick="cerrarModalDevolucionHabilitado()">Cancelar</button>
+                <button id="btn-modal-devolucion-generar" class="btn-modal btn-guardar" onclick="generarDevolucionHabilitado()">GENERAR DEVOLUCION</button>
+            </div>
+        </div>
+    </div>
+
 
 
     <!-- MENÚ FLOTANTE CON DESPLEGABLE -->
@@ -2260,6 +2343,7 @@
                         </button>
                         <span id="habilitado-xhab-pill" class="xhabi-pill">xHabilitar: <strong id="habilitado-xhab-total">0pds</strong></span>
                         <button id="btn-habilitado-ingresos" class="btn-habilitado-ingresos" onclick="toggleHabilitadoIngresosMode(this)" title="Ingresos (estado_habilitado = OK)" aria-label="Ingresos habilitado">i</button>
+                        <button id="btn-habilitado-devolucion" class="btn-habilitado-devolucion" onclick="abrirModalDevolucionHabilitado()" title="Devolucion de cortes" aria-label="Devolucion de cortes">DC</button>
                     </div>
                     <!-- Badges de filtros activos -->
                     <div id="habilitado-active-filters" style="display:none; flex-wrap:wrap; gap:6px; margin-bottom:8px; padding:4px 0;"></div>
@@ -2584,6 +2668,7 @@
             opPtda: ''
         };
         let corteOcContextMenuRowIndex = null;
+        let modalDevolucionHabilitadoData = { matches: [] };
 
         // Maneja cambios en el select de n.transfxpda; si está marcado 'Para todo'
         // aplica el mismo valor a todos los grupos visibles y dispara el guardado.
@@ -6522,6 +6607,248 @@
         window.onHabilitadoIngresosPlantFilterChange = function(value) {
             habilitadoIngresosPlantFilter = value || '';
             if (isHabilitadoIngresosMode) renderHabilitado();
+        };
+
+        function escapeHtmlDevolucionHabilitado(txt) {
+            return String(txt || '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        function getOcDevolucionHabilitadoRow(row) {
+            const op = String(getVal(row, 'OP') || '').trim();
+            const corte = String(getVal(row, 'CORTE') || '').trim();
+            if (op && corte) return `${op}-${corte}`;
+            const ocRaw = String(getVal(row, 'OC') || '').trim();
+            if (ocRaw) return ocRaw;
+            if (op) return op;
+            return corte;
+        }
+
+        function getDefaultHabDevolucionValue() {
+            const f = String(currentHabilitadoFilter || '').toUpperCase().trim();
+            if (f === 'PROG 1T' || f === 'PROG 2T' || f === 'PROG 3T') return f;
+            return 'PROG 1T';
+        }
+
+        function findRowsForDevolucionByOc(query) {
+            const queryNorm = String(query || '').toUpperCase().replace(/\s+/g, '').trim();
+            if (!queryNorm) return [];
+
+            const results = [];
+            const defaultHab = getDefaultHabDevolucionValue();
+            for (let i = 1; i < rawData.length; i++) {
+                const row = rawData[i];
+                if (!row) continue;
+
+                const oc = getOcDevolucionHabilitadoRow(row);
+                if (!oc) continue;
+                const ocNorm = String(oc).toUpperCase().replace(/\s+/g, '').trim();
+                if (!ocNorm.startsWith(queryNorm)) continue;
+
+                const habNorm = String(getVal(row, 'estado_habilitado') || getVal(row, 'ESTADO_HABILITADO') || '').toUpperCase().trim();
+                if (habNorm !== 'OK' && habNorm !== 'OK S/DESTINO') continue;
+
+                const cliente = normalizeClientName(getVal(row, 'CLIENTE')) || '';
+                const pdsRaw = parseFloat(getVal(row, 'PDS GIRADAS') || getVal(row, 'PDS') || 0) || 0;
+                const plantaRaw = String(getVal(row, 'PLANTA') || '').trim();
+                const plantaNorm = plantaRaw.toUpperCase().replace(/\s+/g, '').replace(/-/g, '');
+                let plantaValue = plantaRaw;
+                if (plantaNorm === 'CITI1') plantaValue = 'CITI1';
+                else if (plantaNorm === 'CITI2') plantaValue = 'CITI2';
+                else if (plantaNorm === 'CITI3') plantaValue = 'CITI3';
+                else if (plantaNorm === 'CITI4') plantaValue = 'CITI4';
+                else if (plantaNorm === 'COFACO') plantaValue = 'COFACO';
+                else if (plantaNorm === 'S/DESTINO') plantaValue = 'S/DESTINO';
+                else if (plantaNorm === '') plantaValue = '';
+                const lineaValue = String(getVal(row, 'LINEA') || '').trim();
+                results.push({
+                    rowIndex: i,
+                    cliente,
+                    oc,
+                    pdsRaw,
+                    pds: formatThousands(pdsRaw, 0),
+                    plantaValue,
+                    lineaValue,
+                    nuevoHab: defaultHab
+                });
+            }
+
+            results.sort((a, b) => {
+                const cmpOc = a.oc.localeCompare(b.oc, undefined, { numeric: true, sensitivity: 'base' });
+                if (cmpOc !== 0) return cmpOc;
+                return b.pdsRaw - a.pdsRaw;
+            });
+            return results;
+        }
+
+        function renderModalDevolucionHabilitadoRows() {
+            const tbody = document.getElementById('modal-devolucion-habilitado-tbody');
+            if (!tbody) return;
+
+            const rows = (modalDevolucionHabilitadoData && Array.isArray(modalDevolucionHabilitadoData.matches))
+                ? modalDevolucionHabilitadoData.matches
+                : [];
+            if (!rows.length) {
+                tbody.innerHTML = '<tr><td colspan="6" class="modal-devolucion-empty">No se encontraron filas en estado OK para esa OC.</td></tr>';
+                return;
+            }
+
+            let html = '';
+            rows.forEach((item, idx) => {
+                const habNorm = String(item.nuevoHab || '').toUpperCase().trim();
+                const plantaVal = String(item.plantaValue || '').trim();
+                const lineaVal = String(item.lineaValue || '').trim();
+                const knownPlantas = ['', 'COFACO', 'CITI1', 'CITI2', 'CITI3', 'CITI4', 'S/DESTINO'];
+                const extraPlantaOpt = (plantaVal && knownPlantas.indexOf(plantaVal) === -1)
+                    ? `<option value="${escapeHtmlDevolucionHabilitado(plantaVal)}" selected>${escapeHtmlDevolucionHabilitado(plantaVal)}</option>`
+                    : '';
+                html += `
+                    <tr data-row-index="${item.rowIndex}">
+                        <td title="${escapeHtmlDevolucionHabilitado(item.cliente)}">${escapeHtmlDevolucionHabilitado(item.cliente)}</td>
+                        <td title="${escapeHtmlDevolucionHabilitado(item.oc)}">${escapeHtmlDevolucionHabilitado(item.oc)}</td>
+                        <td style="text-align:center;">${escapeHtmlDevolucionHabilitado(item.pds)}</td>
+                        <td style="text-align:center;">
+                            <select class="table-select" onchange="handleDevolucionHabilitadoPlantaChange(${idx}, this.value)">
+                                ${extraPlantaOpt}
+                                <option value="" ${plantaVal === '' ? 'selected' : ''}>XASIG</option>
+                                <option value="COFACO" ${plantaVal === 'COFACO' ? 'selected' : ''}>COFACO</option>
+                                <option value="CITI1" ${plantaVal === 'CITI1' ? 'selected' : ''}>CITI1</option>
+                                <option value="CITI2" ${plantaVal === 'CITI2' ? 'selected' : ''}>CITI2</option>
+                                <option value="CITI3" ${plantaVal === 'CITI3' ? 'selected' : ''}>CITI3</option>
+                                <option value="CITI4" ${plantaVal === 'CITI4' ? 'selected' : ''}>CITI4</option>
+                                <option value="S/DESTINO" ${plantaVal === 'S/DESTINO' ? 'selected' : ''}>S/DESTINO</option>
+                            </select>
+                        </td>
+                        <td style="text-align:center;">
+                            <input type="text" value="${escapeHtmlDevolucionHabilitado(lineaVal)}" placeholder="XASIG" style="width:82px; padding:6px 8px; border:1px solid var(--gray-300); border-radius:6px; font-size:12px; text-align:center;" oninput="handleDevolucionHabilitadoLineaChange(${idx}, this.value)" onchange="handleDevolucionHabilitadoLineaChange(${idx}, this.value)">
+                        </td>
+                        <td style="text-align:center;">
+                            <select class="table-select sel-PROG" onchange="handleDevolucionHabilitadoHabChange(${idx}, this.value)">
+                                <option value="PROG 1T" ${habNorm === 'PROG 1T' ? 'selected' : ''}>PROG 1T</option>
+                                <option value="PROG 2T" ${habNorm === 'PROG 2T' ? 'selected' : ''}>PROG 2T</option>
+                                <option value="PROG 3T" ${habNorm === 'PROG 3T' ? 'selected' : ''}>PROG 3T</option>
+                            </select>
+                        </td>
+                    </tr>
+                `;
+            });
+            tbody.innerHTML = html;
+        }
+
+        window.abrirModalDevolucionHabilitado = function() {
+            const modal = document.getElementById('modal-devolucion-habilitado');
+            if (!modal) return;
+
+            modalDevolucionHabilitadoData = { matches: [] };
+
+            const input = document.getElementById('modal-devolucion-habilitado-oc');
+            if (input) input.value = '';
+
+            const info = document.getElementById('modal-devolucion-habilitado-info');
+            if (info) {
+                info.style.display = 'none';
+                info.textContent = '';
+            }
+
+            const tbody = document.getElementById('modal-devolucion-habilitado-tbody');
+            if (tbody) tbody.innerHTML = '<tr><td colspan="6" class="modal-devolucion-empty">Ingrese una OC y presione Buscar.</td></tr>';
+
+            const btn = document.getElementById('btn-habilitado-devolucion');
+            if (btn) btn.classList.add('active');
+
+            modal.classList.add('active');
+            setTimeout(() => { try { if (input) input.focus(); } catch (e) {} }, 50);
+        };
+
+        window.cerrarModalDevolucionHabilitado = function() {
+            const modal = document.getElementById('modal-devolucion-habilitado');
+            if (modal) modal.classList.remove('active');
+            const btn = document.getElementById('btn-habilitado-devolucion');
+            if (btn) btn.classList.remove('active');
+            modalDevolucionHabilitadoData = { matches: [] };
+        };
+
+        window.buscarOCHabilitadoDevolucion = function() {
+            const input = document.getElementById('modal-devolucion-habilitado-oc');
+            const query = input ? String(input.value || '').trim() : '';
+            if (!query) {
+                alert('Ingrese una OC para buscar.');
+                return;
+            }
+
+            const matches = findRowsForDevolucionByOc(query);
+            modalDevolucionHabilitadoData.matches = matches;
+            renderModalDevolucionHabilitadoRows();
+
+            const info = document.getElementById('modal-devolucion-habilitado-info');
+            if (info) {
+                info.style.display = 'block';
+                info.textContent = `Busqueda: ${query} | Filas OK encontradas: ${matches.length}`;
+            }
+        };
+
+        window.handleDevolucionHabilitadoHabChange = function(idx, value) {
+            if (!modalDevolucionHabilitadoData || !Array.isArray(modalDevolucionHabilitadoData.matches)) return;
+            if (!modalDevolucionHabilitadoData.matches[idx]) return;
+            modalDevolucionHabilitadoData.matches[idx].nuevoHab = String(value || '').toUpperCase().trim();
+        };
+
+        window.handleDevolucionHabilitadoPlantaChange = function(idx, value) {
+            if (!modalDevolucionHabilitadoData || !Array.isArray(modalDevolucionHabilitadoData.matches)) return;
+            if (!modalDevolucionHabilitadoData.matches[idx]) return;
+            modalDevolucionHabilitadoData.matches[idx].plantaValue = String(value || '').trim();
+        };
+
+        window.handleDevolucionHabilitadoLineaChange = function(idx, value) {
+            if (!modalDevolucionHabilitadoData || !Array.isArray(modalDevolucionHabilitadoData.matches)) return;
+            if (!modalDevolucionHabilitadoData.matches[idx]) return;
+            modalDevolucionHabilitadoData.matches[idx].lineaValue = String(value || '').trim();
+        };
+
+        window.generarDevolucionHabilitado = function() {
+            const rows = (modalDevolucionHabilitadoData && Array.isArray(modalDevolucionHabilitadoData.matches))
+                ? modalDevolucionHabilitadoData.matches
+                : [];
+            if (!rows.length) {
+                alert('No hay filas para devolver.');
+                return;
+            }
+
+            const validStates = new Set(['PROG 1T', 'PROG 2T', 'PROG 3T']);
+            const btn = document.getElementById('btn-modal-devolucion-generar');
+            if (btn) btn.disabled = true;
+
+            try {
+                let updatedCount = 0;
+                rows.forEach((item) => {
+                    const state = String(item.nuevoHab || '').toUpperCase().trim();
+                    if (!validStates.has(state)) return;
+                    const plantaVal = String(item.plantaValue || '').trim();
+                    const lineaVal = String(item.lineaValue || '').trim();
+                    updateRow(item.rowIndex, 'PLANTA', plantaVal, null, true, true);
+                    updateRow(item.rowIndex, 'LINEA', lineaVal, null, true, true);
+                    updateRow(item.rowIndex, 'estado_habilitado', state, null, true, true);
+                    updatedCount++;
+                });
+
+                if (updatedCount === 0) {
+                    alert('No se aplicaron cambios.');
+                    return;
+                }
+
+                cerrarModalDevolucionHabilitado();
+                setTimeout(() => {
+                    try { renderHabilitado(); } catch (e) {}
+                    try { updateCounters(); } catch (e) {}
+                }, 300);
+                alert(`Devolucion generada en ${updatedCount} fila(s).`);
+            } finally {
+                if (btn) btn.disabled = false;
+            }
         };
 
         function renderHabilitado() {
@@ -15220,4 +15547,7 @@ NOTA: Por favor adjunte los archivos descargados (${fileName}.xlsx y ${fileName}
 
     </body>
     </html>
+
+
+
 
