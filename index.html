@@ -9136,6 +9136,46 @@
 
             let writeIdx = colMap[colName];
 
+            // Evitar escribir por índice en filas recién insertadas localmente que aún no existen en sheet.
+            if (rawData[rowIndex] && rawData[rowIndex]._inserted) {
+                const nowTs = Date.now();
+                if (!window._lastPendingSyncWarning || (nowTs - window._lastPendingSyncWarning) > 1500) {
+                    window._lastPendingSyncWarning = nowTs;
+                    if (typeof showToast === 'function') {
+                        showToast('Sincronizando filas nuevas. Espere 2 segundos y reintente.', 'error');
+                    } else {
+                        alert('Sincronizando filas nuevas con el sheet. Espere 2 segundos y vuelva a intentar.');
+                    }
+                }
+                try {
+                    if (selectElement && writeIdx !== undefined && writeIdx !== -1) {
+                        selectElement.value = String(rawData[rowIndex][writeIdx] || '');
+                    }
+                } catch (e) {}
+                try { scheduleSheetResync(900); } catch (e) {}
+                return;
+            }
+
+            // Corta cualquier escritura de estados en filas sin llave OP/CORTE para evitar filas parciales.
+            try {
+                const isStatusLikeCol = (typeof colName === 'string')
+                    && (colName.toUpperCase().includes('STATUS') || colName.toLowerCase().startsWith('estado_'));
+                if (isStatusLikeCol) {
+                    const opKey = String(getVal(rawData[rowIndex], 'OP') || '').trim();
+                    const corteKey = String(getVal(rawData[rowIndex], 'CORTE') || '').trim();
+                    if (!opKey || !corteKey) {
+                        const nowTs2 = Date.now();
+                        if (!window._lastPendingSyncWarning || (nowTs2 - window._lastPendingSyncWarning) > 1500) {
+                            window._lastPendingSyncWarning = nowTs2;
+                            if (typeof showToast === 'function') showToast('Fila no sincronizada. Recargando datos del sheet...', 'error');
+                            else alert('Fila no sincronizada. Recargando datos del sheet...');
+                        }
+                        try { scheduleSheetResync(900); } catch (e) {}
+                        return;
+                    }
+                }
+            } catch (e) {}
+
             // Validación específica solicitada:
             // En la vista Corte, cuando estamos en sub-tab PROG (1T/2T/3T) y
             // el usuario intenta marcar STATUS_CORTE = 'OK', validar que
