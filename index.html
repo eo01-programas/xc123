@@ -2538,7 +2538,7 @@
 
     <script>
         // --- CONFIGURACIÓN ---
-        const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwjtWucfrh-BHG9ovBvEi14Rt3gmiBcpbxdu4jd5mxZLR5-ppFS348ezQeT87tekR7lJw/exec"; 
+        const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzqn0bgP6q4SzBp77udV7V-VjfBIGpC39NL54pl1rko7JrZz0P4MnMfvG8N4J8eUhK7NA/exec"; 
         const SHEET_ID = "18cQuwqerdMggAeJ8TCUKA7-gujXsA91-CRMUTNpr8aQ";
 
         let rawData = [];
@@ -2578,6 +2578,90 @@
                 window._createdTendidoBases.add(base);
                 localStorage.setItem('createdTendidoBases', JSON.stringify(Array.from(window._createdTendidoBases)));
             } catch (e) { console.error('Error saving created tendido base', e); }
+        }
+
+        // Filas creadas localmente que aun no se reflejan en la lectura del sheet.
+        // Evita que desaparezcan al recargar mientras Apps Script termina de persistir.
+        window._pendingCreatedRows = Array.isArray(window._pendingCreatedRows) ? window._pendingCreatedRows : [];
+        const PENDING_CREATED_ROW_TTL_MS = 45000;
+
+        function getOpCorteKeyFromRow(row) {
+            if (!row) return '';
+            const opIdx = (colMap["OP"] !== undefined && colMap["OP"] !== -1) ? colMap["OP"] : findHeaderIndexCaseInsensitive('OP');
+            const corteIdx = (colMap["CORTE"] !== undefined && colMap["CORTE"] !== -1) ? colMap["CORTE"] : findHeaderIndexCaseInsensitive('CORTE');
+            if (opIdx === -1 || corteIdx === -1) return '';
+
+            const op = String(row[opIdx] || '').trim().toUpperCase();
+            const corte = String(row[corteIdx] || '').trim().toUpperCase();
+            if (!op || !corte) return '';
+            return `${op}::${corte}`;
+        }
+
+        function registerPendingCreatedRow(row) {
+            try {
+                if (!Array.isArray(row) || !row.length) return;
+                const key = getOpCorteKeyFromRow(row);
+                if (!key) return;
+
+                const now = Date.now();
+                const snapshot = row.slice();
+                try { snapshot._inserted = now; } catch (e) {}
+
+                const pending = Array.isArray(window._pendingCreatedRows) ? window._pendingCreatedRows : [];
+                const idx = pending.findIndex(item => item && item.key === key);
+                const entry = { key: key, row: snapshot, createdAt: now };
+                if (idx !== -1) pending[idx] = entry;
+                else pending.push(entry);
+                window._pendingCreatedRows = pending;
+            } catch (e) {
+                console.error('Error registrando fila pendiente de sync', e);
+            }
+        }
+
+        function mergePendingCreatedRowsIntoRawData() {
+            try {
+                const pending = Array.isArray(window._pendingCreatedRows) ? window._pendingCreatedRows : [];
+                if (!pending.length) return;
+                if (!Array.isArray(rawData) || rawData.length < 2) return;
+
+                const now = Date.now();
+                const existingKeys = new Set();
+                for (let i = 1; i < rawData.length; i++) {
+                    const key = getOpCorteKeyFromRow(rawData[i]);
+                    if (key) existingKeys.add(key);
+                }
+
+                const nextPending = [];
+                let rehydratedCount = 0;
+
+                for (let i = 0; i < pending.length; i++) {
+                    const item = pending[i];
+                    if (!item || !item.key || !Array.isArray(item.row)) continue;
+
+                    const createdAt = Number(item.createdAt) || now;
+                    if ((now - createdAt) > PENDING_CREATED_ROW_TTL_MS) continue;
+
+                    if (existingKeys.has(item.key)) {
+                        // Confirmado en sheet: ya no se necesita mantenerlo pendiente.
+                        continue;
+                    }
+
+                    const clone = item.row.slice();
+                    try { clone._inserted = createdAt; } catch (e) {}
+                    rawData.push(clone);
+                    existingKeys.add(item.key);
+                    nextPending.push(item);
+                    rehydratedCount++;
+                }
+
+                window._pendingCreatedRows = nextPending;
+
+                // Mantener reintentos de sync hasta que el sheet confirme todas las filas nuevas.
+                if (nextPending.length > 0) scheduleSheetResync(2200);
+                if (rehydratedCount > 0) console.warn(`Rehidratadas ${rehydratedCount} fila(s) pendiente(s) de sheet.`);
+            } catch (e) {
+                console.error('Error rehidratando filas pendientes', e);
+            }
         }
 
         // Orden temporal de filas en Corte PROG para mantener posicion tras crear/expandir tendidos
@@ -3222,6 +3306,7 @@
                 }
 
                 mapColumns();
+                try { mergePendingCreatedRowsIntoRawData(); } catch (e) { console.error('Error fusionando filas pendientes', e); }
                 renderAllViews();
                 try {
                     const eqBtn = document.getElementById('eqcorte-btn');
@@ -12734,10 +12819,48 @@
             });
         }
 
+        let _sheetResyncTimer = null;
+
+        function requestSheetReload() {
+            try {
+                if (typeof window.loadDataCallback !== 'function') {
+                    console.warn('No se puede recargar: loadDataCallback no está disponible');
+                    return;
+                }
+
+                const cbName = '__sheetResyncCb_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
+                window[cbName] = function(jsonResponse) {
+                    try {
+                        window.loadDataCallback(jsonResponse);
+                    } catch (err) {
+                        console.error('Error procesando recarga del sheet', err);
+                    } finally {
+                        try { delete window[cbName]; } catch (e) { window[cbName] = undefined; }
+                    }
+                };
+
+                const script = document.createElement('script');
+                script.async = true;
+                script.src = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=responseHandler:${cbName}&_=${Date.now()}`;
+                script.onerror = function(err) {
+                    console.error('Error solicitando recarga del sheet', err);
+                    try { delete window[cbName]; } catch (e) { window[cbName] = undefined; }
+                };
+                script.onload = function() {
+                    try { script.remove(); } catch (e) {}
+                };
+                document.body.appendChild(script);
+            } catch (e) {
+                console.error('Error recargando datos del sheet', e);
+            }
+        }
+
         function scheduleSheetResync(delayMs) {
             const wait = Number.isFinite(delayMs) ? delayMs : 700;
-            setTimeout(() => {
-                try { loadData(); } catch (e) { console.error('Error recargando datos del sheet', e); }
+            if (_sheetResyncTimer) clearTimeout(_sheetResyncTimer);
+            _sheetResyncTimer = setTimeout(() => {
+                _sheetResyncTimer = null;
+                requestSheetReload();
             }, wait);
         }
 
@@ -13540,6 +13663,7 @@
                 clearIdxs.forEach(idx => { newRow[idx] = ''; });
                 try { newRow._inserted = Date.now(); } catch (e) {}
                 rawData.push(newRow);
+                try { registerPendingCreatedRow(newRow); } catch (e) {}
 
                 const payload = {
                     action: 'duplicateRow',
@@ -14010,6 +14134,36 @@
             }
         };
 
+        function relaxOcFilterAfterTendidos(opValue, corteBase) {
+            try {
+                if (!corteHeaderFilter || String(corteHeaderFilter.field || '').toUpperCase().trim() !== 'OC') return;
+
+                const opNorm = String(opValue || '').trim().toUpperCase();
+                const baseNorm = String(corteBase || '').trim().toUpperCase();
+                if (!opNorm || !baseNorm) return;
+
+                const currentVal = String(corteHeaderFilter.value || '').trim().toUpperCase();
+                const opPrefix = opNorm + '-';
+                if (!currentVal || currentVal.indexOf(opPrefix) !== 0) return;
+
+                const currentCortePart = currentVal.slice(opPrefix.length).trim();
+                if (!currentCortePart || currentCortePart === baseNorm) return;
+
+                // Si el filtro actual apunta a un tendido específico (ej: 40689-601),
+                // ampliarlo a la base (40689-6) para no ocultar los tendidos nuevos.
+                const looksLikeTendidoOfBase =
+                    currentCortePart.indexOf(baseNorm) === 0 &&
+                    currentCortePart.length > baseNorm.length &&
+                    /^\d+$/.test(currentCortePart.slice(baseNorm.length));
+
+                if (!looksLikeTendidoOfBase) return;
+
+                corteHeaderFilter = { field: 'OC', value: `${opNorm}-${baseNorm}` };
+            } catch (e) {
+                console.error('Error ajustando filtro OC tras crear/editar tendidos:', e);
+            }
+        }
+
         window.guardarModalTendido = function() {
             const numTendidos = modalTendidoData.tendidos ? modalTendidoData.tendidos.length : 2;
             const pdsValues = [];
@@ -14078,6 +14232,7 @@
                 newRow1[pdsIdx] = tendidosData[0].pds;
                 try { newRow1._inserted = Date.now(); } catch(e){}
                 rawData[rowIndex] = newRow1;
+                try { registerPendingCreatedRow(newRow1); } catch (e) {}
                 
                 // Tendidos adicionales se agregan AL FINAL de rawData
                 // (coincide con el servidor que los añade al final del sheet)
@@ -14088,6 +14243,7 @@
                     try { newRow._inserted = Date.now(); } catch(e){}
                     
                     rawData.push(newRow);
+                    try { registerPendingCreatedRow(newRow); } catch (e) {}
                 }
 
                 // Obtener el estado_corte actual de la fila para preservarlo en los tendidos
@@ -14114,12 +14270,15 @@
 
                 // Registrar la base como creada para que se muestre priorizada
                 try { addCreatedTendidoBase(corte); } catch(e) {}
+                try { relaxOcFilterAfterTendidos(modalTendidoData.op, corte); } catch(e) {}
 
             // Cerrar modal y re-renderizar
             cerrarModalTendido();
             updateCounters();
             renderCorte();
-            scheduleSheetResync(900);
+            // Evitar condición de carrera: createTendidos/duplicateRow puede tardar
+            // en persistir en Sheets; si recargamos muy pronto, ocultamos filas nuevas.
+            scheduleSheetResync(2400);
 
             alert(alertMsg);
 
@@ -14183,12 +14342,13 @@
                     }).catch(e => console.error(`Error guardando PDS tendido ${i + 1}`, e));
 
                     alertMsg += `\n• ${tendido} con ${formatThousands(pds, 0)} PDS`;
-                }
-                // Registrar la base como creada (en caso de añadir nuevos tendidos)
-                try { addCreatedTendidoBase(corte); } catch(e) {}
+                    }
+                    // Registrar la base como creada (en caso de añadir nuevos tendidos)
+                    try { addCreatedTendidoBase(corte); } catch(e) {}
+                    try { relaxOcFilterAfterTendidos(modalTendidoData.op, corte); } catch(e) {}
 
-                // Crear nuevos tendidos si hay más valores que filas existentes
-                if (pdsValues.length > tendidoRows.length) {
+                    // Crear nuevos tendidos si hay más valores que filas existentes
+                    if (pdsValues.length > tendidoRows.length) {
                     // Usar la fila que el usuario clickeó (modalTendidoData.rowIndex) como fuente,
                     // NO tendidoRows[0], ya que ese puede tener un estado_corte diferente (ej. OK)
                     const clickedRowIdx = modalTendidoData.rowIndex;
@@ -14212,6 +14372,7 @@
                         try { newRow._inserted = Date.now(); } catch(e){}
 
                         rawData.push(newRow);
+                        try { registerPendingCreatedRow(newRow); } catch (e) {}
 
                         const dupPayload = {
                             action: "duplicateRow",
@@ -14246,7 +14407,9 @@
             cerrarModalTendido();
             updateCounters();
             renderCorte();
-            scheduleSheetResync(900);
+            // Evitar condición de carrera: al añadir/editar tendidos, esperar más
+            // antes de recargar desde Sheets para no perder filas recién creadas.
+            scheduleSheetResync(2400);
 
             alert(alertMsg);
         };
@@ -15119,24 +15282,143 @@ NOTA: Por favor adjunte los archivos descargados (${fileName}.xlsx y ${fileName}
                         }
                     }
 
-                    validIndices.sort((a, b) => {
-                        const idxP = findHeaderIndexCaseInsensitive('P');
-                        let pA = '', pB = '';
-                        if (idxP !== -1) {
-                            pA = String(rawData[a][idxP] || '').trim();
-                            pB = String(rawData[b][idxP] || '').trim();
-                        }
-                        const pNumA = pA === '' ? Infinity : parseInt(pA) || Infinity;
-                        const pNumB = pB === '' ? Infinity : parseInt(pB) || Infinity;
-                        if (pNumA !== pNumB) return pNumA - pNumB;
+                    // Ordenar con el mismo criterio de la vista HTML (renderCorte en sub-tabs PROG)
+                    const corteIdxForMap = colMap["CORTE"];
+                    const opIdxForMap = colMap["OP"];
+                    const eqIdxA = colMap["EQUIPO CORTE"];
+                    const eqIdxB = colMap["EQUIPO_CORTE"];
+                    const eqIdxC = colMap["equipo_corte"];
+                    const pIdxForMap = colMap["P"];
+                    const OP_FALLBACK_NUM = 999999999;
+                    const P_FALLBACK_NUM = 999999999;
+                    const tempOrderMap = (
+                        window._corteProgTempOrder &&
+                        window._corteProgTempOrder.filter === String(turno || '').toUpperCase().trim() &&
+                        window._corteProgTempOrder.map
+                    ) ? window._corteProgTempOrder.map : null;
 
-                        const equipoA = String(rawData[a][colMap["EQUIPO CORTE"]] || rawData[a][colMap["EQUIPO_CORTE"]] || rawData[a][colMap["equipo_corte"]] || "").trim();
-                        const equipoB = String(rawData[b][colMap["EQUIPO CORTE"]] || rawData[b][colMap["EQUIPO_CORTE"]] || rawData[b][colMap["equipo_corte"]] || "").trim();
+                    const getNumericOrFallback = (v) => {
+                        const n = parseInt(String(v || '').replace(/[^0-9]/g, ''), 10);
+                        return isNaN(n) ? OP_FALLBACK_NUM : n;
+                    };
+
+                    const getPriorityOrFallback = (v) => {
+                        const clean = String(v == null ? '' : v).trim();
+                        if (!clean) return P_FALLBACK_NUM;
+                        const n = parseFloat(clean.replace(',', '.').replace(/[^0-9.-]/g, ''));
+                        return isNaN(n) ? P_FALLBACK_NUM : n;
+                    };
+
+                    const parseCorteParts = (s) => {
+                        const v = String(s || '').trim();
+                        if (!v) return { raw: '', base: '', suf: 0, hasSuffix: false };
+                        if (/^\d{3,}$/.test(v)) {
+                            const base = v.slice(0, -2);
+                            const suf = parseInt(v.slice(-2), 10) || 0;
+                            return { raw: v, base: base, suf: suf, hasSuffix: true };
+                        }
+                        return { raw: v, base: v, suf: 0, hasSuffix: false };
+                    };
+
+                    const rowMeta = {};
+                    const opBaseCount = {};
+
+                    validIndices.forEach(idx => {
+                        const row = rawData[idx] || [];
+                        const opVal = String((opIdxForMap !== undefined && opIdxForMap !== -1) ? (row[opIdxForMap] || '') : (getVal(row, 'OP') || '')).trim();
+                        const corteVal = String((corteIdxForMap !== undefined && corteIdxForMap !== -1) ? (row[corteIdxForMap] || '') : (getVal(row, 'CORTE') || '')).trim();
+                        const parsed = parseCorteParts(corteVal);
+                        const opKey = opVal.toUpperCase();
+                        const opBaseKey = opKey + '::' + parsed.base;
+
+                        opBaseCount[opBaseKey] = (opBaseCount[opBaseKey] || 0) + 1;
+
+                        const opTela = String(row[colMap["OP TELA"]] || '').trim();
+                        const partida = String(row[colMap["PARTIDA"]] || '').trim();
+                        const equipoVal = String(row[eqIdxA] || row[eqIdxB] || row[eqIdxC] || "").trim();
+                        const pVal = (pIdxForMap !== undefined && pIdxForMap !== -1) ? row[pIdxForMap] : getVal(row, 'P');
+
+                        rowMeta[idx] = {
+                            op: opVal,
+                            opKey: opKey,
+                            opNum: getNumericOrFallback(opVal),
+                            pNum: getPriorityOrFallback(pVal),
+                            corte: corteVal,
+                            ocKey: `${opKey}::${String(corteVal || '').trim().toUpperCase()}`,
+                            parsed: parsed,
+                            opBaseKey: opBaseKey,
+                            opPtda: opTela + '-' + partida,
+                            equipo: equipoVal
+                        };
+                    });
+
+                    validIndices.forEach(idx => {
+                        const meta = rowMeta[idx];
+                        if (!meta) return;
+                        const createdBase = !!(window._createdTendidoBases && window._createdTendidoBases.has(meta.parsed.base));
+                        const repeatedBase = (opBaseCount[meta.opBaseKey] || 0) > 1;
+                        meta.isSplit = !!(meta.parsed.hasSuffix && (repeatedBase || createdBase));
+                    });
+
+                    validIndices.sort((a, b) => {
+                        const ma = rowMeta[a] || {};
+                        const mb = rowMeta[b] || {};
+
+                        if (tempOrderMap) {
+                            const keyA = ma.ocKey || '';
+                            const keyB = mb.ocKey || '';
+                            const hasA = !!keyA && Object.prototype.hasOwnProperty.call(tempOrderMap, keyA);
+                            const hasB = !!keyB && Object.prototype.hasOwnProperty.call(tempOrderMap, keyB);
+                            if (hasA && hasB) {
+                                const delta = tempOrderMap[keyA] - tempOrderMap[keyB];
+                                if (delta !== 0) return delta;
+                            } else if (hasA !== hasB) {
+                                return hasA ? -1 : 1;
+                            }
+                        }
+
                         const findEqOrder = (nombre) => {
                             const equipo = equiposCorteData.find(eq => eq.nombre === nombre);
                             return equipo ? (parseInt(equipo.eq) || 999) : 999;
                         };
-                        return findEqOrder(equipoA) - findEqOrder(equipoB);
+
+                        const orderA = findEqOrder(ma.equipo || '');
+                        const orderB = findEqOrder(mb.equipo || '');
+                        if (orderA !== orderB) return orderA - orderB;
+
+                        const equipoKeyA = String(ma.equipo || '').trim().toUpperCase();
+                        const equipoKeyB = String(mb.equipo || '').trim().toUpperCase();
+                        if (equipoKeyA !== equipoKeyB) {
+                            if (!equipoKeyA && equipoKeyB) return 1;
+                            if (equipoKeyA && !equipoKeyB) return -1;
+                            return equipoKeyA.localeCompare(equipoKeyB, undefined, { numeric: true, sensitivity: 'base' });
+                        }
+
+                        const pNumA = (typeof ma.pNum === 'number') ? ma.pNum : P_FALLBACK_NUM;
+                        const pNumB = (typeof mb.pNum === 'number') ? mb.pNum : P_FALLBACK_NUM;
+                        if (pNumA !== pNumB) return pNumA - pNumB;
+
+                        if (!!ma.isSplit !== !!mb.isSplit) return ma.isSplit ? -1 : 1;
+
+                        if (ma.isSplit && mb.isSplit) {
+                            if (ma.opNum !== mb.opNum) return ma.opNum - mb.opNum;
+                            const opCmp = (ma.opKey || '').localeCompare(mb.opKey || '', undefined, { numeric: true, sensitivity: 'base' });
+                            if (opCmp !== 0) return opCmp;
+
+                            const baseNumA = getNumericOrFallback(ma.parsed && ma.parsed.base);
+                            const baseNumB = getNumericOrFallback(mb.parsed && mb.parsed.base);
+                            if (baseNumA !== baseNumB) return baseNumA - baseNumB;
+                            const baseCmp = String((ma.parsed && ma.parsed.base) || '').localeCompare(String((mb.parsed && mb.parsed.base) || ''), undefined, { numeric: true, sensitivity: 'base' });
+                            if (baseCmp !== 0) return baseCmp;
+
+                            const sufA = (ma.parsed && ma.parsed.suf) || 0;
+                            const sufB = (mb.parsed && mb.parsed.suf) || 0;
+                            if (sufA !== sufB) return sufA - sufB;
+                        }
+
+                        const opPtdaCmp = String(ma.opPtda || '').localeCompare(String(mb.opPtda || ''), undefined, { numeric: true, sensitivity: 'base' });
+                        if (opPtdaCmp !== 0) return opPtdaCmp;
+                        return a - b;
                     });
 
                     const section = document.createElement('div');
