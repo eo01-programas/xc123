@@ -2056,6 +2056,16 @@
         </div>
     </div>
 
+    <div id="modal-loading-eliminar-tendido" class="modal-overlay" style="background: rgba(0,0,0,0.5); pointer-events: auto; display: none;">
+        <div class="modal-content-loading" style="pointer-events: none; background: white; padding: 30px 40px; border-radius: 12px; box-shadow: 0 10px 40px rgba(0,0,0,0.2);">
+            <div style="text-align: center;">
+                <div class="spinner" style="margin: 0 auto 15px auto;"></div>
+                <div style="font-size: 15px; font-weight: 600; color: var(--gray-800); margin-bottom: 6px;">Eliminando tendido...</div>
+                <div style="font-size: 12px; color: var(--gray-500);">Espere, por favor</div>
+            </div>
+        </div>
+    </div>
+
     <!-- HEADER -->
     <header>
         <div class="brand">
@@ -5321,7 +5331,9 @@
                 const eqIdxA = colMap["EQUIPO CORTE"];
                 const eqIdxB = colMap["EQUIPO_CORTE"];
                 const eqIdxC = colMap["equipo_corte"];
+                const pIdxForMap = colMap["P"];
                 const OP_FALLBACK_NUM = 999999999;
+                const P_FALLBACK_NUM = 999999999;
                 const tempOrderMap = (
                     window._corteProgTempOrder &&
                     window._corteProgTempOrder.filter === String(currentCorteFilter || '').toUpperCase().trim() &&
@@ -5331,6 +5343,13 @@
                 const getNumericOrFallback = (v) => {
                     const n = parseInt(String(v || '').replace(/[^0-9]/g, ''), 10);
                     return isNaN(n) ? OP_FALLBACK_NUM : n;
+                };
+
+                const getPriorityOrFallback = (v) => {
+                    const clean = String(v == null ? '' : v).trim();
+                    if (!clean) return P_FALLBACK_NUM;
+                    const n = parseFloat(clean.replace(',', '.').replace(/[^0-9.-]/g, ''));
+                    return isNaN(n) ? P_FALLBACK_NUM : n;
                 };
 
                 const parseCorteParts = (s) => {
@@ -5361,11 +5380,13 @@
                     const opTela = String(row[colMap["OP TELA"]] || '').trim();
                     const partida = String(row[colMap["PARTIDA"]] || '').trim();
                     const equipoVal = String(row[eqIdxA] || row[eqIdxB] || row[eqIdxC] || "").trim();
+                    const pVal = (pIdxForMap !== undefined && pIdxForMap !== -1) ? row[pIdxForMap] : getVal(row, 'P');
 
                     rowMeta[idx] = {
                         op: opVal,
                         opKey: opKey,
                         opNum: getNumericOrFallback(opVal),
+                        pNum: getPriorityOrFallback(pVal),
                         corte: corteVal,
                         ocKey: `${opKey}::${String(corteVal || '').trim().toUpperCase()}`,
                         parsed: parsed,
@@ -5421,10 +5442,17 @@
                         return equipoKeyA.localeCompare(equipoKeyB, undefined, { numeric: true, sensitivity: 'base' });
                     }
 
-                    // 2. Dentro del equipo: primero OCs con tendidos desglosados
+                    // 2. Dentro del equipo: primero por prioridad P (vacios al final)
+                    const pNumA = (typeof ma.pNum === 'number') ? ma.pNum : P_FALLBACK_NUM;
+                    const pNumB = (typeof mb.pNum === 'number') ? mb.pNum : P_FALLBACK_NUM;
+                    if (pNumA !== pNumB) {
+                        return pNumA - pNumB;
+                    }
+
+                    // 3. Luego: primero OCs con tendidos desglosados
                     if (!!ma.isSplit !== !!mb.isSplit) return ma.isSplit ? -1 : 1;
 
-                    // 3. Si ambos son desglosados: ordenar por OC y luego por tendido
+                    // 4. Si ambos son desglosados: ordenar por OC y luego por tendido
                     if (ma.isSplit && mb.isSplit) {
                         if (ma.opNum !== mb.opNum) return ma.opNum - mb.opNum;
                         const opCmp = (ma.opKey || '').localeCompare(mb.opKey || '', undefined, { numeric: true, sensitivity: 'base' });
@@ -5441,7 +5469,7 @@
                         if (sufA !== sufB) return sufA - sufB;
                     }
 
-                    // 4. Resto de casos: conservar orden por OP-PTDA y estabilidad por indice
+                    // 5. Resto de casos: conservar orden por OP-PTDA y estabilidad por indice
                     const opPtdaCmp = String(ma.opPtda || '').localeCompare(String(mb.opPtda || ''), undefined, { numeric: true, sensitivity: 'base' });
                     if (opPtdaCmp !== 0) return opPtdaCmp;
                     return a - b;
@@ -12641,6 +12669,11 @@
         }
 
         let tendidoDeleteInFlight = false;
+        function toggleEliminarTendidoLoading(show) {
+            const modal = document.getElementById('modal-loading-eliminar-tendido');
+            if (!modal) return;
+            modal.style.display = show ? 'flex' : 'none';
+        }
 
         async function deleteTendidoInSheet(opValue, corteValue, fallbackExcelRow) {
             const payload = {
@@ -12771,11 +12804,14 @@
                     }
 
                     try {
+                        toggleEliminarTendidoLoading(true);
                         await deleteTendidoInSheet(opToDelete, corteToDelete, excelRow);
                     } catch (e) {
                         console.error('Error eliminando tendido del sheet', e);
                         alert('No se pudo eliminar el tendido en el sheet. Intente nuevamente.');
                         return;
+                    } finally {
+                        toggleEliminarTendidoLoading(false);
                     }
 
                     if (localDeleteIdx >= 1 && localDeleteIdx < rawData.length) {
@@ -15614,7 +15650,6 @@ NOTA: Por favor adjunte los archivos descargados (${fileName}.xlsx y ${fileName}
 
     </body>
     </html>
-
 
 
 
