@@ -12676,17 +12676,29 @@
         }
 
         async function deleteTendidoInSheet(opValue, corteValue, fallbackExcelRow) {
+            const excelRow = parseInt(fallbackExcelRow, 10);
+            if (!Number.isInteger(excelRow) || excelRow < 2) {
+                throw new Error('Fila de eliminación inválida para tendido: ' + fallbackExcelRow);
+            }
             const payload = {
-                action: 'deleteTendidoByKey',
-                fallbackRowIndex: fallbackExcelRow,
+                action: 'deleteRecord',
+                rowIndex: excelRow,
                 op: String(opValue || '').trim(),
-                corte: String(corteValue || '').trim()
+                corte: String(corteValue || '').trim(),
+                reason: 'deleteTendido'
             };
             await fetch(WEB_APP_URL, {
                 method: 'POST',
                 mode: 'no-cors',
                 body: JSON.stringify(payload)
             });
+        }
+
+        function scheduleSheetResync(delayMs) {
+            const wait = Number.isFinite(delayMs) ? delayMs : 700;
+            setTimeout(() => {
+                try { loadData(); } catch (e) { console.error('Error recargando datos del sheet', e); }
+            }, wait);
         }
 
         function renderModalTendidoRows(prefillValues) {
@@ -12846,6 +12858,7 @@
                 try {
                     updateCounters();
                     renderCorte();
+                    scheduleSheetResync(900);
                 } catch (e) {}
             } catch (e) {
                 console.error('Error eliminando ultimo tendido', e);
@@ -13515,6 +13528,7 @@
             cerrarModalNuevoCorte();
             updateCounters();
             renderCorte();
+            scheduleSheetResync(1200);
             alert(`Se crearon ${createdCount} nuevo(s) corte(s) en ${targetEstado}.`);
         };
 
@@ -14053,12 +14067,13 @@
                 // Registrar la base como creada para que se muestre priorizada
                 try { addCreatedTendidoBase(corte); } catch(e) {}
 
-                // Cerrar modal y re-renderizar
-                cerrarModalTendido();
-                updateCounters();
-                renderCorte();
+            // Cerrar modal y re-renderizar
+            cerrarModalTendido();
+            updateCounters();
+            renderCorte();
+            scheduleSheetResync(900);
 
-                alert(alertMsg);
+            alert(alertMsg);
 
             } catch (e) {
                 console.error('Error guardando tendidos:', e);
@@ -14179,6 +14194,7 @@
             cerrarModalTendido();
             updateCounters();
             renderCorte();
+            scheduleSheetResync(900);
 
             alert(alertMsg);
         };
