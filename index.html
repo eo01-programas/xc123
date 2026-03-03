@@ -2538,7 +2538,7 @@
 
     <script>
         // --- CONFIGURACIÓN ---
-        const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbw3GuCMhHzb0Iwr0G-xkjBz7NZkHMsyBtONPk3KFR3hZsi39Ol9vaAnJxq0x4uJTpbdiw/exec"; 
+        const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwjtWucfrh-BHG9ovBvEi14Rt3gmiBcpbxdu4jd5mxZLR5-ppFS348ezQeT87tekR7lJw/exec"; 
         const SHEET_ID = "18cQuwqerdMggAeJ8TCUKA7-gujXsA91-CRMUTNpr8aQ";
 
         let rawData = [];
@@ -13544,6 +13544,10 @@
                 const payload = {
                     action: 'duplicateRow',
                     sourceRow: modalNuevoCorteData.sourceRowIndex,
+                    sourceOp: String(getVal(sourceRow, 'OP') || '').trim(),
+                    sourceCorte: String(getVal(sourceRow, 'CORTE') || '').trim(),
+                    sourceOpTela: String(getVal(sourceRow, 'OP TELA') || '').trim(),
+                    sourcePartida: String(getVal(sourceRow, 'PARTIDA') || '').trim(),
                     newCorte: corteCode,
                     newPds: pdsNum,
                     estadoCorte: targetEstado,
@@ -14094,6 +14098,10 @@
                 const payload = {
                     action: "createTendidos",
                     sourceRow: rowIndex,
+                    sourceOp: String(getVal(originalRow, 'OP') || '').trim(),
+                    sourceCorte: String(getVal(originalRow, 'CORTE') || '').trim(),
+                    sourceOpTela: String(getVal(originalRow, 'OP TELA') || '').trim(),
+                    sourcePartida: String(getVal(originalRow, 'PARTIDA') || '').trim(),
                     tendidos: tendidosData
                 };
                 if (estadoCorteIdx !== -1) payload.estadoCorte = estadoCorteVal || '';
@@ -14208,6 +14216,10 @@
                         const dupPayload = {
                             action: "duplicateRow",
                             sourceRow: sourceRowIdx,
+                            sourceOp: String(getVal(sourceRow, 'OP') || '').trim(),
+                            sourceCorte: String(getVal(sourceRow, 'CORTE') || '').trim(),
+                            sourceOpTela: String(getVal(sourceRow, 'OP TELA') || '').trim(),
+                            sourcePartida: String(getVal(sourceRow, 'PARTIDA') || '').trim(),
                             newCorte: tendido,
                             newPds: pds
                         };
