@@ -2528,7 +2528,7 @@
 
     <script>
         // --- CONFIGURACIÓN ---
-        const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxuCzW770E6oZd9gt6tVdFiNgOPFCdRO-N3lC-Vg-fSZjXupolsMlyaQOWlP0qlcBULAw/exec"; 
+        const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbw3GuCMhHzb0Iwr0G-xkjBz7NZkHMsyBtONPk3KFR3hZsi39Ol9vaAnJxq0x4uJTpbdiw/exec"; 
         const SHEET_ID = "18cQuwqerdMggAeJ8TCUKA7-gujXsA91-CRMUTNpr8aQ";
 
         let rawData = [];
@@ -12644,11 +12644,10 @@
 
         async function deleteTendidoInSheet(opValue, corteValue, fallbackExcelRow) {
             const payload = {
-                action: 'deleteRecord',
-                rowIndex: fallbackExcelRow,
+                action: 'deleteTendidoByKey',
+                fallbackRowIndex: fallbackExcelRow,
                 op: String(opValue || '').trim(),
-                corte: String(corteValue || '').trim(),
-                reason: 'deleteTendido'
+                corte: String(corteValue || '').trim()
             };
             await fetch(WEB_APP_URL, {
                 method: 'POST',
@@ -12730,13 +12729,46 @@
 
                 if (isPersistedRow) {
                     const rowIdxRaw = modalTendidoData.tendidoRows[lastIdx];
-                    const excelRow = rowIdxRaw + 1;
-
                     const opIdx = colMap["OP"];
                     const corteIdx = colMap["CORTE"];
-                    const rowToDelete = (rowIdxRaw >= 1 && rowIdxRaw < rawData.length) ? rawData[rowIdxRaw] : null;
-                    const opToDelete = (rowToDelete && opIdx !== undefined && opIdx !== -1) ? rowToDelete[opIdx] : modalTendidoData.op;
-                    const corteToDelete = (rowToDelete && corteIdx !== undefined && corteIdx !== -1) ? rowToDelete[corteIdx] : lastTendido;
+                    const targetOp = String(modalTendidoData.op || '').trim();
+                    const targetCorte = String(lastTendido || '').trim();
+
+                    const rowMatchesTarget = function(idx) {
+                        if (!Number.isInteger(idx) || idx < 1 || idx >= rawData.length) return false;
+                        const row = rawData[idx];
+                        if (!row) return false;
+                        const rowOp = (opIdx !== undefined && opIdx !== -1) ? String(row[opIdx] || '').trim() : '';
+                        const rowCorte = (corteIdx !== undefined && corteIdx !== -1) ? String(row[corteIdx] || '').trim() : '';
+                        if (targetOp && rowOp !== targetOp) return false;
+                        if (targetCorte && rowCorte !== targetCorte) return false;
+                        return true;
+                    };
+
+                    let localDeleteIdx = Number.isInteger(rowIdxRaw) ? rowIdxRaw : -1;
+                    if (!rowMatchesTarget(localDeleteIdx)) {
+                        for (let i = 1; i < rawData.length; i++) {
+                            if (rowMatchesTarget(i)) {
+                                localDeleteIdx = i;
+                                break;
+                            }
+                        }
+                    }
+                    if (!Number.isInteger(localDeleteIdx) || localDeleteIdx < 1 || localDeleteIdx >= rawData.length) {
+                        localDeleteIdx = Number.isInteger(rowIdxRaw) ? rowIdxRaw : -1;
+                    }
+
+                    const rowToDelete = (localDeleteIdx >= 1 && localDeleteIdx < rawData.length) ? rawData[localDeleteIdx] : null;
+                    const opToDelete = targetOp || ((rowToDelete && opIdx !== undefined && opIdx !== -1) ? String(rowToDelete[opIdx] || '').trim() : '');
+                    const corteToDelete = targetCorte || ((rowToDelete && corteIdx !== undefined && corteIdx !== -1) ? String(rowToDelete[corteIdx] || '').trim() : '');
+                    const excelRow = (localDeleteIdx >= 1)
+                        ? localDeleteIdx + 1
+                        : (Number.isInteger(rowIdxRaw) ? rowIdxRaw + 1 : null);
+
+                    if (!Number.isInteger(excelRow) || excelRow < 2) {
+                        alert('No se pudo resolver la fila del tendido a eliminar.');
+                        return;
+                    }
 
                     try {
                         await deleteTendidoInSheet(opToDelete, corteToDelete, excelRow);
@@ -12746,17 +12778,17 @@
                         return;
                     }
 
-                    if (rowIdxRaw >= 1 && rowIdxRaw < rawData.length) {
-                        rawData.splice(rowIdxRaw, 1);
+                    if (localDeleteIdx >= 1 && localDeleteIdx < rawData.length) {
+                        rawData.splice(localDeleteIdx, 1);
                     }
 
                     modalTendidoData.tendidoRows.splice(lastIdx, 1);
                     for (let j = 0; j < modalTendidoData.tendidoRows.length; j++) {
-                        if (typeof modalTendidoData.tendidoRows[j] === 'number' && modalTendidoData.tendidoRows[j] > rowIdxRaw) {
+                        if (typeof modalTendidoData.tendidoRows[j] === 'number' && modalTendidoData.tendidoRows[j] > localDeleteIdx) {
                             modalTendidoData.tendidoRows[j] = modalTendidoData.tendidoRows[j] - 1;
                         }
                     }
-                    if (typeof modalTendidoData.rowIndex === 'number' && modalTendidoData.rowIndex > rowIdxRaw) {
+                    if (typeof modalTendidoData.rowIndex === 'number' && modalTendidoData.rowIndex > localDeleteIdx) {
                         modalTendidoData.rowIndex = modalTendidoData.rowIndex - 1;
                     }
                     modalTendidoData.pdsTotal = Math.max(0, (parseFloat(modalTendidoData.pdsTotal) || 0) - lastPds);
