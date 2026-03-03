@@ -4203,9 +4203,16 @@
 
         // --- FUNCIÓN PARA EDITAR OBSERVACIONES CON DOBLE CLICK ---
         function editObservaciones(cell, rowIndex) {
+            let effectiveRowIndex = rowIndex;
+            try {
+                const tr = (cell && typeof cell.closest === 'function') ? cell.closest('tr[data-row-index]') : null;
+                const domRowIndex = tr ? parseInt(tr.getAttribute('data-row-index'), 10) : NaN;
+                if (Number.isInteger(domRowIndex) && domRowIndex >= 1) effectiveRowIndex = domRowIndex;
+            } catch (e) {}
+
             // PROTECCIÓN: No permitir escritura en encabezados
-            if (rowIndex < 1 || !rawData[rowIndex]) {
-                console.error('PROTECCIÓN editObservaciones: rowIndex inválido=' + rowIndex);
+            if (effectiveRowIndex < 1 || !rawData[effectiveRowIndex]) {
+                console.error('PROTECCIÓN editObservaciones: rowIndex inválido=' + effectiveRowIndex);
                 return;
             }
             // Evitar abrir más de un editor en la misma celda
@@ -4213,9 +4220,9 @@
 
             const span = cell.querySelector('.observaciones-display');
             const currentValue = String(
-                getVal(rawData[rowIndex], 'OBSERVACIONES')
-                || getVal(rawData[rowIndex], 'OBSERVACION')
-                || getVal(rawData[rowIndex], 'OBS')
+                getVal(rawData[effectiveRowIndex], 'OBSERVACIONES')
+                || getVal(rawData[effectiveRowIndex], 'OBSERVACION')
+                || getVal(rawData[effectiveRowIndex], 'OBS')
                 || ''
             );
 
@@ -4245,12 +4252,12 @@
                             idxObs = findHeaderIndexCaseInsensitive('OBS');
                             if (idxObs !== -1) obsColName = 'OBS';
                         }
-                        if (idxObs !== -1 && rawData[rowIndex]) {
-                            rawData[rowIndex][idxObs] = newValue;
+                        if (idxObs !== -1 && rawData[effectiveRowIndex]) {
+                            rawData[effectiveRowIndex][idxObs] = newValue;
                         }
                         if (span) span.textContent = newValue;
                         cell.title = newValue;
-                        updateRow(rowIndex, obsColName, newValue, null);
+                        updateRow(effectiveRowIndex, obsColName, newValue, null);
                     } else if (span) {
                         span.textContent = currentValue;
                     }
@@ -7621,6 +7628,9 @@
                         lastOpPtda = currentOpPtda;
                         tr.classList.add(`group-${currentRowGroup}`);
                     }
+
+                    // Asignar data-row-index al tr para ediciones robustas por fila
+                    tr.setAttribute('data-row-index', i);
                     
                     // Si P = 1, aplicar color rojo claro y transparente
                     const idxP = findHeaderIndexCaseInsensitive('P');
@@ -7972,6 +7982,7 @@
 
         function createRow(row, rowIndex, type, groupClass = "") {
             const tr = document.createElement('tr');
+            tr.setAttribute('data-row-index', rowIndex);
             if (groupClass) tr.className = `group-${groupClass}`;
             // Flag para marcar filas en devolución de lavado
             let isDevolucionRow = false;
@@ -8276,8 +8287,6 @@
 
                 const op = getVal(row, "OP");
                 const corte = getVal(row, "CORTE");
-                const opEscaped = String(op || '').replace(/'/g, "\\'");
-                const corteEscaped = String(corte || '').replace(/'/g, "\\'");
                 const oc = (op || corte) ? `${op}-${corte}` : "";
 
                 const rutaVal = getVal(row, "RUTA TELA") || getVal(row, "RUTA") || "";
@@ -8314,8 +8323,8 @@
 
                 // Determinar si mostrar el botón de tendido (solo en sub-tabs PROG 1T/2T/3T)
                 const showTendidoBtn = (currentCorteFilter === 'PROG 1T' || currentCorteFilter === 'PROG 2T' || currentCorteFilter === 'PROG 3T') && !isHabilitadoView();
-                const tendidoBtnHtml = showTendidoBtn 
-                    ? `<button class="btn-tendido" onclick="abrirModalTendido(${rowIndex}, '${opEscaped}', '${corteEscaped}', '${String(color).replace(/'/g, "\\'")}', ${pdsRaw})" title="Dividir en tendidos">+</button>` 
+                const tendidoBtnHtml = showTendidoBtn
+                    ? `<button class="btn-tendido" onclick="abrirModalTendido(${rowIndex})" title="Dividir en tendidos">+</button>`
                     : '';
 
                 // Usar la función helper para renderizar el badge de RUTA
@@ -9043,14 +9052,16 @@
         };
 
         window.updateRow = function(rowIndex, colName, value, selectElement, skipPropagation, skipEnumPrompt) {
+            const parsedRowIndex = Number.isInteger(rowIndex) ? rowIndex : parseInt(rowIndex, 10);
             // Log para debugging
-            console.log('updateRow llamado:', {rowIndex, colName, value, skipPropagation: !!skipPropagation, skipEnumPrompt: !!skipEnumPrompt});
+            console.log('updateRow llamado:', {rowIndex: parsedRowIndex, colName, value, skipPropagation: !!skipPropagation, skipEnumPrompt: !!skipEnumPrompt});
             
             // PROTECCIÓN: No permitir escritura en la fila de encabezados (rawData[0])
-            if (rowIndex < 1 || !rawData[rowIndex]) {
-                console.error('PROTECCIÓN: Intento de escribir en fila inválida o encabezados. rowIndex=' + rowIndex + ', colName=' + colName + ', value=' + value);
+            if (!Number.isInteger(parsedRowIndex) || parsedRowIndex < 1 || !rawData[parsedRowIndex]) {
+                console.error('PROTECCIÓN: Intento de escribir en fila inválida o encabezados. rowIndex=' + parsedRowIndex + ', colName=' + colName + ', value=' + value);
                 return;
             }
+            rowIndex = parsedRowIndex;
             
             if (colName.includes('estado_') || (typeof colName === 'string' && (colName.toUpperCase() === 'STATUS' || colName.toUpperCase() === 'STATUS_CORTE'))) {
                 try {
@@ -12777,17 +12788,47 @@
         };
 
         window.abrirModalTendido = function(rowIndex, op, corte, color, pdsTotal) {
+            const parsedRowIndex = parseInt(rowIndex, 10);
+            const rowIndexResolved = Number.isInteger(parsedRowIndex) ? parsedRowIndex : rowIndex;
+            let opResolved = String(op || '').trim();
+            let corteResolved = String(corte || '').trim();
+            let colorResolved = String(color || '').trim();
+            let pdsResolved = parseFloat(pdsTotal);
+            if (!Number.isFinite(pdsResolved)) pdsResolved = 0;
+
+            try {
+                if (Number.isInteger(parsedRowIndex) && parsedRowIndex >= 1 && Array.isArray(rawData) && rawData[parsedRowIndex]) {
+                    const row = rawData[parsedRowIndex];
+                    const rowOp = String(getVal(row, 'OP') || '').trim();
+                    const rowCorte = String(getVal(row, 'CORTE') || '').trim();
+                    const rowColor = String(abbreviateHeather(getVal(row, 'COLOR') || '') || '').trim();
+                    const rowPds = parseFloat(getVal(row, 'PDS GIRADAS') || getVal(row, 'PDS') || 0);
+
+                    if (rowOp) opResolved = rowOp;
+                    if (rowCorte) corteResolved = rowCorte;
+                    if (rowColor) colorResolved = rowColor;
+                    if (Number.isFinite(rowPds)) pdsResolved = rowPds;
+                }
+            } catch (e) {
+                console.warn('abrirModalTendido: no se pudo resolver la fila desde rawData', e);
+            }
+
+            if (!opResolved || !corteResolved) {
+                alert('No se pudo obtener OP/CORTE de la fila seleccionada.');
+                return;
+            }
+
             // Detectar si el CORTE es ya un tendido (termina en 01, 02, etc.)
-            const corteStr = String(corte);
+            const corteStr = String(corteResolved);
             const lastTwoChars = corteStr.slice(-2);
             const isTendidoExistente = /^0[1-9]$|^[1-9]\d$/.test(lastTwoChars) && corteStr.length > 2;
             
             if (isTendidoExistente) {
                 // Modo EDICIÓN: mostrar los tendidos ya existentes
-                abrirModalTendidoEdicion(rowIndex, op, corte, color);
+                abrirModalTendidoEdicion(rowIndexResolved, opResolved, corteResolved, colorResolved);
             } else {
                 // Modo CREACIÓN: crear nuevos tendidos
-                abrirModalTendidoCreacion(rowIndex, op, corte, color, pdsTotal);
+                abrirModalTendidoCreacion(rowIndexResolved, opResolved, corteResolved, colorResolved, pdsResolved);
             }
         };
 
@@ -13176,16 +13217,10 @@
                     const rowIndex = parseInt(tr.getAttribute('data-row-index'), 10);
                     if (!Number.isInteger(rowIndex) || rowIndex < 1 || !rawData[rowIndex]) return;
 
-                    const row = rawData[rowIndex];
-                    const op = String(getVal(row, 'OP') || '').trim();
-                    const corte = String(getVal(row, 'CORTE') || '').trim();
-                    const color = abbreviateHeather(getVal(row, 'COLOR') || '');
-                    const pdsRaw = parseFloat(getVal(row, 'PDS GIRADAS') || getVal(row, 'PDS') || 0) || 0;
-
                     if (typeof window.abrirModalTendido === 'function') {
                         e.preventDefault();
                         e.stopPropagation();
-                        window.abrirModalTendido(rowIndex, op, corte, color, pdsRaw);
+                        window.abrirModalTendido(rowIndex);
                     }
                     return;
                 }
