@@ -1376,7 +1376,7 @@
         }
         .btn-print-circle i { font-size: 14px; }
 
-        /* Boton circular para "Nuevo corte" en Corte PROG 1T/2T/3T */
+        /* Boton circular para "Nuevo corte" en Corte Por Programar */
         .btn-new-corte-circle {
             width: 28px;
             height: 28px;
@@ -1760,12 +1760,13 @@
                 <thead>
                     <tr>
                         <th style="width: 30%;">TENDIDO</th>
-                        <th style="width: 30%;">PDS</th>
-                        <th style="width: 40%;">EQUIPO_CORTE</th>
+                        <th style="width: 20%;">PDS</th>
+                        <th style="width: 20%;">estado_corte</th>
+                        <th style="width: 30%;">equipo_corte</th>
                     </tr>
                 </thead>
                 <tbody id="modal-nuevo-corte-tbody">
-                    <tr><td colspan="3" style="text-align:center; color:var(--gray-500);">Busque una OC para comenzar</td></tr>
+                    <tr><td colspan="4" style="text-align:center; color:var(--gray-500);">Busque una OC para comenzar</td></tr>
                 </tbody>
             </table>
 
@@ -2454,11 +2455,6 @@
                 </button>
                     <!-- Filtros por RUTA a la derecha -->
                     <div class="sub-filters" id="corte-route-filters" style="display:flex;">
-                        <label class="filter-item"><input type="checkbox" id="flt-lv" onchange="onRouteFilterChange('LV-ok', this.checked)"><span>LV-ok</span></label>
-                        <label class="filter-item"><input type="checkbox" id="flt-ac" onchange="onRouteFilterChange('AC', this.checked)"><span>AC</span></label>
-                        <label class="filter-item"><input type="checkbox" id="flt-xl" onchange="onRouteFilterChange('x lavar', this.checked)"><span>x lavar</span></label>
-                        <label class="filter-item"><input type="checkbox" id="flt-xp" onchange="onRouteFilterChange('x pedir', this.checked)"><span>x pedir</span></label>
-                        <label class="filter-item"><input type="checkbox" id="flt-xb" onchange="onRouteFilterChange('x bloq', this.checked)"><span>x bloq</span></label>
                         <label class="filter-item" style="display:none;"><input type="checkbox" id="flt-normal" onchange="onRouteFilterChange('NORMAL', this.checked)"><span>Normal</span></label>
                     </div>
             </div>
@@ -3170,11 +3166,6 @@
 
         // Filtros por RUTA (por defecto todos desactivados -> sin filtrado)
         const routeFilters = {
-            'LV-ok': false,
-            'AC': false,
-            'x lavar': false,
-            'x pedir': false,
-            'x bloq': false,
             'NORMAL': false
         };
 
@@ -3184,27 +3175,12 @@
             try { if (document.getElementById('view-corte').classList.contains('active') && currentCorteFilter === 'X PROG') renderCorte(); } catch(e){}
         }
 
-        // Determina la clave simple de RUTA para una fila (debe coincidir con las keys de routeFilters)
+        // Determina la clave de RUTA para una fila (actualmente solo se usa 'NORMAL')
         function getRouteKeyForRow(row) {
             const rutaVal = getVal(row, "RUTA TELA") || getVal(row, "RUTA") || "";
             const rutaKey = String(rutaVal || "").toUpperCase().trim();
-            // Si no hay valor en RUTA TELA/RUTA, considerarlo como NORMAL
-            if (rutaKey === '') return 'NORMAL';
-            if (rutaKey.indexOf('NORMAL') !== -1) return 'NORMAL';
-            if (rutaKey === 'ACABADA') return 'AC';
-            if (rutaKey === 'LAVADA') {
-                const estadoBloqRaw = getVal(row, "estado_bloqueo");
-                const estadoBloq = String(estadoBloqRaw || '').toUpperCase().trim();
-                const estadoLavRaw = getVal(row, "estado_lavada");
-                const estadoLav = (!estadoLavRaw || estadoLavRaw === "") ? "" : String(estadoLavRaw).toUpperCase().trim();
-
-                if (estadoBloq === '') return 'x pedir';
-                if (estadoBloq.includes('PROG')) return 'x bloq';
-                if (estadoBloq === 'OK' && (estadoLav === '' || estadoLav === 'EN LAV')) return 'x lavar';
-                if (estadoLav === 'OK') return 'LV-ok';
-                return 'LV-ok';
-            }
-            return String(rutaVal || '').trim();
+            if (rutaKey === '' || rutaKey.indexOf('NORMAL') !== -1) return 'NORMAL';
+            return 'OTHER';
         }
 
         document.addEventListener('DOMContentLoaded', initApp);
@@ -11423,13 +11399,13 @@
                             btnPrintCorte.style.display = isProg ? 'inline-flex' : 'none';
                         }
                     } catch (e) {}
-                    // Mostrar/ocultar boton "Nuevo corte" solo en sub-tabs PROG 1T/2T/3T
+                    // Mostrar/ocultar boton "Nuevo corte" solo en sub-tab Por Programar (X PROG)
                     try {
                         const btnNuevoCorte = document.getElementById('btn-nuevo-corte');
                         if (btnNuevoCorte) {
-                            const isProgTurn = (filterState === 'PROG 1T' || filterState === 'PROG 2T' || filterState === 'PROG 3T');
-                            btnNuevoCorte.style.display = isProgTurn ? 'inline-flex' : 'none';
-                            if (!isProgTurn && typeof cerrarModalNuevoCorte === 'function') cerrarModalNuevoCorte();
+                            const isXProg = (filterState === 'X PROG');
+                            btnNuevoCorte.style.display = isXProg ? 'inline-flex' : 'none';
+                            if (!isXProg && typeof cerrarModalNuevoCorte === 'function') cerrarModalNuevoCorte();
                         }
                     } catch (e) {}
                     renderCorte();
@@ -13222,6 +13198,20 @@
             return (v === 'PROG 1T' || v === 'PROG 2T' || v === 'PROG 3T');
         }
 
+        function esSubtabPorProgramarNuevoCorte(filterState) {
+            const v = String(filterState || '').toUpperCase().trim();
+            return v === 'X PROG';
+        }
+
+        function esEstadoDestinoNuevoCorte(value) {
+            return esSubtabProgCorteNuevoCorte(value);
+        }
+
+        function normalizarEstadoDestinoNuevoCorte(value) {
+            const v = String(value || '').toUpperCase().trim();
+            return esEstadoDestinoNuevoCorte(v) ? v : 'PROG 1T';
+        }
+
         function estadoCorteFilaNuevoCorte(row) {
             const raw = (getVal(row, 'STATUS_CORTE') || getVal(row, 'STATUS') || getVal(row, 'status') || getVal(row, 'ESTADO CORTE') || getVal(row, 'ESTADO_CORTE') || getVal(row, 'estado_corte') || '');
             const v = String(raw || '').toUpperCase().trim();
@@ -13250,14 +13240,12 @@
             };
         }
 
-        function findSourceRowNuevoCorte(ocQuery, estadoTarget) {
+        function findSourceRowNuevoCorte(ocQuery) {
             const q = splitOcNuevoCorte(ocQuery);
             if (!q.op || !q.corte) return { anyRow: -1, targetRow: -1 };
 
             let anyExactRow = -1;
-            let targetExactRow = -1;
             let anyBaseRow = -1;
-            let targetBaseRow = -1;
             for (let i = 1; i < rawData.length; i++) {
                 const row = rawData[i];
                 if (!row) continue;
@@ -13273,19 +13261,17 @@
                 const isBaseMatch = (!isExact && rowBase && queryBase && rowBase === queryBase);
                 if (!isExact && !isBaseMatch) continue;
 
-                const matchesTarget = (estadoCorteFilaNuevoCorte(row) === estadoTarget);
                 if (isExact) {
-                    if (anyExactRow === -1) anyExactRow = i;
-                    if (matchesTarget && targetExactRow === -1) targetExactRow = i;
-                    if (targetExactRow !== -1) break;
+                    anyExactRow = i;
+                    break;
                 } else {
                     if (anyBaseRow === -1) anyBaseRow = i;
-                    if (matchesTarget && targetBaseRow === -1) targetBaseRow = i;
                 }
             }
+            const picked = anyExactRow !== -1 ? anyExactRow : anyBaseRow;
             return {
-                anyRow: anyExactRow !== -1 ? anyExactRow : anyBaseRow,
-                targetRow: targetExactRow !== -1 ? targetExactRow : targetBaseRow
+                anyRow: picked,
+                targetRow: picked
             };
         }
 
@@ -13329,9 +13315,11 @@
             const rows = (modalNuevoCorteData && Array.isArray(modalNuevoCorteData.rows)) ? modalNuevoCorteData.rows : [];
             for (let i = 0; i < rows.length; i++) {
                 const pdsInput = document.getElementById(`nuevo-corte-pds-${i}`);
+                const estadoSelect = document.getElementById(`nuevo-corte-estado-${i}`);
                 const eqSelect = document.getElementById(`nuevo-corte-equipo-${i}`);
                 out.push({
                     pds: pdsInput ? pdsInput.value : '',
+                    estado: estadoSelect ? estadoSelect.value : '',
                     equipo: eqSelect ? eqSelect.value : ''
                 });
             }
@@ -13347,7 +13335,7 @@
                 const msg = modalNuevoCorteData && modalNuevoCorteData.sourceRowIndex !== null
                     ? 'Agregue filas con + para crear nuevos cortes'
                     : 'Busque una OC para comenzar';
-                tbody.innerHTML = `<tr><td colspan="3" style="text-align:center; color:var(--gray-500);">${msg}</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:var(--gray-500);">${msg}</td></tr>`;
                 return;
             }
 
@@ -13371,6 +13359,7 @@
 
                 const prefill = (prefillValues && prefillValues[i]) ? prefillValues[i] : {};
                 const pdsVal = (prefill.pds !== undefined && prefill.pds !== null) ? String(prefill.pds) : '';
+                const estadoVal = normalizarEstadoDestinoNuevoCorte((prefill.estado !== undefined && prefill.estado !== null) ? String(prefill.estado) : (item.estado || ''));
                 const eqVal = (prefill.equipo !== undefined && prefill.equipo !== null) ? String(prefill.equipo) : (item.equipo || '');
                 const pdsSafe = pdsVal.replace(/"/g, '&quot;');
                 const corteSafe = String(item.corte || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -13384,6 +13373,13 @@
                         </div>
                     </td>
                     <td>
+                        <select id="nuevo-corte-estado-${i}" class="table-select" style="width:100%;">
+                            <option value="PROG 1T" ${estadoVal === 'PROG 1T' ? 'selected' : ''}>PROG 1T</option>
+                            <option value="PROG 2T" ${estadoVal === 'PROG 2T' ? 'selected' : ''}>PROG 2T</option>
+                            <option value="PROG 3T" ${estadoVal === 'PROG 3T' ? 'selected' : ''}>PROG 3T</option>
+                        </select>
+                    </td>
+                    <td>
                         <select id="nuevo-corte-equipo-${i}" class="table-select" style="width:100%;">
                             ${equiposHtml}
                         </select>
@@ -13394,16 +13390,19 @@
             tbody.innerHTML = html;
             for (let i = 0; i < rows.length; i++) {
                 const prefill = (prefillValues && prefillValues[i]) ? prefillValues[i] : {};
+                const estadoVal = normalizarEstadoDestinoNuevoCorte((prefill.estado !== undefined && prefill.estado !== null) ? String(prefill.estado) : String((rows[i] && rows[i].estado) || ''));
                 const eqVal = (prefill.equipo !== undefined && prefill.equipo !== null) ? String(prefill.equipo) : String((rows[i] && rows[i].equipo) || '');
+                const selEstado = document.getElementById(`nuevo-corte-estado-${i}`);
                 const sel = document.getElementById(`nuevo-corte-equipo-${i}`);
+                if (selEstado) selEstado.value = estadoVal;
                 if (sel) sel.value = eqVal;
             }
         }
 
         window.abrirModalNuevoCorte = function() {
             const target = String(currentCorteFilter || '').toUpperCase().trim();
-            if (!esSubtabProgCorteNuevoCorte(target)) {
-                alert('Nuevo corte solo esta disponible en PROG 1T, PROG 2T o PROG 3T.');
+            if (!esSubtabPorProgramarNuevoCorte(target)) {
+                alert('Nuevo corte solo esta disponible en Por Programar.');
                 return;
             }
 
@@ -13419,12 +13418,12 @@
                 corteBase: '',
                 color: '',
                 pdsTotal: 0,
-                estadoCorteTarget: target,
+                estadoCorteTarget: '',
                 rows: []
             };
 
             const subtitle = document.getElementById('modal-nuevo-corte-subtitle');
-            if (subtitle) subtitle.innerText = `Sub-tab actual: ${target}`;
+            if (subtitle) subtitle.innerText = 'Busque una OC y asigne estado_corte/equipo_corte por tendido';
             const info = document.getElementById('modal-nuevo-corte-oc-info');
             if (info) {
                 info.style.display = 'none';
@@ -13440,7 +13439,7 @@
             if (modal) modal.classList.add('active');
         };
 
-        // Fallback robusto para asegurar funcionamiento del boton + en Corte Pzas (PROG 1T/2T/3T),
+        // Fallback robusto para asegurar funcionamiento del boton + en Corte Pzas (Por Programar),
         // incluso si algun onclick inline falla por render o cambios de DOM.
         function initCortePlusFallbackHandlers() {
             if (window._cortePlusFallbackHandlersInit) return;
@@ -13489,26 +13488,25 @@
             const info = document.getElementById('modal-nuevo-corte-oc-info');
             const queryRaw = (ocQuery !== undefined && ocQuery !== null) ? ocQuery : (input ? input.value : '');
             const query = String(queryRaw || '').trim().toUpperCase();
-            const target = String((modalNuevoCorteData && modalNuevoCorteData.estadoCorteTarget) || currentCorteFilter || '').toUpperCase().trim();
+            const activeSubtab = String(currentCorteFilter || '').toUpperCase().trim();
 
             if (!query) {
                 alert('Ingrese una OC valida. Ejemplo: 40644-2');
                 return;
             }
-            if (!esSubtabProgCorteNuevoCorte(target)) {
-                alert('Debe estar en PROG 1T, PROG 2T o PROG 3T.');
+            if (!esSubtabPorProgramarNuevoCorte(activeSubtab)) {
+                alert('Debe estar en Por Programar.');
                 return;
             }
 
-            const result = findSourceRowNuevoCorte(query, target);
+            const result = findSourceRowNuevoCorte(query);
             if (result.targetRow === -1) {
                 modalNuevoCorteData.sourceRowIndex = null;
                 modalNuevoCorteData.rows = [];
                 renderModalNuevoCorteRows();
                 if (info) {
                     info.style.display = 'block';
-                    if (result.anyRow !== -1) info.innerText = `La OC ${query} existe, pero no esta en ${target}.`;
-                    else info.innerText = `No se encontro la OC ${query}.`;
+                    info.innerText = `No se encontro la OC ${query}.`;
                 }
                 return;
             }
@@ -13520,13 +13518,14 @@
             const color = abbreviateHeather(getVal(row, 'COLOR') || '');
             const pdsTotal = parseFloat(getVal(row, 'PDS GIRADAS') || getVal(row, 'PDS') || 0) || 0;
             const equipoDefault = String(getVal(row, 'equipo_corte') || getVal(row, 'EQUIPO CORTE') || getVal(row, 'EQUIPO_CORTE') || '').trim();
+            const estadoDefault = normalizarEstadoDestinoNuevoCorte(estadoCorteFilaNuevoCorte(row));
 
             modalNuevoCorteData.sourceRowIndex = result.targetRow;
             modalNuevoCorteData.op = op;
             modalNuevoCorteData.corteBase = corteBase;
             modalNuevoCorteData.color = color;
             modalNuevoCorteData.pdsTotal = pdsTotal;
-            modalNuevoCorteData.estadoCorteTarget = target;
+            modalNuevoCorteData.estadoCorteTarget = '';
             modalNuevoCorteData.rows = [];
 
             const firstCode = getNextTendidoNuevoCorte();
@@ -13535,12 +13534,12 @@
                 renderModalNuevoCorteRows();
                 return;
             }
-            modalNuevoCorteData.rows.push({ corte: firstCode, equipo: equipoDefault });
+            modalNuevoCorteData.rows.push({ corte: firstCode, estado: estadoDefault, equipo: equipoDefault });
             renderModalNuevoCorteRows();
 
             if (info) {
                 info.style.display = 'block';
-                info.innerText = `OC: ${op}-${corteRaw} | COLOR: ${color || '-'} | PDS: ${formatThousands(pdsTotal, 0)} | Estado destino: ${target}`;
+                info.innerText = `OC: ${op}-${corteRaw} | COLOR: ${color || '-'} | PDS: ${formatThousands(pdsTotal, 0)} | Estado default: ${estadoDefault}`;
             }
         };
 
@@ -13558,15 +13557,20 @@
             }
 
             let defaultEquipo = '';
+            let defaultEstado = 'PROG 1T';
             if (previousValues.length > 0) {
                 defaultEquipo = String(previousValues[previousValues.length - 1].equipo || '').trim();
+                defaultEstado = normalizarEstadoDestinoNuevoCorte(previousValues[previousValues.length - 1].estado || '');
             }
             if (!defaultEquipo && modalNuevoCorteData.rows.length > 0) {
                 defaultEquipo = String(modalNuevoCorteData.rows[modalNuevoCorteData.rows.length - 1].equipo || '').trim();
             }
+            if (modalNuevoCorteData.rows.length > 0 && (!defaultEstado || !esEstadoDestinoNuevoCorte(defaultEstado))) {
+                defaultEstado = normalizarEstadoDestinoNuevoCorte(modalNuevoCorteData.rows[modalNuevoCorteData.rows.length - 1].estado || '');
+            }
 
-            modalNuevoCorteData.rows.push({ corte: nextCode, equipo: defaultEquipo });
-            previousValues.push({ pds: '', equipo: defaultEquipo });
+            modalNuevoCorteData.rows.push({ corte: nextCode, estado: defaultEstado, equipo: defaultEquipo });
+            previousValues.push({ pds: '', estado: defaultEstado, equipo: defaultEquipo });
             renderModalNuevoCorteRows(previousValues);
         };
 
@@ -13582,8 +13586,10 @@
             if (!modalNuevoCorteData || !Array.isArray(modalNuevoCorteData.rows)) return;
             for (let i = 0; i < modalNuevoCorteData.rows.length; i++) {
                 const pdsInput = document.getElementById(`nuevo-corte-pds-${i}`);
+                const estadoSelect = document.getElementById(`nuevo-corte-estado-${i}`);
                 const eqSelect = document.getElementById(`nuevo-corte-equipo-${i}`);
                 if (pdsInput) pdsInput.value = '';
+                if (estadoSelect) estadoSelect.value = 'PROG 1T';
                 if (eqSelect) eqSelect.value = '';
             }
         };
@@ -13605,12 +13611,6 @@
         window.guardarModalNuevoCorte = async function() {
             if (!modalNuevoCorteData || modalNuevoCorteData.sourceRowIndex === null || !rawData[modalNuevoCorteData.sourceRowIndex]) {
                 alert('Primero busque una OC valida.');
-                return;
-            }
-
-            const targetEstado = String(modalNuevoCorteData.estadoCorteTarget || '').toUpperCase().trim();
-            if (!esSubtabProgCorteNuevoCorte(targetEstado)) {
-                alert('El estado destino debe ser PROG 1T, PROG 2T o PROG 3T.');
                 return;
             }
 
@@ -13636,10 +13636,12 @@
                 .filter(idx => idx !== -1);
 
             let createdCount = 0;
+            const createdByEstado = { 'PROG 1T': 0, 'PROG 2T': 0, 'PROG 3T': 0 };
             for (let i = 0; i < modalNuevoCorteData.rows.length; i++) {
                 const rowCfg = modalNuevoCorteData.rows[i] || {};
                 const corteCode = String(rowCfg.corte || '').trim();
                 const pdsNum = parseFloat(rowsValues[i] && rowsValues[i].pds) || 0;
+                const estadoDestino = normalizarEstadoDestinoNuevoCorte(rowsValues[i] && rowsValues[i].estado);
                 const equipoVal = String(rowsValues[i] && rowsValues[i].equipo || '').trim();
 
                 if (!corteCode) {
@@ -13648,6 +13650,10 @@
                 }
                 if (!(pdsNum > 0)) {
                     alert(`Fila ${i + 1}: ingrese un PDS valido.`);
+                    return;
+                }
+                if (!esEstadoDestinoNuevoCorte(estadoDestino)) {
+                    alert(`Fila ${i + 1}: seleccione estado_corte (PROG 1T/PROG 2T/PROG 3T).`);
                     return;
                 }
                 if (!equipoVal) {
@@ -13659,7 +13665,7 @@
                 if (idxCorte !== -1) newRow[idxCorte] = corteCode;
                 if (idxPds !== -1) newRow[idxPds] = pdsNum;
                 if (idxEquipo !== -1) newRow[idxEquipo] = equipoVal;
-                if (idxEstado !== -1) newRow[idxEstado] = targetEstado;
+                if (idxEstado !== -1) newRow[idxEstado] = estadoDestino;
                 clearIdxs.forEach(idx => { newRow[idx] = ''; });
                 try { newRow._inserted = Date.now(); } catch (e) {}
                 rawData.push(newRow);
@@ -13674,7 +13680,7 @@
                     sourcePartida: String(getVal(sourceRow, 'PARTIDA') || '').trim(),
                     newCorte: corteCode,
                     newPds: pdsNum,
-                    estadoCorte: targetEstado,
+                    estadoCorte: estadoDestino,
                     equipoCorte: equipoVal,
                     clearColumns: clearColumns
                 };
@@ -13685,6 +13691,7 @@
                 }).catch(e => console.error('Error creando nuevo corte', e));
 
                 createdCount++;
+                createdByEstado[estadoDestino] = (createdByEstado[estadoDestino] || 0) + 1;
             }
 
             try {
@@ -13697,7 +13704,11 @@
             updateCounters();
             renderCorte();
             scheduleSheetResync(1200);
-            alert(`Se crearon ${createdCount} nuevo(s) corte(s) en ${targetEstado}.`);
+            const resumenEstados = ['PROG 1T', 'PROG 2T', 'PROG 3T']
+                .filter(k => (createdByEstado[k] || 0) > 0)
+                .map(k => `${k}: ${createdByEstado[k]}`)
+                .join(' | ');
+            alert(`Se crearon ${createdCount} nuevo(s) corte(s). ${resumenEstados}`);
         };
 
         // Modal para mostrar información OC (RUTA, EQUIPO_CORTE, ESTADO_ENUMERADO)
@@ -16000,6 +16011,3 @@ NOTA: Por favor adjunte los archivos descargados (${fileName}.xlsx y ${fileName}
 
     </body>
     </html>
-
-
-
