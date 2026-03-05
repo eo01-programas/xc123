@@ -5642,11 +5642,20 @@
                         tds[14].remove();
                     }
                     
-                    // Agregar celda P al inicio en sub-tabs PROG
+                    // Agregar celda P después de RSV en sub-tabs PROG
                     if (showPColumn) {
                         const pCell = document.createElement('td');
                         pCell.innerHTML = createPrioridadCell(i, row, 'corte').replace(/<td.*?>|<\/td>/g, '');
-                        tr.insertBefore(pCell, tr.firstChild);
+                        // Insertar después de la primera celda td (RSV)
+                        const allTds = tr.querySelectorAll('td');
+                        if (allTds && allTds.length > 0) {
+                            const firstTd = allTds[0];
+                            if (firstTd.nextSibling) {
+                                tr.insertBefore(pCell, firstTd.nextSibling);
+                            } else {
+                                tr.appendChild(pCell);
+                            }
+                        }
                     }
                     
                     // Si P = 1, aplicar color rojo claro
