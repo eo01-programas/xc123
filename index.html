@@ -590,7 +590,7 @@
         }
 
         /* Celda e input específicos para la columna P (prioridad) - sin padding lateral */
-        td.p-cell { padding-left: 1px; padding-right: 3px; }
+        td.p-cell { padding-left: 1px; padding-right: 3px; text-align: center; }
         input.prioridad-input {
             padding: 2px 4px;
             width: 25px !important;
@@ -3693,6 +3693,34 @@
                     return -1;
                 }
 
+        function getPriorityColumnNameForView(viewName) {
+            const key = String(viewName || '').trim().toLowerCase();
+            if (key === 'bloqueo' || key === 'lavado' || key === 'lavanderia') return 'Pb';
+            if (key === 'corte' || key === 'corte pzas' || key === 'cortepzas' || key === 'enumerado') return 'Pc';
+            if (key === 'habilitado') return 'Pr';
+            return 'P';
+        }
+
+        function resolvePriorityWriteColumn(viewName) {
+            const preferred = getPriorityColumnNameForView(viewName);
+            const preferredIdx = findHeaderIndexCaseInsensitive(preferred);
+            if (preferredIdx !== -1) return preferred;
+            return 'P';
+        }
+
+        function findPriorityHeaderIndex(viewName) {
+            const preferred = getPriorityColumnNameForView(viewName);
+            let idx = findHeaderIndexCaseInsensitive(preferred);
+            if (idx === -1 && preferred !== 'P') idx = findHeaderIndexCaseInsensitive('P');
+            return idx;
+        }
+
+        function getPriorityValueFromRow(row, viewName) {
+            const idx = findPriorityHeaderIndex(viewName);
+            if (idx === -1 || !row || row[idx] === undefined || row[idx] === null) return '';
+            return String(row[idx]).trim();
+        }
+
                 // Calcula promedio de n.transfxpda para un par CLIENTE+ESTILO
                 function avgTransfByClienteEstilo(cliente, estilo) {
                     if (!cliente && !estilo) return null;
@@ -3879,25 +3907,31 @@
         }
 
         // --- HELPER PARA CREAR CELDA "P" CON CUADRO DE TEXTO ---
-        function createPrioridadCell(rowIndex, row) {
-            // Obtener valor actual de la columna P
+        function createPrioridadCell(rowIndex, row, viewName = '') {
+            const priorityView = String(viewName || '').trim().toLowerCase();
             let pValue = '';
             try {
-                const idxP = findHeaderIndexCaseInsensitive('P');
-                if (idxP !== -1 && row[idxP] !== undefined && row[idxP] !== null) {
-                    pValue = String(row[idxP]).trim();
-                }
+                pValue = getPriorityValueFromRow(row, priorityView);
             } catch (e) {}
+            const safeView = priorityView.replace(/'/g, "\\'");
             
             return `<td class="p-cell">
                 <input type="text" class="prioridad-input" value="${pValue}" 
-                       onchange="updatePrioridad(${rowIndex}, this.value, this)" 
-                       onblur="updatePrioridad(${rowIndex}, this.value, this)">
+                       onchange="updatePrioridad(${rowIndex}, this.value, this, '${safeView}')" 
+                       onblur="updatePrioridad(${rowIndex}, this.value, this, '${safeView}')">
             </td>`;
         }
 
         // --- FUNCIÓN PARA ACTUALIZAR PRIORIDAD Y PROPAGAR A MISMO OP-PTDA ---
-        function updatePrioridad(rowIndex, value, selectElement) {
+        function updatePrioridad(rowIndex, value, selectElement, viewName = '') {
+            // Normalizar valor de P: permitir 'D' o números; guardar en mayúscula.
+            let normalizedValue = String(value || '').trim().toUpperCase();
+            if (normalizedValue !== '' && normalizedValue !== 'D') {
+                normalizedValue = normalizedValue.replace(/[^\d]/g, '');
+            }
+            if (selectElement) selectElement.value = normalizedValue;
+            value = normalizedValue;
+
             // PROTECCIÓN: No permitir escritura en encabezados
             if (rowIndex < 1 || !rawData[rowIndex]) {
                 console.error('PROTECCIÓN updatePrioridad: rowIndex inválido=' + rowIndex);
@@ -3907,13 +3941,21 @@
             const isBloqueoView = document.getElementById('view-bloqueo') && document.getElementById('view-bloqueo').classList.contains('active');
             const isLavadoView = document.getElementById('view-lavado') && document.getElementById('view-lavado').classList.contains('active');
             const isCorteView = document.getElementById('view-corte') && document.getElementById('view-corte').classList.contains('active');
+            const isEnumeradoView = document.getElementById('view-enumerado') && document.getElementById('view-enumerado').classList.contains('active');
+            const isHabilitadoView = document.getElementById('view-habilitado') && document.getElementById('view-habilitado').classList.contains('active');
+            const fallbackView = isBloqueoView ? 'bloqueo' : (isLavadoView ? 'lavado' : (isCorteView ? 'corte' : (isEnumeradoView ? 'enumerado' : (isHabilitadoView ? 'habilitado' : ''))));
+            const priorityView = String(viewName || fallbackView || '').trim().toLowerCase();
+            const priorityColName = resolvePriorityWriteColumn(priorityView);
             
             // Solo propagar en las vistas especificadas
             const shouldPropagate = isBloqueoView || isLavadoView || isCorteView;
             
             if (!shouldPropagate) {
                 // Para otras vistas, solo actualizar la fila actual
-                updateRow(rowIndex, 'P', value, selectElement);
+                updateRow(rowIndex, priorityColName, value, selectElement);
+                try {
+                    if (isHabilitadoView) setTimeout(() => { renderHabilitado(); }, 120);
+                } catch (e) {}
                 return;
             }
             
@@ -3925,9 +3967,9 @@
             const partida = String(row[colMap["PARTIDA"]] || "").trim().toLowerCase();
             const currentOpPtda = opTela + "-" + partida;
             
-            // Encontrar índice de columna P
-            const idxP = findHeaderIndexCaseInsensitive('P');
-            if (idxP === -1) return;
+            // Encontrar índice de la columna de prioridad para la vista actual
+            const idxPriority = findPriorityHeaderIndex(priorityView);
+            if (idxPriority === -1) return;
             
             // 1. PRIMERO: Actualizar INMEDIATAMENTE todas las filas en rawData (UI local)
             const rowsToUpdate = [];
@@ -3938,7 +3980,7 @@
                 const opPtda = opT + "-" + part;
                 
                 if (opPtda === currentOpPtda) {
-                    rawData[i][idxP] = value;
+                    rawData[i][idxPriority] = value;
                     rowsToUpdate.push(i);
                 }
             }
@@ -3955,13 +3997,13 @@
                 fetch(WEB_APP_URL, {
                     method: 'POST',
                     mode: 'no-cors',
-                    body: JSON.stringify({
-                        action: "update",
-                        row: i,
-                        colName: "P",
-                        value: value
-                    })
-                }).catch(e => console.error('Error guardando P fila', i, e));
+                        body: JSON.stringify({
+                            action: "update",
+                            row: i,
+                            colName: priorityColName,
+                            value: value
+                        })
+                }).catch(e => console.error('Error guardando prioridad fila', i, e));
             });
         }
 
@@ -4355,7 +4397,7 @@
         }
 
         // --- LÓGICA DE ORDENAMIENTO ---
-        function sortBloqueoData(indices) {
+        function sortBloqueoData(indices, priorityView = '') {
             return indices.sort((a, b) => {
                 const rowA = rawData[a];
                 const rowB = rawData[b];
@@ -4369,7 +4411,7 @@
                 const partidaB = String(rowB[colMap["PARTIDA"]] || "").trim();
                 const opPtdaB = (opTelaB + "-" + partidaB).toLowerCase();
 
-                const idxP = findHeaderIndexCaseInsensitive('P');
+                const idxP = findPriorityHeaderIndex(priorityView);
                 let pA = '';
                 let pB = '';
                 if (idxP !== -1) {
@@ -4408,7 +4450,7 @@
 
         // --- ORDENAMIENTO PARA LAVADO ---
         function sortLavadoData(indices) {
-            const idxP = findHeaderIndexCaseInsensitive('P');
+            const idxP = findPriorityHeaderIndex('lavado');
             const groups = {};
             indices.forEach(i => {
                 const row = rawData[i];
@@ -4472,7 +4514,7 @@
                 const partidaB = String(rowB[colMap["PARTIDA"]] || "").trim();
                 const opPtdaB = (opTelaB + "-" + partidaB).toLowerCase();
 
-                const idxP = findHeaderIndexCaseInsensitive('P');
+                const idxP = findPriorityHeaderIndex('corte');
                 let pA = '';
                 let pB = '';
                 if (idxP !== -1) {
@@ -4547,7 +4589,7 @@
                 }
             }
 
-            validIndices = sortBloqueoData(validIndices);
+            validIndices = sortBloqueoData(validIndices, 'bloqueo');
 
             // Aplicar filtros de encabezado acumulativos
             try {
@@ -4616,12 +4658,12 @@
                 // Si estamos en sub-tab PROG, agregar celda P al inicio
                 if (showPColumn) {
                     const pCell = document.createElement('td');
-                    pCell.innerHTML = createPrioridadCell(i, row).replace(/<td.*?>|<\/td>/g, '');
+                    pCell.innerHTML = createPrioridadCell(i, row, 'bloqueo').replace(/<td.*?>|<\/td>/g, '');
                     tr.insertBefore(pCell, tr.firstChild);
                 }
                 
                 // Si P = 1, aplicar color rojo claro
-                const idxP = findHeaderIndexCaseInsensitive('P');
+                const idxP = findPriorityHeaderIndex('bloqueo');
                 if (idxP !== -1) {
                     const pValue = String(row[idxP] || '').trim();
                     if (pValue === '1') {
@@ -5206,11 +5248,11 @@
                 
                 // Agregar celda P al inicio (Lavanderia siempre muestra P en "Por Lavar")
                 const pCell = document.createElement('td');
-                pCell.innerHTML = createPrioridadCell(i, row).replace(/<td.*?>|<\/td>/g, '');
+                pCell.innerHTML = createPrioridadCell(i, row, 'lavado').replace(/<td.*?>|<\/td>/g, '');
                 tr.insertBefore(pCell, tr.firstChild);
                 
                 // Si P = 1, aplicar color rojo claro
-                const idxP = findHeaderIndexCaseInsensitive('P');
+                const idxP = findPriorityHeaderIndex('lavado');
                 if (idxP !== -1) {
                     const pValue = String(row[idxP] || '').trim();
                     if (pValue === '1') {
@@ -5322,7 +5364,7 @@
 
             // Para 'X PROG' en Corte, ordenar por OP-PTDA (consistentemente con bloqueo/lavado)
             if (currentCorteFilter === 'X PROG') {
-                try { validIndices = sortBloqueoData(validIndices); } catch(e) { /* ignore */ }
+                try { validIndices = sortBloqueoData(validIndices, 'corte'); } catch(e) { /* ignore */ }
             }
 
             // Aplicar filtro de encabezado en Corte si existe
@@ -5392,7 +5434,7 @@
                 const eqIdxA = colMap["EQUIPO CORTE"];
                 const eqIdxB = colMap["EQUIPO_CORTE"];
                 const eqIdxC = colMap["equipo_corte"];
-                const pIdxForMap = colMap["P"];
+                const pIdxForMap = findPriorityHeaderIndex('corte');
                 const OP_FALLBACK_NUM = 999999999;
                 const P_FALLBACK_NUM = 999999999;
                 const tempOrderMap = (
@@ -5441,7 +5483,7 @@
                     const opTela = String(row[colMap["OP TELA"]] || '').trim();
                     const partida = String(row[colMap["PARTIDA"]] || '').trim();
                     const equipoVal = String(row[eqIdxA] || row[eqIdxB] || row[eqIdxC] || "").trim();
-                    const pVal = (pIdxForMap !== undefined && pIdxForMap !== -1) ? row[pIdxForMap] : getVal(row, 'P');
+                    const pVal = (pIdxForMap !== undefined && pIdxForMap !== -1) ? row[pIdxForMap] : getPriorityValueFromRow(row, 'corte');
 
                     rowMeta[idx] = {
                         op: opVal,
@@ -5603,12 +5645,12 @@
                     // Agregar celda P al inicio en sub-tabs PROG
                     if (showPColumn) {
                         const pCell = document.createElement('td');
-                        pCell.innerHTML = createPrioridadCell(i, row).replace(/<td.*?>|<\/td>/g, '');
+                        pCell.innerHTML = createPrioridadCell(i, row, 'corte').replace(/<td.*?>|<\/td>/g, '');
                         tr.insertBefore(pCell, tr.firstChild);
                     }
                     
                     // Si P = 1, aplicar color rojo claro
-                    const idxP = findHeaderIndexCaseInsensitive('P');
+                    const idxP = findPriorityHeaderIndex('corte');
                     if (idxP !== -1) {
                         const pValue = String(row[idxP] || '').trim();
                         if (pValue === '1') {
@@ -5645,7 +5687,7 @@
                     }
                     
                     // Si P = 1, aplicar color rojo claro
-                    const idxP = findHeaderIndexCaseInsensitive('P');
+                    const idxP = findPriorityHeaderIndex('corte');
                     if (idxP !== -1) {
                         const pValue = String(row[idxP] || '').trim();
                         if (pValue === '1') {
@@ -5766,8 +5808,42 @@
                 }
             } catch (e) { console.error('Error applying enumeradoHeaderFilter', e); }
 
-            // Ordenar por OP TELA + PARTIDA (comparación natural numérica si aplica)
-            items.sort((a, b) => (a.opTelaPartida || '').localeCompare(b.opTelaPartida || '', undefined, { numeric: true, sensitivity: 'base' }));
+            // Ordenar por prioridad P (asc) sin romper el agrupado por OP TELA + PARTIDA
+            const getEnumeradoPriorityRank = (row) => {
+                const raw = getPriorityValueFromRow(row, 'enumerado');
+                const n = parseInt(String(raw || '').trim(), 10);
+                return isNaN(n) ? Number.POSITIVE_INFINITY : n;
+            };
+
+            const groupedByCorte = new Map();
+            items.forEach(item => {
+                const key = (item.opTelaPartida || '').toString();
+                if (!groupedByCorte.has(key)) groupedByCorte.set(key, { rows: [], minP: Number.POSITIVE_INFINITY });
+                const group = groupedByCorte.get(key);
+                const pRank = getEnumeradoPriorityRank(item.row);
+                group.rows.push({ item, pRank });
+                if (pRank < group.minP) group.minP = pRank;
+            });
+
+            const sortedGroupKeys = Array.from(groupedByCorte.keys()).sort((a, b) => {
+                const ga = groupedByCorte.get(a);
+                const gb = groupedByCorte.get(b);
+                if (ga.minP !== gb.minP) return ga.minP - gb.minP;
+                return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
+            });
+
+            const orderedItems = [];
+            sortedGroupKeys.forEach(key => {
+                const group = groupedByCorte.get(key);
+                group.rows.sort((x, y) => {
+                    if (x.pRank !== y.pRank) return x.pRank - y.pRank;
+                    return (x.item.oc || '').localeCompare((y.item.oc || ''), undefined, { numeric: true, sensitivity: 'base' });
+                });
+                group.rows.forEach(entry => orderedItems.push(entry.item));
+            });
+
+            items.length = 0;
+            items.push(...orderedItems);
 
             // Pintar filas alternando por grupos de OP TELA + PARTIDA
             let lastOpTelaPartida = null;
@@ -5808,7 +5884,7 @@
                 const pCell = document.createElement('td');
                 let pValue = '';
                 try {
-                    const idxP = findHeaderIndexCaseInsensitive('P');
+                    const idxP = findPriorityHeaderIndex('enumerado');
                     if (idxP !== -1 && item.row[idxP] !== undefined && item.row[idxP] !== null) {
                         pValue = String(item.row[idxP]).trim();
                     }
@@ -5845,7 +5921,7 @@
                 tr.classList.add(groupToggle ? 'group-a' : 'group-b');
                 
                 // Si P = 1, aplicar color rojo claro
-                const idxP = findHeaderIndexCaseInsensitive('P');
+                const idxP = findPriorityHeaderIndex('enumerado');
                 if (idxP !== -1) {
                     const pValue = String(item.row[idxP] || '').trim();
                     if (pValue === '1') {
@@ -6624,7 +6700,7 @@
                 lastOpPtda = currentOpPtda;
                 tr.classList.add(`group-${currentRowGroup}`);
 
-                const idxP = findHeaderIndexCaseInsensitive('P');
+                const idxP = findPriorityHeaderIndex('habilitado');
                 if (idxP !== -1) {
                     const pValue = String(row[idxP] || '').trim();
                     if (pValue === '1') tr.classList.add('priority-1');
@@ -7059,6 +7135,23 @@
                 return `${opTela}-${partida}`.toLowerCase();
             };
 
+            // Orden de prioridad para columna P en Habilitado:
+            // 1) D primero, 2) números asc, 3) vacío/otros al final.
+            const getPrioridadSortMeta = (raw) => {
+                const v = String(raw || '').trim().toUpperCase();
+                if (v === 'D') return { bucket: 0, num: 0, text: '' };
+                if (/^\d+$/.test(v)) return { bucket: 1, num: parseInt(v, 10), text: '' };
+                if (v === '') return { bucket: 3, num: Number.POSITIVE_INFINITY, text: '' };
+                return { bucket: 2, num: Number.POSITIVE_INFINITY, text: v };
+            };
+            const comparePrioridadHabilitado = (rawA, rawB) => {
+                const aMeta = getPrioridadSortMeta(rawA);
+                const bMeta = getPrioridadSortMeta(rawB);
+                if (aMeta.bucket !== bMeta.bucket) return aMeta.bucket - bMeta.bucket;
+                if (aMeta.num !== bMeta.num) return aMeta.num - bMeta.num;
+                return aMeta.text.localeCompare(bMeta.text, undefined, { sensitivity: 'base' });
+            };
+
             // Ordenar índices válidos: OC, luego OP TELA+PARTIDA, luego P y HOD
             validIndices.sort((a, b) => {
                 const rowA = rawData[a];
@@ -7083,16 +7176,15 @@
                 if (cmpOpPtda !== 0) return cmpOpPtda;
                 
                 // 3. Dentro del mismo grupo, ordenar por columna P
-                const idxP = findHeaderIndexCaseInsensitive('P');
+                const idxP = findPriorityHeaderIndex('habilitado');
                 let pA = '';
                 let pB = '';
                 if (idxP !== -1) {
                     pA = String(rowA[idxP] || '').trim();
                     pB = String(rowB[idxP] || '').trim();
                 }
-                const pNumA = pA === '' ? Infinity : parseInt(pA) || Infinity;
-                const pNumB = pB === '' ? Infinity : parseInt(pB) || Infinity;
-                if (pNumA !== pNumB) return pNumA - pNumB;
+                const cmpP = comparePrioridadHabilitado(pA, pB);
+                if (cmpP !== 0) return cmpP;
                 
                 // 4. Luego por fecha de despacho (más reciente primero)
                 const dateA = rowA[colMap["HOD"]] || 0;
@@ -7149,16 +7241,15 @@
                     if (cmpOpPtda !== 0) return cmpOpPtda;
                     
                     // 4. Dentro del mismo grupo, ordenar por P
-                    const idxP = findHeaderIndexCaseInsensitive('P');
+                    const idxP = findPriorityHeaderIndex('habilitado');
                     let pA = '';
                     let pB = '';
                     if (idxP !== -1) {
                         pA = String(rowA[idxP] || '').trim();
                         pB = String(rowB[idxP] || '').trim();
                     }
-                    const pNumA = pA === '' ? Infinity : parseInt(pA) || Infinity;
-                    const pNumB = pB === '' ? Infinity : parseInt(pB) || Infinity;
-                    if (pNumA !== pNumB) return pNumA - pNumB;
+                    const cmpP = comparePrioridadHabilitado(pA, pB);
+                    if (cmpP !== 0) return cmpP;
                     
                     // 5. Luego por fecha
                     const dateA = rowA[colMap["HOD"]] || 0;
@@ -7290,14 +7381,14 @@
                     const tr = document.createElement('tr');
 
                     // COLUMNA P - Prioridad
-                    // COLUMNA P - Mostrar como texto si estamos en X PROG o S/DESTINO, si no usar prioridad editable
+                    // COLUMNA P - Mostrar como texto en X PROG; editable en PROG 1T/2T/3T y S/DESTINO
                     const pCell = document.createElement('td');
-                    if (currentHabilitadoFilter === 'X PROG' || currentHabilitadoFilter === 'S/DESTINO') {
+                    if (currentHabilitadoFilter === 'X PROG') {
                         // Mostrar P como texto (no editable)
-                        pCell.innerText = getVal(row, 'P') || '';
+                        pCell.innerText = getPriorityValueFromRow(row, 'habilitado');
                     } else {
                         // Mostrar P con lógica de prioridad
-                        pCell.innerHTML = createPrioridadCell(i, row).replace(/<td.*?>|<\/td>/g, '');
+                        pCell.innerHTML = createPrioridadCell(i, row, 'habilitado').replace(/<td.*?>|<\/td>/g, '');
                     }
 
                     // HOD
@@ -7722,7 +7813,7 @@
                     tr.setAttribute('data-row-index', i);
                     
                     // Si P = 1, aplicar color rojo claro y transparente
-                    const idxP = findHeaderIndexCaseInsensitive('P');
+                    const idxP = findPriorityHeaderIndex('habilitado');
                     if (idxP !== -1) {
                         const pValue = String(row[idxP] || '').trim();
                         if (pValue === '1') {
@@ -8076,9 +8167,10 @@
             // Flag para marcar filas en devolución de lavado
             let isDevolucionRow = false;
             
-            // Colorear fila si columna P = 1
+            // Colorear fila por prioridad según vista/tipo cuando aplica
             try {
-                const idxP = findHeaderIndexCaseInsensitive('P');
+                const priorityViewByType = (type === 'bloqueo') ? 'bloqueo' : ((type === 'lavado') ? 'lavado' : ((type === 'corte') ? 'corte' : ''));
+                const idxP = findPriorityHeaderIndex(priorityViewByType);
                 if (idxP !== -1) {
                     const pValue = String(row[idxP] || "").trim();
                     if (pValue === "1") {
@@ -10245,7 +10337,7 @@
             let fieldValue = '';
             switch(fieldName) {
                 case 'P':
-                    fieldValue = (getVal(row, 'P') || '').toString().trim().toUpperCase();
+                    fieldValue = getPriorityValueFromRow(row, 'habilitado').toString().trim().toUpperCase();
                     break;
                 case 'HOD':
                     fieldValue = (formatValue(getVal(row, 'HOD'), 'date') || '').toString().trim().toUpperCase();
@@ -10610,7 +10702,7 @@
                         fieldValue = (getVal(row, 'COLOR') || '').toString().trim();
                         break;
                     case 'P':
-                        fieldValue = (getVal(row, 'P') || '').toString().trim();
+                        fieldValue = getPriorityValueFromRow(row, 'habilitado').toString().trim();
                         break;
                     case 'OP-PTDA':
                         const opTelaPop = getVal(row, 'OP TELA') || getVal(row, 'OP') || '';
@@ -15299,7 +15391,7 @@ NOTA: Por favor adjunte los archivos descargados (${fileName}.xlsx y ${fileName}
                     const eqIdxA = colMap["EQUIPO CORTE"];
                     const eqIdxB = colMap["EQUIPO_CORTE"];
                     const eqIdxC = colMap["equipo_corte"];
-                    const pIdxForMap = colMap["P"];
+                    const pIdxForMap = findPriorityHeaderIndex('corte');
                     const OP_FALLBACK_NUM = 999999999;
                     const P_FALLBACK_NUM = 999999999;
                     const tempOrderMap = (
@@ -15347,7 +15439,7 @@ NOTA: Por favor adjunte los archivos descargados (${fileName}.xlsx y ${fileName}
                         const opTela = String(row[colMap["OP TELA"]] || '').trim();
                         const partida = String(row[colMap["PARTIDA"]] || '').trim();
                         const equipoVal = String(row[eqIdxA] || row[eqIdxB] || row[eqIdxC] || "").trim();
-                        const pVal = (pIdxForMap !== undefined && pIdxForMap !== -1) ? row[pIdxForMap] : getVal(row, 'P');
+                        const pVal = (pIdxForMap !== undefined && pIdxForMap !== -1) ? row[pIdxForMap] : getPriorityValueFromRow(row, 'corte');
 
                         rowMeta[idx] = {
                             op: opVal,
@@ -15502,7 +15594,7 @@ NOTA: Por favor adjunte los archivos descargados (${fileName}.xlsx y ${fileName}
                             switch(col) {
                                 case 'RSV': cellValue = String(getVal(row, 'RSV') || '').trim(); break;
                                 case 'P':
-                                    const idxP2 = findHeaderIndexCaseInsensitive('P');
+                                    const idxP2 = findPriorityHeaderIndex('corte');
                                     cellValue = idxP2 !== -1 ? String(row[idxP2] || '').trim() : '';
                                     break;
                                 case 'F.ING.COST': cellValue = formatValue(getVal(row, 'F.ING.COST'), 'date') || ''; break;
@@ -15707,7 +15799,7 @@ NOTA: Por favor adjunte los archivos descargados (${fileName}.xlsx y ${fileName}
                         const rowA = rawData[a]; const rowB = rawData[b];
                         const groupA = getTrsfGroupValue(rowA); const groupB = getTrsfGroupValue(rowB);
                         if (groupA !== groupB) return (groupA === 'Pza' ? 0 : 1) - (groupB === 'Pza' ? 0 : 1);
-                        const idxP = findHeaderIndexCaseInsensitive('P');
+                        const idxP = findPriorityHeaderIndex('habilitado');
                         let pA = '', pB = '';
                         if (idxP !== -1) { pA = String(rowA[idxP] || '').trim(); pB = String(rowB[idxP] || '').trim(); }
                         const pNumA = pA === '' ? Infinity : parseInt(pA) || Infinity;
@@ -15778,7 +15870,7 @@ NOTA: Por favor adjunte los archivos descargados (${fileName}.xlsx y ${fileName}
                             let cellValue = '';
                             switch(col) {
                                 case 'P':
-                                    const idxP2 = findHeaderIndexCaseInsensitive('P');
+                                    const idxP2 = findPriorityHeaderIndex('habilitado');
                                     cellValue = idxP2 !== -1 ? String(row[idxP2] || '').trim() : '';
                                     break;
                                 case 'HOD': cellValue = formatValue(getVal(row, 'HOD'), 'date') || ''; break;
