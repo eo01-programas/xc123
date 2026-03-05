@@ -2562,17 +2562,47 @@
         let habilitadoIngresosPlantFilter = '';
         let habilitadoHeaderNormalHtml = '';
 
-        // Bases de tendidos creadas en esta sesión / previamente: persistidas en localStorage
+        // Bases de tendidos creadas en esta sesion / previamente: persistidas en localStorage
         try {
             const saved = localStorage.getItem('createdTendidoBases');
             window._createdTendidoBases = new Set(saved ? JSON.parse(saved) : []);
         } catch (e) { window._createdTendidoBases = new Set(); }
+        try {
+            const savedCtx = localStorage.getItem('createdTendidoContexts');
+            window._createdTendidoContexts = new Set(savedCtx ? JSON.parse(savedCtx) : []);
+        } catch (e) { window._createdTendidoContexts = new Set(); }
 
-        function addCreatedTendidoBase(base) {
+        function buildCreatedTendidoContextKey(base, op, opTela, partida, color) {
+            const baseNorm = String(base || '').trim().toUpperCase();
+            const opNorm = String(op || '').trim().toUpperCase();
+            const opTelaNorm = String(opTela || '').trim().toUpperCase();
+            const partidaNorm = String(partida || '').trim().toUpperCase();
+            const colorRaw = (typeof abbreviateHeather === 'function') ? abbreviateHeather(color || '') : (color || '');
+            const colorNorm = String(colorRaw || '').trim().toUpperCase();
+            if (!baseNorm || !opNorm) return '';
+            return `${opNorm}::${baseNorm}::${opTelaNorm}::${partidaNorm}::${colorNorm}`;
+        }
+
+        function hasCreatedTendidoContext(base, op, opTela, partida, color) {
+            try {
+                const key = buildCreatedTendidoContextKey(base, op, opTela, partida, color);
+                return !!(key && window._createdTendidoContexts && window._createdTendidoContexts.has(key));
+            } catch (e) {
+                return false;
+            }
+        }
+
+        function addCreatedTendidoBase(base, op, opTela, partida, color) {
             if (!base) return;
             try {
                 window._createdTendidoBases.add(base);
                 localStorage.setItem('createdTendidoBases', JSON.stringify(Array.from(window._createdTendidoBases)));
+
+                const key = buildCreatedTendidoContextKey(base, op, opTela, partida, color);
+                if (key) {
+                    window._createdTendidoContexts.add(key);
+                    localStorage.setItem('createdTendidoContexts', JSON.stringify(Array.from(window._createdTendidoContexts)));
+                }
             } catch (e) { console.error('Error saving created tendido base', e); }
         }
 
@@ -9699,14 +9729,15 @@
                     const partidaIdx = (colMap["PARTIDA"] !== undefined) ? colMap["PARTIDA"] : findColIndexNormalized('PARTIDA');
 
                     // Decidir si debemos propagar el cambio a todas las filas con la misma OP-PTDA.
-                    // Nuevo comportamiento: si el nuevo valor es 'OK' y el usuario está en la vista Corte
-                    // en uno de los sub-tabs PROG (PROG 1T/2T/3T), NO propagar; solo mover la fila actual.
+                    // Regla: cuando el cambio viene de un select visible (edicion manual por fila),
+                    // NO propagar a otras filas.
                     const valNorm = (value || '').toString().toUpperCase().trim();
                     const onCorteView = document.getElementById('view-corte') && document.getElementById('view-corte').classList.contains('active');
                     const isProgSubtab = (currentCorteFilter && currentCorteFilter.toString().toUpperCase().startsWith('PROG ') && currentCorteFilter !== 'X PROG');
                     const isProgTarget = (valNorm === 'PROG 1T' || valNorm === 'PROG 2T' || valNorm === 'PROG 3T');
+                    const isDirectUiChange = !!(selectElement && document.body && document.body.contains(selectElement));
 
-                    const shouldPropagate = !(valNorm === 'OK' && onCorteView && isProgSubtab);
+                    const shouldPropagate = !skipPropagation && !isDirectUiChange && !(valNorm === 'OK' && onCorteView && isProgSubtab);
 
                     // Resolver el nombre exacto de la cabecera para propagar con el nombre correcto
                     const resolvedStatusColName = (writeIdx !== undefined && writeIdx !== -1 && rawData[0] && rawData[0][writeIdx]) ? rawData[0][writeIdx] : colName;
@@ -13114,6 +13145,8 @@
             let opResolved = String(op || '').trim();
             let corteResolved = String(corte || '').trim();
             let colorResolved = String(color || '').trim();
+            let opTelaResolved = '';
+            let partidaResolved = '';
             let pdsResolved = parseFloat(pdsTotal);
             if (!Number.isFinite(pdsResolved)) pdsResolved = 0;
 
@@ -13122,11 +13155,15 @@
                     const row = rawData[parsedRowIndex];
                     const rowOp = String(getVal(row, 'OP') || '').trim();
                     const rowCorte = String(getVal(row, 'CORTE') || '').trim();
+                    const rowOpTela = String(getVal(row, 'OP TELA') || '').trim();
+                    const rowPartida = String(getVal(row, 'PARTIDA') || '').trim();
                     const rowColor = String(abbreviateHeather(getVal(row, 'COLOR') || '') || '').trim();
                     const rowPds = parseFloat(getVal(row, 'PDS GIRADAS') || getVal(row, 'PDS') || 0);
 
                     if (rowOp) opResolved = rowOp;
                     if (rowCorte) corteResolved = rowCorte;
+                    if (rowOpTela) opTelaResolved = rowOpTela;
+                    if (rowPartida) partidaResolved = rowPartida;
                     if (rowColor) colorResolved = rowColor;
                     if (Number.isFinite(rowPds)) pdsResolved = rowPds;
                 }
@@ -13139,27 +13176,72 @@
                 return;
             }
 
-            // Detectar si el CORTE es ya un tendido (termina en 01, 02, etc.)
-            const corteStr = String(corteResolved);
+            // Detectar si realmente pertenece a un grupo de tendidos existente.
+            // No basta con terminar en 01/02...; validamos por OP + OP TELA + PARTIDA (+ COLOR).
+            const corteStr = String(corteResolved || '').trim();
             const lastTwoChars = corteStr.slice(-2);
-            const isTendidoExistente = /^0[1-9]$|^[1-9]\d$/.test(lastTwoChars) && corteStr.length > 2;
+            const looksLikeTendido = /^0[1-9]$|^[1-9]\d$/.test(lastTwoChars) && corteStr.length > 2;
+            let isTendidoExistente = false;
+            if (looksLikeTendido) {
+                const corteBase = corteStr.slice(0, -2);
+                const opNorm = String(opResolved || '').trim().toUpperCase();
+                const opTelaNorm = String(opTelaResolved || '').trim().toUpperCase();
+                const partidaNorm = String(partidaResolved || '').trim().toUpperCase();
+                const colorNorm = String(colorResolved || '').trim().toUpperCase();
+                const escapeRegExp = s => String(s || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                const matchRegex = new RegExp(`^${escapeRegExp(corteBase)}(\\d{2})$`);
+                let tendidoMatches = 0;
+
+                for (let i = 1; i < rawData.length; i++) {
+                    const r = rawData[i];
+                    if (!r) continue;
+
+                    const rowOp = String(getVal(r, 'OP') || '').trim().toUpperCase();
+                    if (rowOp !== opNorm) continue;
+
+                    if (opTelaNorm) {
+                        const rowOpTela = String(getVal(r, 'OP TELA') || '').trim().toUpperCase();
+                        if (rowOpTela !== opTelaNorm) continue;
+                    }
+
+                    if (partidaNorm) {
+                        const rowPartida = String(getVal(r, 'PARTIDA') || '').trim().toUpperCase();
+                        if (rowPartida !== partidaNorm) continue;
+                    }
+
+                    if (colorNorm) {
+                        const rowColorNorm = String(abbreviateHeather(getVal(r, 'COLOR') || '') || '').trim().toUpperCase();
+                        if (rowColorNorm !== colorNorm) continue;
+                    }
+
+                    const rowCorte = String(getVal(r, 'CORTE') || '').trim();
+                    if (matchRegex.test(rowCorte)) tendidoMatches++;
+                    if (tendidoMatches > 1) break;
+                }
+
+                const baseMarked = hasCreatedTendidoContext(corteBase, opResolved, opTelaResolved, partidaResolved, colorResolved);
+                isTendidoExistente = tendidoMatches > 1 || baseMarked;
+            }
             
             if (isTendidoExistente) {
                 // Modo EDICIÓN: mostrar los tendidos ya existentes
-                abrirModalTendidoEdicion(rowIndexResolved, opResolved, corteResolved, colorResolved);
+                abrirModalTendidoEdicion(rowIndexResolved, opResolved, corteResolved, colorResolved, opTelaResolved, partidaResolved);
             } else {
                 // Modo CREACIÓN: crear nuevos tendidos
-                abrirModalTendidoCreacion(rowIndexResolved, opResolved, corteResolved, colorResolved, pdsResolved);
+                abrirModalTendidoCreacion(rowIndexResolved, opResolved, corteResolved, colorResolved, pdsResolved, opTelaResolved, partidaResolved);
             }
         };
 
-        window.abrirModalTendidoCreacion = function(rowIndex, op, corte, color, pdsTotal) {
+        window.abrirModalTendidoCreacion = function(rowIndex, op, corte, color, pdsTotal, opTela, partida) {
             modalTendidoData = {
                 rowIndex: rowIndex,
                 oc: `${op}-${corte}`,
                 op: op,
                 corte: corte,
+                opTela: String(opTela || '').trim(),
+                partida: String(partida || '').trim(),
                 color: color,
+                colorNorm: String(color || '').trim().toUpperCase(),
                 pdsTotal: pdsTotal,
                 modo: 'crear',
                 tendidos: []
@@ -13175,22 +13257,43 @@
             document.getElementById('modal-tendido').classList.add('active');
         };
 
-        window.abrirModalTendidoEdicion = function(rowIndex, op, corte, color) {
+        window.abrirModalTendidoEdicion = function(rowIndex, op, corte, color, opTela, partida) {
             const corteBase = String(corte).slice(0, -2);
             const corteIdx = colMap["CORTE"];
             const pdsIdx = colMap["PDS GIRADAS"];
             const opIdx = colMap["OP"];
+            const opTelaNorm = String(opTela || '').trim().toUpperCase();
+            const partidaNorm = String(partida || '').trim().toUpperCase();
+            const colorNorm = String(color || '').trim().toUpperCase();
+            const escapeRegExp = s => String(s || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const matchRegex = new RegExp(`^${escapeRegExp(corteBase)}(\\d{2})$`);
             
             const tendidos = [];
             const tendidoRows = [];
             const tendidoPds = [];
             
             for (let i = 1; i < rawData.length; i++) {
-                // Filtrar por OP para no mezclar tendidos de diferentes OPs
+                // Filtrar por OP + OP TELA + PARTIDA (+ COLOR) para no mezclar OCs parecidas
                 const rowOp = String(rawData[i][opIdx] || '').trim();
                 if (rowOp !== String(op).trim()) continue;
+
+                if (opTelaNorm) {
+                    const rowOpTela = String(getVal(rawData[i], 'OP TELA') || '').trim().toUpperCase();
+                    if (rowOpTela !== opTelaNorm) continue;
+                }
+
+                if (partidaNorm) {
+                    const rowPartida = String(getVal(rawData[i], 'PARTIDA') || '').trim().toUpperCase();
+                    if (rowPartida !== partidaNorm) continue;
+                }
+
+                if (colorNorm) {
+                    const rowColorNorm = String(abbreviateHeather(getVal(rawData[i], 'COLOR') || '') || '').trim().toUpperCase();
+                    if (rowColorNorm !== colorNorm) continue;
+                }
+
                 const rowCorte = String(rawData[i][corteIdx] || '');
-                const match = rowCorte.match(new RegExp(`^${corteBase}(\\d{2})$`));
+                const match = rowCorte.match(matchRegex);
                 if (match) {
                     tendidos.push(rowCorte);
                     tendidoRows.push(i);
@@ -13215,7 +13318,10 @@
                 oc: `${op}-${corteBase}`,
                 op: op,
                 corte: corteBase,
+                opTela: String(opTela || '').trim(),
+                partida: String(partida || '').trim(),
                 color: color,
+                colorNorm: String(color || '').trim().toUpperCase(),
                 pdsTotal: totalPds,
                 modo: 'editar',
                 tendidos: sortedTendidos
@@ -13261,11 +13367,32 @@
             const corteIdx = colMap["CORTE"];
             const opIdx = colMap["OP"];
             const opVal = String(modalTendidoData.op || '').trim();
+            const opTelaNorm = String(modalTendidoData.opTela || '').trim().toUpperCase();
+            const partidaNorm = String(modalTendidoData.partida || '').trim().toUpperCase();
+            const colorNorm = String(modalTendidoData.colorNorm || '').trim().toUpperCase();
+            const escapeRegExp = s => String(s || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const matchRegex = new RegExp(`^${escapeRegExp(corte)}(\\d{2})$`);
             for (let i = 1; i < rawData.length; i++) {
                 const rowOp = String(rawData[i][opIdx] || '').trim();
                 if (rowOp !== opVal) continue;
+
+                if (opTelaNorm) {
+                    const rowOpTela = String(getVal(rawData[i], 'OP TELA') || '').trim().toUpperCase();
+                    if (rowOpTela !== opTelaNorm) continue;
+                }
+
+                if (partidaNorm) {
+                    const rowPartida = String(getVal(rawData[i], 'PARTIDA') || '').trim().toUpperCase();
+                    if (rowPartida !== partidaNorm) continue;
+                }
+
+                if (colorNorm) {
+                    const rowColorNorm = String(abbreviateHeather(getVal(rawData[i], 'COLOR') || '') || '').trim().toUpperCase();
+                    if (rowColorNorm !== colorNorm) continue;
+                }
+
                 const rowCorte = String(rawData[i][corteIdx] || '');
-                const m = rowCorte.match(new RegExp(`^${corte}(\\d{2})$`));
+                const m = rowCorte.match(matchRegex);
                 if (m) {
                     const suf = parseInt(m[1]);
                     if (suf > maxSuffix) maxSuffix = suf;
@@ -13273,7 +13400,7 @@
             }
             // También considerar los tendidos ya agregados en el modal (aún no guardados)
             modalTendidoData.tendidos.forEach(t => {
-                const m = String(t).match(new RegExp(`^${corte}(\\d{2})$`));
+                const m = String(t).match(matchRegex);
                 if (m) {
                     const suf = parseInt(m[1]);
                     if (suf > maxSuffix) maxSuffix = suf;
@@ -14381,7 +14508,7 @@
                 }).catch(e => console.error("Error guardando tendidos", e));
 
                 // Registrar la base como creada para que se muestre priorizada
-                try { addCreatedTendidoBase(corte); } catch(e) {}
+                try { addCreatedTendidoBase(corte, modalTendidoData.op, modalTendidoData.opTela, modalTendidoData.partida, modalTendidoData.colorNorm || modalTendidoData.color); } catch(e) {}
                 try { relaxOcFilterAfterTendidos(modalTendidoData.op, corte); } catch(e) {}
 
             // Cerrar modal y re-renderizar
@@ -14456,7 +14583,7 @@
                     alertMsg += `\n• ${tendido} con ${formatThousands(pds, 0)} PDS`;
                     }
                     // Registrar la base como creada (en caso de añadir nuevos tendidos)
-                    try { addCreatedTendidoBase(corte); } catch(e) {}
+                    try { addCreatedTendidoBase(corte, modalTendidoData.op, modalTendidoData.opTela, modalTendidoData.partida, modalTendidoData.colorNorm || modalTendidoData.color); } catch(e) {}
                     try { relaxOcFilterAfterTendidos(modalTendidoData.op, corte); } catch(e) {}
 
                     // Crear nuevos tendidos si hay más valores que filas existentes
