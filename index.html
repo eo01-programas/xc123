@@ -13139,6 +13139,32 @@
             }
         };
 
+        function parseTendidoHintFromCorte(corteValue) {
+            const corteStr = String(corteValue || '').trim();
+            const lastTwoChars = corteStr.slice(-2);
+            const looksLikeTendido = /^0[1-9]$|^[1-9]\d$/.test(lastTwoChars) && corteStr.length > 2;
+            const corteBase = looksLikeTendido ? corteStr.slice(0, -2) : corteStr;
+
+            const corteNum = /^\d+$/.test(corteStr) ? parseInt(corteStr, 10) : NaN;
+            const baseNum = /^\d+$/.test(corteBase) ? parseInt(corteBase, 10) : NaN;
+            const maxCorteBase = 199;
+            // Si CORTE supera el maximo de corte base, no puede ser un corte "base" puro.
+            const forcedExistingByMaxBase =
+                looksLikeTendido &&
+                Number.isFinite(corteNum) &&
+                Number.isFinite(baseNum) &&
+                corteNum > maxCorteBase &&
+                baseNum >= 1 &&
+                baseNum <= maxCorteBase;
+
+            return {
+                corteStr: corteStr,
+                corteBase: corteBase,
+                looksLikeTendido: looksLikeTendido,
+                forcedExistingByMaxBase: forcedExistingByMaxBase
+            };
+        }
+
         window.abrirModalTendido = function(rowIndex, op, corte, color, pdsTotal) {
             const parsedRowIndex = parseInt(rowIndex, 10);
             const rowIndexResolved = Number.isInteger(parsedRowIndex) ? parsedRowIndex : rowIndex;
@@ -13178,12 +13204,12 @@
 
             // Detectar si realmente pertenece a un grupo de tendidos existente.
             // No basta con terminar en 01/02...; validamos por OP + OP TELA + PARTIDA (+ COLOR).
-            const corteStr = String(corteResolved || '').trim();
-            const lastTwoChars = corteStr.slice(-2);
-            const looksLikeTendido = /^0[1-9]$|^[1-9]\d$/.test(lastTwoChars) && corteStr.length > 2;
+            const corteHint = parseTendidoHintFromCorte(corteResolved);
+            const corteStr = corteHint.corteStr;
+            const looksLikeTendido = corteHint.looksLikeTendido;
             let isTendidoExistente = false;
             if (looksLikeTendido) {
-                const corteBase = corteStr.slice(0, -2);
+                const corteBase = corteHint.corteBase;
                 const opNorm = String(opResolved || '').trim().toUpperCase();
                 const opTelaNorm = String(opTelaResolved || '').trim().toUpperCase();
                 const partidaNorm = String(partidaResolved || '').trim().toUpperCase();
@@ -13220,7 +13246,7 @@
                 }
 
                 const baseMarked = hasCreatedTendidoContext(corteBase, opResolved, opTelaResolved, partidaResolved, colorResolved);
-                isTendidoExistente = tendidoMatches > 1 || baseMarked;
+                isTendidoExistente = corteHint.forcedExistingByMaxBase || tendidoMatches > 1 || baseMarked;
             }
             
             if (isTendidoExistente) {
