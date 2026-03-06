@@ -9737,6 +9737,45 @@
                     const isProgTarget = (valNorm === 'PROG 1T' || valNorm === 'PROG 2T' || valNorm === 'PROG 3T');
                     const isDirectUiChange = !!(selectElement && document.body && document.body.contains(selectElement));
 
+                    // Al marcar OK desde Corte PROG 1T/2T/3T:
+                    // TURNO CORTE = equipo_corte actual
+                    // FECHA CORTE = fecha de hoy en formato dd/mmm/yy
+                    if (valNorm === 'OK' && onCorteView && isProgSubtab) {
+                        try {
+                            const idxEquipoCorte = findColIndexNormalized('equipo_corte');
+                            const equipoCorteActual = (idxEquipoCorte !== -1 && rawData[rowIndex] && rawData[rowIndex][idxEquipoCorte] !== undefined)
+                                ? String(rawData[rowIndex][idxEquipoCorte] || '').trim()
+                                : String(getVal(rawData[rowIndex], 'equipo_corte') || getVal(rawData[rowIndex], 'EQUIPO CORTE') || getVal(rawData[rowIndex], 'EQUIPO_CORTE') || '').trim();
+
+                            const idxTurnoCorte = findColIndexNormalized('TURNO CORTE');
+                            if (idxTurnoCorte !== -1) {
+                                rawData[rowIndex][idxTurnoCorte] = equipoCorteActual;
+                                const turnoColName = (rawData[0] && rawData[0][idxTurnoCorte]) ? rawData[0][idxTurnoCorte] : 'TURNO CORTE';
+                                fetch(WEB_APP_URL, {
+                                    method: 'POST',
+                                    mode: 'no-cors',
+                                    body: JSON.stringify({ action: 'update', row: rowIndex, colName: turnoColName, value: equipoCorteActual })
+                                }).catch(e => console.error('Error guardando TURNO CORTE:', e));
+                            }
+
+                            const idxFechaCorte = findColIndexNormalized('FECHA CORTE');
+                            if (idxFechaCorte !== -1) {
+                                const meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+                                const now = new Date();
+                                const fechaCorte = `${String(now.getDate()).padStart(2, '0')}/${meses[now.getMonth()]}/${String(now.getFullYear()).slice(-2)}`;
+                                rawData[rowIndex][idxFechaCorte] = fechaCorte;
+                                const fechaColName = (rawData[0] && rawData[0][idxFechaCorte]) ? rawData[0][idxFechaCorte] : 'FECHA CORTE';
+                                fetch(WEB_APP_URL, {
+                                    method: 'POST',
+                                    mode: 'no-cors',
+                                    body: JSON.stringify({ action: 'update', row: rowIndex, colName: fechaColName, value: fechaCorte })
+                                }).catch(e => console.error('Error guardando FECHA CORTE:', e));
+                            }
+                        } catch (e) {
+                            console.error('Error registrando TURNO/FECHA CORTE al marcar OK:', e);
+                        }
+                    }
+
                     const shouldPropagate = !skipPropagation && !isDirectUiChange && !(valNorm === 'OK' && onCorteView && isProgSubtab);
 
                     // Resolver el nombre exacto de la cabecera para propagar con el nombre correcto
