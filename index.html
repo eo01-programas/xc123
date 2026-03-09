@@ -1585,6 +1585,48 @@
                 background-color: #1e293b !important; color: #ffffff !important;
                 -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;
             }
+            body.print-corte-prog #print-corte-container .print-notes-block {
+                margin-top: 10px !important;
+            }
+            body.print-corte-prog #print-corte-container .print-notes-title {
+                font-size: 12px !important;
+                font-weight: 700 !important;
+                color: #0f172a !important;
+                margin: 0 0 4px 0 !important;
+            }
+            body.print-corte-prog #print-corte-container table.print-notes-table {
+                font-size: 10px !important;
+                table-layout: fixed !important;
+                width: 100% !important;
+                border-collapse: collapse !important;
+            }
+            body.print-corte-prog #print-corte-container table.print-notes-table th,
+            body.print-corte-prog #print-corte-container table.print-notes-table td {
+                border: 1px solid #cbd5e1 !important;
+                padding: 3px 4px !important;
+                white-space: normal !important;
+                overflow: visible !important;
+                text-overflow: clip !important;
+                vertical-align: top !important;
+            }
+            body.print-corte-prog #print-corte-container table.print-notes-table thead th {
+                background-color: #0f172a !important;
+                color: #ffffff !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+            body.print-corte-prog #print-corte-container table.print-notes-table th:nth-child(1),
+            body.print-corte-prog #print-corte-container table.print-notes-table td:nth-child(1) { width: 13% !important; }
+            body.print-corte-prog #print-corte-container table.print-notes-table th:nth-child(2),
+            body.print-corte-prog #print-corte-container table.print-notes-table td:nth-child(2) { width: 22% !important; }
+            body.print-corte-prog #print-corte-container table.print-notes-table th:nth-child(3),
+            body.print-corte-prog #print-corte-container table.print-notes-table td:nth-child(3) { width: 12% !important; }
+            body.print-corte-prog #print-corte-container table.print-notes-table th:nth-child(4),
+            body.print-corte-prog #print-corte-container table.print-notes-table td:nth-child(4) { width: 8% !important; }
+            body.print-corte-prog #print-corte-container table.print-notes-table th:nth-child(5),
+            body.print-corte-prog #print-corte-container table.print-notes-table td:nth-child(5) { width: 22% !important; }
+            body.print-corte-prog #print-corte-container table.print-notes-table th:nth-child(6),
+            body.print-corte-prog #print-corte-container table.print-notes-table td:nth-child(6) { width: 23% !important; }
             body.print-corte-prog #print-corte-container th:nth-child(1),
             body.print-corte-prog #print-corte-container td:nth-child(1) { width: 3% !important; }
             body.print-corte-prog #print-corte-container th:nth-child(2),
@@ -16513,7 +16555,7 @@ NOTA: Por favor adjunte los archivos descargados (${fileName}.xlsx y ${fileName}
         });
 
         // --- Imprimir Corte PROG (3 turnos) ---
-        window.printCorteProg = function() {
+        window.printCorteProg = async function() {
             try {
                 const container = document.getElementById('print-corte-container');
                 if (!container) return;
@@ -16532,6 +16574,112 @@ NOTA: Por favor adjunte los archivos descargados (${fileName}.xlsx y ${fileName}
 
                 const columnsToShow = ['RSV', 'P', 'F.ING.COST', 'CLI', 'RUTA', 'OC', 'COLOR', 'OP-PTDA', 'PDS', 'PRENDA', 'ART.', 'TIPO CERT.', 'RIB'];
                 const turnos = ['PROG 1T', 'PROG 2T', 'PROG 3T'];
+                const cloneHoja3RowsForPrint = (rows) => {
+                    return (rows || []).map((r) => ({
+                        cliente: String((r && r.cliente) || '').trim(),
+                        ops: String((r && r.ops) || '').trim(),
+                        color: String((r && r.color) || '').trim(),
+                        pds: String((r && r.pds) || '').trim(),
+                        comentario: String((r && r.comentario) || '').trim(),
+                        comentario_general: String((r && r.comentario_general) || '').trim()
+                    }));
+                };
+                const hasHoja3RowData = (row) => {
+                    if (!row) return false;
+                    return !!(
+                        row.cliente || row.ops || row.color || row.pds || row.comentario || row.comentario_general
+                    );
+                };
+                const getCorteNotasRowsByTurn = async (turno) => {
+                    const turnoNorm = (typeof normalizeHabilitadoHoja3Turno === 'function')
+                        ? normalizeHabilitadoHoja3Turno(turno)
+                        : String(turno || '').toUpperCase().trim();
+                    if (!turnoNorm) return [];
+
+                    let rows = [];
+                    try {
+                        if (typeof habilitadoHoja3RowsByTurn !== 'undefined' && Array.isArray(habilitadoHoja3RowsByTurn[turnoNorm])) {
+                            rows = cloneHoja3RowsForPrint(habilitadoHoja3RowsByTurn[turnoNorm]);
+                        }
+                    } catch (e) {}
+                    if ((!rows || rows.length === 0)
+                        && typeof currentHabilitadoFilter !== 'undefined'
+                        && String(currentHabilitadoFilter || '').toUpperCase().trim() === turnoNorm
+                        && typeof habilitadoHoja3Rows !== 'undefined'
+                        && Array.isArray(habilitadoHoja3Rows)) {
+                        rows = cloneHoja3RowsForPrint(habilitadoHoja3Rows);
+                    }
+
+                    if ((!rows || rows.length === 0) && typeof fetchHoja3RowsByTurn === 'function') {
+                        try {
+                            const fetched = await fetchHoja3RowsByTurn(turnoNorm);
+                            if (Array.isArray(fetched)) rows = cloneHoja3RowsForPrint(fetched);
+                        } catch (e) {
+                            console.error('Error cargando notas para impresión de corte', e);
+                        }
+                    }
+
+                    return (rows || []).filter(hasHoja3RowData);
+                };
+                const createCorteNotasPrintBlock = (turno, rows) => {
+                    const block = document.createElement('div');
+                    block.className = 'print-notes-block';
+                    block.style.cssText = 'display:block;margin-top:10px;break-inside:avoid;page-break-inside:avoid;';
+
+                    const title = document.createElement('div');
+                    title.className = 'print-notes-title';
+                    title.style.cssText = 'font-size:12px;font-weight:700;margin:0 0 4px 0;';
+                    const isEmptyNotes = !Array.isArray(rows) || rows.length === 0;
+                    title.textContent = isEmptyNotes ? `Notas ${turno} (sin registros)` : `Notas ${turno}`;
+                    block.appendChild(title);
+
+                    const table = document.createElement('table');
+                    table.className = 'print-notes-table';
+                    table.style.cssText = 'width:100%;border-collapse:collapse;table-layout:fixed;font-size:10px;';
+
+                    const thead = document.createElement('thead');
+                    const trHead = document.createElement('tr');
+                    ['CLIENTE', 'OPS', 'COLOR', 'PDS', 'COMENTARIO', 'COMENTARIOS GENERALES'].forEach((label) => {
+                        const th = document.createElement('th');
+                        th.textContent = label;
+                        th.style.cssText = 'border:1px solid #cbd5e1;padding:3px 4px;background:#0f172a;color:#fff;';
+                        trHead.appendChild(th);
+                    });
+                    thead.appendChild(trHead);
+                    table.appendChild(thead);
+
+                    const tbodyNotas = document.createElement('tbody');
+                    const rowsToRender = (!isEmptyNotes)
+                        ? rows
+                        : [{ cliente: '', ops: '', color: '', pds: '', comentario: 'SIN NOTAS REGISTRADAS', comentario_general: '' }];
+
+                    rowsToRender.forEach((row) => {
+                        const tr = document.createElement('tr');
+                        const cells = [
+                            row.cliente || '',
+                            row.ops || '',
+                            row.color || '',
+                            row.pds || '',
+                            row.comentario || '',
+                            row.comentario_general || ''
+                        ];
+                        cells.forEach((val) => {
+                            const td = document.createElement('td');
+                            td.textContent = val;
+                            td.style.cssText = 'border:1px solid #cbd5e1;padding:3px 4px;white-space:normal;vertical-align:top;';
+                            tr.appendChild(td);
+                        });
+                        tbodyNotas.appendChild(tr);
+                    });
+                    table.appendChild(tbodyNotas);
+                    block.appendChild(table);
+                    return block;
+                };
+
+                const notasRowsByTurn = {};
+                for (const turno of turnos) {
+                    notasRowsByTurn[turno] = await getCorteNotasRowsByTurn(turno);
+                }
 
                 turnos.forEach((turno, turnoIdx) => {
                     let validIndices = [];
@@ -16697,6 +16845,7 @@ NOTA: Por favor adjunte los archivos descargados (${fileName}.xlsx y ${fileName}
                     section.appendChild(dateDiv);
 
                     const table = document.createElement('table');
+                    table.className = 'print-corte-main-table';
                     const thead = document.createElement('thead');
                     const headerRow = document.createElement('tr');
                     columnsToShow.forEach(col => {
@@ -16794,6 +16943,9 @@ NOTA: Por favor adjunte los archivos descargados (${fileName}.xlsx y ${fileName}
 
                     table.appendChild(tbodyEl);
                     section.appendChild(table);
+
+                    const notasRows = notasRowsByTurn[turno] || [];
+                    section.appendChild(createCorteNotasPrintBlock(turno, notasRows));
                     container.appendChild(section);
                 });
 
