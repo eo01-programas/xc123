@@ -2728,6 +2728,9 @@
         let enumeradoHeaderFilter = null; // { field: 'CLIENTE', value: 'ABC' }
         // Filtros aplicados desde el encabezado de Habilitado (acumulativos)
         let habilitadoHeaderFilters = []; // [{ field: 'CLIENTE', value: 'ABC' }, ...]
+        // Filtros aplicados desde el encabezado de Artes (Bordado)
+        let artesHeaderFilters = []; // [{ field: 'HOD', value: '09/03/2026' }, ...]
+        let artesHeaderFilter = null; // compatibilidad con código existente
         let currentLavadoFilter = 'EN LAV';
         let currentCorteFilter = 'X PROG';
         let currentCorteBloquesFilter = 'X PROG';
@@ -3404,10 +3407,11 @@
             
             // Cargar equipos de corte en segundo plano
             cargarEquiposCorteBackground();
-            // Configurar menú contextual del encabezado de Bloqueo, Corte y Enumerado
+            // Configurar menú contextual del encabezado de Bloqueo, Corte, Enumerado y Artes
             try { setupBloqueoHeaderFilterMenu(); } catch(e) { console.error('setupBloqueoHeaderFilterMenu error', e); }
             try { setupCorteHeaderFilterMenu(); } catch(e) { console.error('setupCorteHeaderFilterMenu error', e); }
             try { setupEnumeradoHeaderFilterMenu(); } catch(e) { console.error('setupEnumeradoHeaderFilterMenu error', e); }
+            try { setupArtesHeaderFilterMenu(); } catch(e) { console.error('setupArtesHeaderFilterMenu error', e); }
             
             // Inicializar menú flotante desplegable
             initFloatingMenu();
@@ -10567,7 +10571,7 @@
             } catch (e) { console.error('Error re-rendering view after switch:', e); }
         };
 
-        // Helper para comparar fechas en formato DD/MMM/YY (ej: 15/Ene/26)
+        // Helper para comparar fechas en formato DD/MMM/YY, DD/MMM o DD/MM/YYYY
         function compareDates(dateStr1, dateStr2) {
             const monthMap = {
                 'ene': 0, 'enero': 0,
@@ -10578,30 +10582,50 @@
                 'jun': 5, 'junio': 5,
                 'jul': 6, 'julio': 6,
                 'ago': 7, 'agosto': 7,
-                'sep': 8, 'septiembre': 8,
+                'sep': 8, 'set': 8, 'sept': 8, 'septiembre': 8,
                 'oct': 9, 'octubre': 9,
                 'nov': 10, 'noviembre': 10,
                 'dic': 11, 'diciembre': 11
             };
             
             const parseDateStr = (str) => {
-                const parts = str.split('/');
-                if (parts.length !== 3) return null;
+                const txt = String(str || '').trim();
+                if (!txt) return null;
+                const parts = txt.split(/[\/\-]/).map(p => p.trim()).filter(Boolean);
+                if (parts.length < 2) return null;
+
                 const day = parseInt(parts[0], 10);
-                const month = monthMap[parts[1].toLowerCase()];
-                if (month === undefined) return null;
-                let year = parseInt(parts[2], 10);
-                // Convertir YY a YYYY (26 -> 2026, 50 -> 1950)
-                if (year < 100) {
-                    year = year < 50 ? 2000 + year : 1900 + year;
+                if (isNaN(day)) return null;
+
+                const monthToken = String(parts[1] || '').toLowerCase();
+                let month = null;
+                if (/^\d+$/.test(monthToken)) {
+                    const mNum = parseInt(monthToken, 10);
+                    if (mNum >= 1 && mNum <= 12) month = mNum - 1;
+                } else {
+                    month = monthMap[monthToken];
+                    if (month === undefined) month = monthMap[monthToken.slice(0, 3)];
                 }
+                if (month === undefined || month === null) return null;
+
+                let year;
+                if (parts.length >= 3) {
+                    year = parseInt(parts[2], 10);
+                    if (isNaN(year)) return null;
+                    // Convertir YY a YYYY (26 -> 2026, 50 -> 1950)
+                    if (year < 100) year = year < 50 ? 2000 + year : 1900 + year;
+                } else {
+                    // Si no hay año (ej: 02/Feb), usar año actual para ordenamiento.
+                    year = new Date().getFullYear();
+                }
+
                 return new Date(year, month, day);
             };
             
             const date1 = parseDateStr(dateStr1);
             const date2 = parseDateStr(dateStr2);
             
-            if (!date1 || !date2) return dateStr1.localeCompare(dateStr2);
+            if (!date1 || !date2) return String(dateStr1 || '').localeCompare(String(dateStr2 || ''));
             return date1 - date2;
         }
         
@@ -11550,6 +11574,8 @@
             if (menuCorte && !menuCorte.contains(e.target)) hideCorteContextMenu();
             const menuEnumerado = document.getElementById('enumerado-context-menu');
             if (menuEnumerado && !menuEnumerado.contains(e.target)) hideEnumeradoContextMenu();
+            const menuArtes = document.getElementById('artes-context-menu');
+            if (menuArtes && !menuArtes.contains(e.target) && typeof hideArtesContextMenu === 'function') hideArtesContextMenu();
         });
 
         // =============================================
@@ -12140,6 +12166,233 @@
             });
         }
 
+        // =============================================
+        // FUNCIONES DE FILTRO CONTEXTUAL PARA ARTES (BORDADO)
+        // =============================================
+        let artesContextMenuField = null;
+
+        function getArtesBordadoStatusValue(row, evNormInput = '') {
+            const evNorm = (evNormInput || '').toString().toUpperCase().trim();
+            const statusUpper = (getHabilitadoFieldValue(row, 'STATUS', evNorm) || '').toString().toUpperCase().trim();
+            if (!statusUpper) return '';
+            if (statusUpper === 'PROC CORTE') return 'Proc Corte';
+            if (statusUpper === 'X CORTAR') return 'x cortar';
+            if (statusUpper === 'X PEDIR') return 'x pedir';
+            if (statusUpper === 'X BLOQ') return 'x bloq';
+            if (statusUpper === 'X LAVAR') return 'x lavar';
+            if (statusUpper === 'X ENM') return 'x enm';
+            if (statusUpper === 'X HAB') return 'x Hab';
+            return statusUpper;
+        }
+
+        window.showArtesContextMenu = function(event, fieldName) {
+            if (window.currentArtesFilter !== 'BORDADO') return;
+            event.preventDefault();
+            event.stopPropagation();
+
+            artesContextMenuField = fieldName;
+            const menu = document.getElementById('artes-context-menu');
+            if (!menu) return;
+
+            const input = document.getElementById('artes-filter-input');
+            const select = document.getElementById('artes-filter-select');
+            const fieldLabel = document.getElementById('artes-filter-field');
+            if (!input || !select || !fieldLabel) return;
+
+            fieldLabel.textContent = fieldName;
+
+            const dropdownFields = ['HOD', 'STATUS', 'CLIENTE'];
+            if (dropdownFields.includes(fieldName)) {
+                input.style.display = 'none';
+                select.style.display = 'block';
+                select.value = '';
+                populateArtesFilterSelect(fieldName);
+                select.focus();
+            } else {
+                select.style.display = 'none';
+                input.style.display = 'block';
+                input.value = '';
+                input.focus();
+            }
+
+            menu.classList.add('active');
+            menu.style.left = event.clientX + 'px';
+            menu.style.top = event.clientY + 'px';
+        };
+
+        window.hideArtesContextMenu = function() {
+            const menu = document.getElementById('artes-context-menu');
+            if (menu) menu.classList.remove('active');
+            artesContextMenuField = null;
+        };
+
+        window.clearArtesFilter = function() {
+            artesHeaderFilters = [];
+            artesHeaderFilter = null;
+            hideArtesContextMenu();
+            renderArtes();
+        };
+
+        window.applyArtesFilter = function() {
+            if (!artesContextMenuField) { hideArtesContextMenu(); return; }
+
+            const input = document.getElementById('artes-filter-input');
+            const select = document.getElementById('artes-filter-select');
+            let filterValue = '';
+            let isFromSelect = false;
+
+            if (select && select.style.display !== 'none') {
+                isFromSelect = true;
+                if (select.selectedIndex === 0) {
+                    alert('Por favor seleccione un valor para filtrar.');
+                    return;
+                }
+                filterValue = select.value;
+            } else if (input && input.style.display !== 'none') {
+                filterValue = input.value.trim();
+            }
+
+            if (!isFromSelect && filterValue === '') {
+                alert('Por favor ingrese un valor para filtrar.');
+                return;
+            }
+
+            const existingIdx = artesHeaderFilters.findIndex(f => f.field.toUpperCase() === artesContextMenuField.toUpperCase());
+            const newFilter = { field: artesContextMenuField, value: filterValue };
+            if (existingIdx !== -1) artesHeaderFilters[existingIdx] = newFilter;
+            else artesHeaderFilters.push(newFilter);
+
+            artesHeaderFilter = artesHeaderFilters[0] || null;
+            hideArtesContextMenu();
+            renderArtes();
+        };
+
+        function populateArtesFilterSelect(fieldName) {
+            const select = document.getElementById('artes-filter-select');
+            if (!select) return;
+            while (select.options.length > 1) select.remove(1);
+
+            const values = new Set();
+            let hasEmptyValue = false;
+            const idxEv = findHeaderIndexCaseInsensitive('estado_enumerado');
+            const activeFilters = artesHeaderFilters.length > 0 ? artesHeaderFilters : (artesHeaderFilter ? [artesHeaderFilter] : []);
+
+            const getBordadoFieldValue = function(row, field, evNorm) {
+                switch (field) {
+                    case 'HOD':
+                        return formatValue(getVal(row, 'HOD'), 'date') || '';
+                    case 'STATUS':
+                        return getArtesBordadoStatusValue(row, evNorm) || '';
+                    case 'CLIENTE':
+                        return normalizeClientForTransfer(getVal(row, 'CLIENTE') || '') || '';
+                    case 'OC':
+                        {
+                            const op = String(getVal(row, 'OP') || '').trim();
+                            const corte = String(getVal(row, 'CORTE') || '').trim();
+                            return (op + '-' + corte).trim();
+                        }
+                    default:
+                        return '';
+                }
+            };
+
+            for (let i = 1; i < rawData.length; i++) {
+                const row = rawData[i];
+
+                let ev = '';
+                try {
+                    if (idxEv !== -1 && row && row[idxEv] !== undefined) ev = row[idxEv];
+                    else ev = getVal(row, 'estado_enumerado') || getVal(row, 'ESTADO ENUMERADO') || getVal(row, 'ESTADO_ENumerado') || '';
+                } catch (e) { ev = getVal(row, 'estado_enumerado') || ''; }
+                const evNorm = (ev || '').toString().toUpperCase().trim();
+
+                const rawHabil = getVal(row, 'estado_habilitado') || getVal(row, 'ESTADO_HABILITADO') || getVal(row, 'ESTADO HABILITADO') || '';
+                const habilNorm = (rawHabil || '').toString().toUpperCase().replace(/\s+/g, ' ').trim();
+                if (/^OK(\s|$)/.test(habilNorm)) continue;
+
+                const rawNbd = getVal(row, 'n.BDxpda') || getVal(row, 'N.BDXPDA') || getVal(row, 'n.BDxpda ') || '';
+                const nbdNorm = (rawNbd || '').toString().toUpperCase().trim();
+                if (nbdNorm === '' || nbdNorm.indexOf('NO LLEVA') !== -1 || !/\d/.test(nbdNorm)) continue;
+
+                let rawEstadoB = getVal(row, 'estado_bordado') || '';
+                let estadoBNorm = (rawEstadoB || '').toString().trim();
+                if (estadoBNorm === '') estadoBNorm = 'X PROG';
+
+                if (window.currentArtesBordadoFilter === 'PROG') {
+                    if (!(estadoBNorm.toUpperCase().indexOf('PROG') !== -1 && estadoBNorm.toUpperCase() !== 'X PROG')) continue;
+                } else {
+                    if (!(estadoBNorm.toUpperCase() === 'X PROG' || estadoBNorm === '')) continue;
+                }
+
+                if (window._searchOpPtdaFilter) {
+                    const opT = String(getVal(row, 'OP TELA') || '').trim();
+                    const ptT = String(getVal(row, 'PARTIDA') || '').trim();
+                    if ((opT + '-' + ptT).toUpperCase().indexOf(window._searchOpPtdaFilter) === -1) continue;
+                }
+
+                let passesOtherFilters = true;
+                for (let fi = 0; fi < activeFilters.length; fi++) {
+                    const af = activeFilters[fi];
+                    if (!af || !af.field) continue;
+                    if (af.field.toUpperCase() === fieldName.toUpperCase()) continue;
+
+                    const currentVal = String(getBordadoFieldValue(row, af.field, evNorm) || '').toUpperCase();
+                    const targetVal = String(af.value || '').toUpperCase().trim();
+                    if (targetVal === '') {
+                        if (currentVal !== '') { passesOtherFilters = false; break; }
+                    } else if (currentVal.indexOf(targetVal) === -1) {
+                        passesOtherFilters = false;
+                        break;
+                    }
+                }
+                if (!passesOtherFilters) continue;
+
+                const fieldValue = getBordadoFieldValue(row, fieldName, evNorm);
+                if (fieldValue) values.add(fieldValue);
+                else hasEmptyValue = true;
+            }
+
+            const sortedValues = Array.from(values).sort((a, b) => {
+                if (fieldName === 'HOD') return compareDates(a, b);
+                return a.localeCompare(b);
+            });
+
+            sortedValues.forEach(value => {
+                const option = document.createElement('option');
+                option.value = value;
+                option.textContent = value;
+                select.appendChild(option);
+            });
+
+            if (hasEmptyValue) {
+                const option = document.createElement('option');
+                option.value = '';
+                option.textContent = '(VACÍO)';
+                select.appendChild(option);
+            }
+        }
+
+        function setupArtesHeaderFilterMenu() {
+            const allowedFields = ['HOD', 'STATUS', 'CLIENTE', 'OC'];
+            const theadBordado = document.querySelector('#table-container-artes-bordado table thead');
+            if (!theadBordado) return;
+
+            theadBordado.querySelectorAll('th').forEach(th => {
+                th.oncontextmenu = function(event) {
+                    const headerText = th.textContent.trim().replace(/\s+/g, ' ');
+                    let matchedField = null;
+                    for (let i = 0; i < allowedFields.length; i++) {
+                        const field = allowedFields[i];
+                        if (headerText.indexOf(field) === 0 || field.indexOf(headerText) === 0) {
+                            matchedField = field;
+                            break;
+                        }
+                    }
+                    if (matchedField) showArtesContextMenu(event, matchedField);
+                };
+            });
+        }
+
         window.filterBloqueo = function(filterState, btn) {
             currentBloqueoFilter = filterState;
             document.querySelectorAll('#view-bloqueo .sub-tab').forEach(el => el.classList.remove('active'));
@@ -12235,6 +12488,8 @@
             document.querySelectorAll('#bordado-subtabs .sub-tab').forEach(el => el.classList.remove('active'));
             if (btn) btn.classList.add('active');
             window._searchOpPtdaFilter = null;
+            artesHeaderFilters = [];
+            artesHeaderFilter = null;
             renderArtesBordado();
         };
 
@@ -12244,6 +12499,8 @@
             document.querySelectorAll('#estampado-subtabs .sub-tab').forEach(el => el.classList.remove('active'));
             if (btn) btn.classList.add('active');
             window._searchOpPtdaFilter = null;
+            artesHeaderFilters = [];
+            artesHeaderFilter = null;
             renderArtesEstampado();
         };
 
@@ -12766,6 +13023,43 @@
                     if ((opT + '-' + ptT).toUpperCase().indexOf(window._searchOpPtdaFilter) === -1) continue;
                 }
 
+                // Aplicar filtros de encabezado en Bordado (HOD / STATUS / CLIENTE / OC)
+                const bordadoFilters = artesHeaderFilters && artesHeaderFilters.length > 0
+                    ? artesHeaderFilters
+                    : (artesHeaderFilter ? [artesHeaderFilter] : []);
+                if (window.currentArtesFilter === 'BORDADO' && bordadoFilters.length > 0) {
+                    let matchesAll = true;
+                    for (let afi = 0; afi < bordadoFilters.length; afi++) {
+                        const currentAF = bordadoFilters[afi];
+                        if (!currentAF.field || currentAF.value === undefined || currentAF.value === null) continue;
+                        const f = currentAF.field;
+                        const v = String(currentAF.value).toUpperCase().trim();
+                        let cellValue = '';
+                        try {
+                            if (f === 'HOD') {
+                                cellValue = formatValue(getVal(row, 'HOD'), 'date') || '';
+                            } else if (f === 'STATUS') {
+                                cellValue = getArtesBordadoStatusValue(row, evNorm) || '';
+                            } else if (f === 'CLIENTE') {
+                                cellValue = normalizeClientForTransfer(getVal(row, 'CLIENTE') || '') || '';
+                            } else if (f === 'OC') {
+                                const op = String(getVal(row, 'OP') || '').trim();
+                                const corte = String(getVal(row, 'CORTE') || '').trim();
+                                cellValue = (op + '-' + corte).trim();
+                            }
+                            const cellValueUpper = String(cellValue).toUpperCase();
+                            let matchesFilter = false;
+                            if (v === '') matchesFilter = cellValueUpper === '';
+                            else matchesFilter = cellValueUpper.indexOf(v) !== -1;
+                            if (!matchesFilter) { matchesAll = false; break; }
+                        } catch (e) {
+                            matchesAll = false;
+                            break;
+                        }
+                    }
+                    if (!matchesAll) continue;
+                }
+
                 const tr = document.createElement('tr');
 
                 // HOD (formateada)
@@ -12796,32 +13090,7 @@
                 tr.appendChild(tdFCost);
 
                 // STATUS (igual que Habilitado)
-                const rutaTela = (getVal(row, 'RUTA TELA') || getVal(row, 'RUTA_TELA') || getVal(row, 'RUTA') || '').toString().toUpperCase().trim();
-                const estadoCorte = (getVal(row, 'STATUS_CORTE') || getVal(row, 'STATUS') || getVal(row, 'estado_corte') || getVal(row, 'ESTADO_CORTE') || '').toString().toUpperCase().trim();
-                const estadoBloqueo = (getVal(row, 'estado_bloqueo') || getVal(row, 'ESTADO_BLOQUEO') || '').toString().toUpperCase().trim();
-                const estadoLavada = (getVal(row, 'estado_lavada') || getVal(row, 'ESTADO_LAVADA') || '').toString().toUpperCase().trim();
-                let statusValue = '';
-                if (rutaTela === 'ACABADA') {
-                    if (estadoCorte === '' || estadoCorte === 'X PROG') statusValue = 'x cortar';
-                    else if (estadoCorte === 'PROG' || estadoCorte === 'PROG 1T' || estadoCorte === 'PROG 2T' || estadoCorte === 'PROG 3T') statusValue = 'Proc Corte';
-                    else if (estadoCorte === 'OK') {
-                        if (evNorm === '' || evNorm === 'X PROG') statusValue = 'x enm';
-                        else if (evNorm === 'OK ENM' || evNorm === 'OK PAQUETEO') statusValue = 'x Hab';
-                        else statusValue = 'x enm';
-                    }
-                } else if (rutaTela === 'LAVADA') {
-                    if (estadoBloqueo === '') statusValue = 'x pedir';
-                    else if (estadoBloqueo.indexOf('PROG') !== -1) statusValue = 'x bloq';
-                    else if (estadoBloqueo === 'OK') {
-                        if (estadoLavada !== 'OK') statusValue = 'x lavar';
-                        else if (estadoCorte === '' || estadoCorte === 'X PROG') statusValue = 'x cortar';
-                        else if (estadoCorte === 'PROG' || estadoCorte === 'PROG 1T' || estadoCorte === 'PROG 2T' || estadoCorte === 'PROG 3T') statusValue = 'Proc Corte';
-                        else if (estadoCorte === 'OK') {
-                            if (evNorm === 'OK ENM' || evNorm === 'OK PAQUETEO') statusValue = 'x Hab';
-                            else statusValue = 'x enm';
-                        }
-                    }
-                }
+                const statusValue = getArtesBordadoStatusValue(row, evNorm);
                 const tdStatus = document.createElement('td');
                 tdStatus.style.textAlign = 'center';
                 tdStatus.title = statusValue || '';
@@ -12918,6 +13187,9 @@
             
             // Inicializar eventos de los selectores de fecha
             initializeDateInputs();
+
+            // Marcar columnas filtradas visualmente
+            markFilteredColumns('view-artes', artesHeaderFilters.length > 0 ? artesHeaderFilters : (artesHeaderFilter ? [artesHeaderFilter] : []));
         };
 
         window.renderArtesEstampado = function() {
@@ -16912,6 +17184,24 @@ NOTA: Por favor adjunte los archivos descargados (${fileName}.xlsx y ${fileName}
             <button class="context-menu-btn cancel" onclick="hideEnumeradoContextMenu()">Cancelar</button>
             <button class="context-menu-btn cancel" onclick="clearEnumeradoFilter()" style="background: #ef4444; color: white;">Limpiar</button>
             <button class="context-menu-btn apply" onclick="applyEnumeradoFilter()">Aplicar</button>
+        </div>
+    </div>
+
+    <!-- MENÚ CONTEXTUAL DE FILTRO PARA TABLA ARTES (BORDADO) -->
+    <div id="artes-context-menu" class="context-menu">
+        <div style="padding: 12px 16px; font-weight: 600; border-bottom: 1px solid var(--gray-100);">
+            Filtrar por: <span id="artes-filter-field">Campo</span>
+        </div>
+        <div class="context-menu-input">
+            <input type="text" id="artes-filter-input" placeholder="Ingrese valor a filtrar..." autocomplete="off" style="display: none;">
+            <select id="artes-filter-select" style="display: none; width: 100%; padding: 8px; border: 1px solid var(--gray-300); border-radius: 4px; font-size: 12px; box-sizing: border-box;">
+                <option value="">-- Seleccione un valor --</option>
+            </select>
+        </div>
+        <div class="context-menu-buttons">
+            <button class="context-menu-btn cancel" onclick="hideArtesContextMenu()">Cancelar</button>
+            <button class="context-menu-btn cancel" onclick="clearArtesFilter()" style="background: #ef4444; color: white;">Limpiar</button>
+            <button class="context-menu-btn apply" onclick="applyArtesFilter()">Aplicar</button>
         </div>
     </div>
 
