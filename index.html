@@ -9917,7 +9917,7 @@
 
                     // Al marcar OK desde Corte PROG 1T/2T/3T:
                     // TURNO CORTE = estado_corte anterior (antes de OK)
-                    // FECHA CORTE = fecha de hoy en formato dd/mmm/yy
+                    // FECHA CORTE = fecha de hoy en formato dd/mm/yyyy
                     if (valNorm === 'OK' && onCorteView && isProgSubtab) {
                         try {
                             const estadoCorteAnterior = (() => {
@@ -9952,9 +9952,8 @@
 
                             const idxFechaCorte = findColIndexNormalized('FECHA CORTE');
                             if (idxFechaCorte !== -1) {
-                                const meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
                                 const now = new Date();
-                                const fechaCorte = `${String(now.getDate()).padStart(2, '0')}/${meses[now.getMonth()]}/${String(now.getFullYear()).slice(-2)}`;
+                                const fechaCorte = `${String(now.getDate()).padStart(2, '0')}/${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()}`;
                                 rawData[rowIndex][idxFechaCorte] = fechaCorte;
                                 const fechaColName = (rawData[0] && rawData[0][idxFechaCorte]) ? rawData[0][idxFechaCorte] : 'FECHA CORTE';
                                 fetch(WEB_APP_URL, {
@@ -12729,7 +12728,7 @@
                     else ev = getVal(row, 'estado_enumerado') || getVal(row, 'ESTADO ENUMERADO') || getVal(row, 'ESTADO_ENumerado') || '';
                 } catch (e) { ev = getVal(row, 'estado_enumerado') || '' }
                 const evNorm = (ev || '').toString().toUpperCase().trim();
-                if (evNorm === '') continue; // estado_enumerado diferente de vacío
+                // Permitir tambien estado_enumerado vacio (manteniendo las demas condiciones)
 
                 // estado_habilitado: ocultar filas en OK (incluye variantes como "OK S/DESTINO")
                 const rawHabil = getVal(row, 'estado_habilitado') || getVal(row, 'ESTADO_HABILITADO') || getVal(row, 'ESTADO HABILITADO') || '';
