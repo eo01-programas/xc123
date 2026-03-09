@@ -253,6 +253,39 @@
             border-color: #7c2d12;
             box-shadow: 0 0 0 2px rgba(249,115,22,0.22);
         }
+        .btn-habilitado-notas {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            border: 1px solid #1d4ed8;
+            background: #dbeafe;
+            color: #1d4ed8;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            line-height: 1;
+            margin-left: 6px;
+            transition: all 0.18s ease;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+        }
+        .btn-habilitado-notas i {
+            font-size: 14px;
+            line-height: 1;
+        }
+        .btn-habilitado-notas:hover {
+            background: #2563eb;
+            color: #ffffff;
+            transform: translateY(-1px);
+        }
+        .modal-habilitado-hoja3-body {
+            max-height: 62vh;
+            overflow: auto;
+            padding-right: 2px;
+        }
+        .modal-habilitado-hoja3-body .habilitado-hoja3-grid {
+            grid-template-columns: 2.6fr 0.8fr;
+        }
         .habilitado-ingresos-filters {
             display: none;
             align-items: center;
@@ -460,6 +493,95 @@
         #table-habilitado td.p-cell input.prioridad-input {
             margin: 0 auto;
             display: block;
+        }
+        /* Bloque adicional para registro en Hoja 3 (Habilitado PROG 1T/2T/3T) */
+        .habilitado-hoja3-block {
+            margin-top: 10px;
+            background: #ffffff;
+            border: 1px solid var(--gray-200);
+            border-radius: 10px;
+            padding: 10px;
+        }
+        .habilitado-hoja3-toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+            flex-wrap: wrap;
+        }
+        .habilitado-hoja3-toolbar-title {
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--gray-700);
+        }
+        .habilitado-hoja3-actions {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+        .habilitado-hoja3-btn {
+            padding: 6px 10px;
+            border: 1px solid var(--gray-300);
+            background: #fff;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .habilitado-hoja3-btn.primary {
+            background: var(--primary);
+            border-color: var(--primary);
+            color: #fff;
+        }
+        .habilitado-hoja3-grid {
+            display: grid;
+            grid-template-columns: 1.4fr 1fr;
+            gap: 10px;
+        }
+        .habilitado-hoja3-table-wrap {
+            border: 1px solid var(--gray-200);
+            border-radius: 8px;
+            overflow: hidden;
+            background: #fff;
+        }
+        .habilitado-hoja3-table {
+            width: 100%;
+            min-width: 0 !important;
+            table-layout: fixed;
+            border-collapse: collapse;
+            font-size: 12px;
+        }
+        .habilitado-hoja3-table th,
+        .habilitado-hoja3-table td {
+            border: 1px solid #d8dbe3;
+            padding: 0;
+        }
+        .habilitado-hoja3-table th {
+            background: #2f5fab;
+            color: #fff;
+            font-weight: 700;
+            font-size: 12px;
+            text-transform: uppercase;
+            text-align: center;
+            padding: 4px 6px;
+        }
+        .habilitado-hoja3-table-right th {
+            background: #111;
+        }
+        .habilitado-hoja3-input,
+        .habilitado-hoja3-select {
+            width: 100%;
+            border: none;
+            outline: none;
+            padding: 6px 8px;
+            font-size: 12px;
+            background: #fff;
+        }
+        @media (max-width: 900px) {
+            .habilitado-hoja3-grid {
+                grid-template-columns: 1fr;
+            }
         }
         #table-habilitado th {
             font-size: 14px;
@@ -1984,6 +2106,54 @@
         </div>
     </div>
 
+    <!-- MODAL NOTAS HABILITADO (HOJA 3) -->
+    <div id="modal-habilitado-hoja3" class="modal-overlay" onclick="if(event.target === this) cerrarModalHabilitadoHoja3()">
+        <div class="modal-content" style="max-width:1180px; width:94%;">
+            <div class="modal-header">
+                <div>
+                    <div class="modal-title">Transfer en prendas y/o Comentarios generales</div>
+                    <div class="modal-subtitle" id="modal-habilitado-hoja3-subtitle">Turno: -</div>
+                </div>
+                <button class="modal-close" onclick="cerrarModalHabilitadoHoja3()">&times;</button>
+            </div>
+            <div class="modal-habilitado-hoja3-body">
+                <div class="habilitado-hoja3-toolbar" style="margin-bottom:10px;">
+                    <div class="habilitado-hoja3-actions">
+                        <button class="habilitado-hoja3-btn" type="button" onclick="addHabilitadoHoja3Row()">+ Fila</button>
+                        <button class="habilitado-hoja3-btn" type="button" onclick="limpiarHabilitadoHoja3()">Limpiar</button>
+                        <button id="btn-guardar-habilitado-hoja3" class="habilitado-hoja3-btn primary" type="button" onclick="guardarHabilitadoHoja3()">Guardar</button>
+                    </div>
+                </div>
+                <div class="habilitado-hoja3-grid">
+                    <div class="habilitado-hoja3-table-wrap">
+                        <table class="habilitado-hoja3-table habilitado-hoja3-table-left">
+                            <thead>
+                                <tr>
+                                    <th style="width:14%;">CLIENTE</th>
+                                    <th style="width:30%;">Ops</th>
+                                    <th style="width:12%;">COLOR</th>
+                                    <th style="width:6%;">PDS</th>
+                                    <th style="width:38%;">COMENTARIO</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbody-habilitado-hoja3-left"></tbody>
+                        </table>
+                    </div>
+                    <div class="habilitado-hoja3-table-wrap">
+                        <table class="habilitado-hoja3-table habilitado-hoja3-table-right">
+                            <thead>
+                                <tr>
+                                    <th>Comentarios generales</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbody-habilitado-hoja3-right"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
 
 
     <!-- MENÚ FLOTANTE CON DESPLEGABLE -->
@@ -2263,6 +2433,7 @@
                         <tr>
                             <th style="width: 65px; text-align: center;">HOD</th>
                             <th style="width: 75px; text-align: center;">F.ING.COST</th>
+                            <th style="width: 55px; text-align:center;">STATUS</th>
                             <th style="width: 40px;">CLIENTE</th>
                             <th style="width: 45px;">OC</th>
                             <th style="width: 80px;">COLOR</th>
@@ -2270,6 +2441,7 @@
                             <th style="width: 60px;">PRENDA</th>
                             <th style="width: 70px;">TIPO CERT.</th>
                             <th style="width: 80px;">n.BDxpda</th>
+                            <th style="width: 120px;">tipo-bordado</th>
                             <th style="width: 100px;">estado_bordado</th>
                         </tr>
                     </thead>
@@ -2306,6 +2478,7 @@
                             <th style="width: 150px;">CLIENTE</th>
                             <th style="width: 200px;">ESTILO</th>
                             <th style="width: 80px;">OP</th>
+                            <th style="width: 130px;">tipo-bordado</th>
                             <th style="width: 140px;">n.BDxpda</th>
                             <th style="width: 140px;">n.ESTAMPxpda</th>
                         </tr>
@@ -2351,6 +2524,9 @@
                         </button>
                         <button id="btn-print-habilitado-prog" class="btn-print-circle" onclick="printHabilitadoProg()" style="display:none;" title="Imprimir Programado (3 turnos)" aria-label="Imprimir Programado">
                             <i class="ph ph-printer"></i>
+                        </button>
+                        <button id="btn-habilitado-notas" class="btn-habilitado-notas" onclick="abrirModalHabilitadoHoja3()" style="display:none;" title="Notas" aria-label="Notas">
+                            <i class="ph ph-notebook"></i>
                         </button>
                         <span id="habilitado-xhab-pill" class="xhabi-pill">xHabilitar: <strong id="habilitado-xhab-total">0pds</strong></span>
                         <button id="btn-habilitado-ingresos" class="btn-habilitado-ingresos" onclick="toggleHabilitadoIngresosMode(this)" title="Ingresos (estado_habilitado = OK)" aria-label="Ingresos habilitado">i</button>
@@ -2534,7 +2710,7 @@
 
     <script>
         // --- CONFIGURACIÓN ---
-        const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzqn0bgP6q4SzBp77udV7V-VjfBIGpC39NL54pl1rko7JrZz0P4MnMfvG8N4J8eUhK7NA/exec"; 
+        const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwIYjG8nf8kNsnVwGAkhfjKYUY-zvoIWQpj_xaNXXKC0bGt5JxqG0pYF1TWvQ8o0O3t3Q/exec"; 
         const SHEET_ID = "18cQuwqerdMggAeJ8TCUKA7-gujXsA91-CRMUTNpr8aQ";
 
         let rawData = [];
@@ -2561,6 +2737,11 @@
         let habilitadoIngresosDateFilter = '';
         let habilitadoIngresosPlantFilter = '';
         let habilitadoHeaderNormalHtml = '';
+        let habilitadoHoja3Rows = [];
+        let habilitadoHoja3RowsByTurn = {};
+        let habilitadoHoja3TurnoActual = '';
+        let habilitadoHoja3LoadRequestId = 0;
+        const HABILITADO_HOJA3_MIN_ROWS = 2;
 
         // Bases de tendidos creadas en esta sesion / previamente: persistidas en localStorage
         try {
@@ -3359,7 +3540,7 @@
                 /* Columnas para Transfer */
                     "n.transfxpda", "N.TRANSFXPDA", "estado_transfer", "ESTADO_TRANSFER",
                     /* Columnas nuevas para Artes asignar */
-                        "n.BDxpda", "n.BDxpda", "n.ESTAMPxpda", "n.ESTAMPxpda",
+                        "n.BDxpda", "n.BDxpda", "n.ESTAMPxpda", "n.ESTAMPxpda", "tipo-bordado", "TIPO-BORDADO", "tipo_bordado", "TIPO_BORDADO",
                     /* Estado de artes */
                         "estado_bordado", "ESTADO_BORDADO", "estado_estampado", "ESTADO_ESTAMPADO"
                 , "tipo-transfer", "TIPO-TRANSFER", "tipo_transfer"
@@ -3433,18 +3614,17 @@
                 const evNorm = (ev || '').toString().toUpperCase().trim();
                 if (evNorm === '') continue; // estado_enumerado diferente de vacío
 
-                // estado_habilitado diferente de OK
-                const rawHabil = getVal(row, 'estado_habilitado') || getVal(row, 'ESTADO_HABILITADO') || '';
-                const habilNorm = (rawHabil || '').toString().toUpperCase().trim();
-                if (habilNorm === 'OK') continue;
+                // estado_habilitado: ocultar filas en OK (incluye variantes como "OK S/DESTINO")
+                const rawHabil = getVal(row, 'estado_habilitado') || getVal(row, 'ESTADO_HABILITADO') || getVal(row, 'ESTADO HABILITADO') || '';
+                const habilNorm = (rawHabil || '').toString().toUpperCase().replace(/\s+/g, ' ').trim();
+                if (/^OK(\s|$)/.test(habilNorm)) continue;
 
                 // Bordado
                 try {
-                    const rawNbordado = getVal(row, 'n.bordadoxpda') || getVal(row, 'N.BORDADOXPDA') || '';
-                    const nbordadoNorm = (rawNbordado || '').toString().toUpperCase().trim();
                     const rawNbd = getVal(row, 'n.BDxpda') || getVal(row, 'N.BDXPDA') || getVal(row, 'n.BDxpda ') || '';
                     const nbdNorm = (rawNbd || '').toString().toUpperCase().trim();
-                    if (nbordadoNorm.indexOf('NO LLEVA') === -1 && nbdNorm.indexOf('NO LLEVA') === -1) {
+                    const aplicaBordado = (nbdNorm !== '' && nbdNorm.indexOf('NO LLEVA') === -1 && /\d/.test(nbdNorm));
+                    if (aplicaBordado) {
                         let rawEstadoB = getVal(row, 'estado_bordado') || '';
                         let estadoBNorm = (rawEstadoB || '').toString().trim();
                         if (estadoBNorm === '') estadoBNorm = 'X PROG';
@@ -3529,10 +3709,9 @@
 
                 // Artes: filas que participan en Bordado o Estampado
                 if (estadoEnumerado !== '' && estadoHabilitado !== 'OK') {
-                    const nBordado = (getVal(row, 'n.bordadoxpda') || getVal(row, 'N.BORDADOXPDA') || '').toString().toUpperCase().trim();
                     const nBd = (getVal(row, 'n.BDxpda') || getVal(row, 'N.BDXPDA') || getVal(row, 'n.BDxpda ') || '').toString().toUpperCase().trim();
                     const nEstamp = (getVal(row, 'n.ESTAMPxpda') || getVal(row, 'N.ESTAMPXPDA') || getVal(row, 'n.ESTAMP xpda') || '').toString().toUpperCase().trim();
-                    const aplicaBordado = (nBordado.indexOf('NO LLEVA') === -1 && nBd.indexOf('NO LLEVA') === -1);
+                    const aplicaBordado = (nBd !== '' && nBd.indexOf('NO LLEVA') === -1 && /\d/.test(nBd));
                     const aplicaEstampado = (nEstamp.indexOf('NO LLEVA') === -1);
                     if (aplicaBordado || aplicaEstampado) countArtes++;
                 }
@@ -7068,6 +7247,7 @@
             tbody.innerHTML = "";
             if (isHabilitadoIngresosMode) {
                 renderHabilitadoIngresosView(tbody);
+                updateHabilitadoHoja3BlockVisibility();
                 return;
             }
             setHabilitadoHeaderForIngresosMode(false);
@@ -7882,6 +8062,7 @@
             
             // Marcar columnas filtradas visualmente
             markFilteredColumns('view-habilitado', habilitadoHeaderFilters.length > 0 ? habilitadoHeaderFilters : []);
+            updateHabilitadoHoja3BlockVisibility();
         }
         
         function markFilteredColumns(viewId, filters) {
@@ -9738,23 +9919,37 @@
                     const isDirectUiChange = !!(selectElement && document.body && document.body.contains(selectElement));
 
                     // Al marcar OK desde Corte PROG 1T/2T/3T:
-                    // TURNO CORTE = equipo_corte actual
+                    // TURNO CORTE = estado_corte anterior (antes de OK)
                     // FECHA CORTE = fecha de hoy en formato dd/mmm/yy
                     if (valNorm === 'OK' && onCorteView && isProgSubtab) {
                         try {
-                            const idxEquipoCorte = findColIndexNormalized('equipo_corte');
-                            const equipoCorteActual = (idxEquipoCorte !== -1 && rawData[rowIndex] && rawData[rowIndex][idxEquipoCorte] !== undefined)
-                                ? String(rawData[rowIndex][idxEquipoCorte] || '').trim()
-                                : String(getVal(rawData[rowIndex], 'equipo_corte') || getVal(rawData[rowIndex], 'EQUIPO CORTE') || getVal(rawData[rowIndex], 'EQUIPO_CORTE') || '').trim();
+                            const estadoCorteAnterior = (() => {
+                                const fromWriteIdx = (writeIdx !== undefined && writeIdx !== -1 && rawData[rowIndex] && rawData[rowIndex][writeIdx] !== undefined)
+                                    ? String(rawData[rowIndex][writeIdx] || '').trim()
+                                    : '';
+                                if (fromWriteIdx) return fromWriteIdx;
+                                return String(
+                                    getVal(rawData[rowIndex], 'STATUS_CORTE') ||
+                                    getVal(rawData[rowIndex], 'STATUS') ||
+                                    getVal(rawData[rowIndex], 'status') ||
+                                    getVal(rawData[rowIndex], 'estado_corte') ||
+                                    getVal(rawData[rowIndex], 'ESTADO CORTE') ||
+                                    getVal(rawData[rowIndex], 'ESTADO_CORTE') ||
+                                    ''
+                                ).trim();
+                            })();
+                            const turnoCorteValue = (estadoCorteAnterior && estadoCorteAnterior.toUpperCase() !== 'OK')
+                                ? estadoCorteAnterior
+                                : String(currentCorteFilter || '').trim();
 
                             const idxTurnoCorte = findColIndexNormalized('TURNO CORTE');
-                            if (idxTurnoCorte !== -1) {
-                                rawData[rowIndex][idxTurnoCorte] = equipoCorteActual;
+                            if (idxTurnoCorte !== -1 && turnoCorteValue) {
+                                rawData[rowIndex][idxTurnoCorte] = turnoCorteValue;
                                 const turnoColName = (rawData[0] && rawData[0][idxTurnoCorte]) ? rawData[0][idxTurnoCorte] : 'TURNO CORTE';
                                 fetch(WEB_APP_URL, {
                                     method: 'POST',
                                     mode: 'no-cors',
-                                    body: JSON.stringify({ action: 'update', row: rowIndex, colName: turnoColName, value: equipoCorteActual })
+                                    body: JSON.stringify({ action: 'update', row: rowIndex, colName: turnoColName, value: turnoCorteValue })
                                 }).catch(e => console.error('Error guardando TURNO CORTE:', e));
                             }
 
@@ -10354,6 +10549,9 @@
         window.switchView = function(viewName, btn) {
             // Limpiar filtro temporal de búsqueda por OC al cambiar de vista manualmente
             window._searchOpPtdaFilter = null;
+            if (viewName !== 'habilitado') {
+                try { if (typeof window.cerrarModalHabilitadoHoja3 === 'function') window.cerrarModalHabilitadoHoja3(); } catch (e) {}
+            }
             if (viewName !== 'corte') clearCorteProgTempOrder();
             document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
             document.querySelectorAll('.nav-tab').forEach(el => el.classList.remove('active'));
@@ -10510,6 +10708,7 @@
             isHabilitadoIngresosMode = false;
             habilitadoIngresosDateFilter = '';
             habilitadoIngresosPlantFilter = '';
+            try { if (typeof window.cerrarModalHabilitadoHoja3 === 'function') window.cerrarModalHabilitadoHoja3(); } catch (e) {}
             document.querySelectorAll('#view-habilitado .sub-tab').forEach(el => el.classList.remove('active'));
             if (btn) btn.classList.add('active');
             // Limpiar filtros de encabezado cuando se cambia de sub-tab
@@ -10524,6 +10723,426 @@
                 }
             } catch (e) {}
             renderHabilitado();
+        };
+
+        function isHabilitadoProgTurnSubtab() {
+            return currentHabilitadoFilter === 'PROG 1T' || currentHabilitadoFilter === 'PROG 2T' || currentHabilitadoFilter === 'PROG 3T';
+        }
+
+        function createEmptyHabilitadoHoja3Row() {
+            return { cliente: '', ops: '', color: '', pds: '', comentario: '', comentario_general: '' };
+        }
+
+        function normalizeHabilitadoHoja3Turno(turno) {
+            const val = String(turno || '').toUpperCase().trim();
+            if (val === 'PROG 1T' || val === 'PROG 2T' || val === 'PROG 3T') return val;
+            return '';
+        }
+
+        function cloneHabilitadoHoja3Rows(rows) {
+            return (rows || []).map((r) => ({
+                cliente: String((r && r.cliente) || ''),
+                ops: String((r && r.ops) || ''),
+                color: String((r && r.color) || ''),
+                pds: String((r && r.pds) || ''),
+                comentario: String((r && r.comentario) || ''),
+                comentario_general: String((r && r.comentario_general) || '')
+            }));
+        }
+
+        function getHabilitadoHoja3TurnoActual() {
+            return normalizeHabilitadoHoja3Turno(habilitadoHoja3TurnoActual || currentHabilitadoFilter);
+        }
+
+        function persistHabilitadoHoja3Draft() {
+            const turno = getHabilitadoHoja3TurnoActual();
+            if (!turno) return;
+            habilitadoHoja3RowsByTurn[turno] = cloneHabilitadoHoja3Rows(habilitadoHoja3Rows);
+        }
+
+        function loadHabilitadoHoja3Draft(turno) {
+            const turnoNorm = normalizeHabilitadoHoja3Turno(turno);
+            habilitadoHoja3TurnoActual = turnoNorm;
+            if (!turnoNorm) {
+                habilitadoHoja3Rows = [];
+                return;
+            }
+            const stored = Array.isArray(habilitadoHoja3RowsByTurn[turnoNorm]) ? habilitadoHoja3RowsByTurn[turnoNorm] : [];
+            habilitadoHoja3Rows = cloneHabilitadoHoja3Rows(stored);
+        }
+
+        function normalizeHoja3HeaderKey(value) {
+            return String(value || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+        }
+
+        function parseHoja3RowsFromGvizResponse(jsonResponse, turno) {
+            const table = (jsonResponse && jsonResponse.table) ? jsonResponse.table : null;
+            if (!table) return [];
+
+            const cols = Array.isArray(table.cols) ? table.cols : [];
+            const rows = Array.isArray(table.rows) ? table.rows : [];
+
+            const getCellValue = function(cells, idx) {
+                if (idx < 0 || idx >= cells.length) return '';
+                const cell = cells[idx];
+                if (!cell) return '';
+                if (cell.f !== null && cell.f !== undefined && String(cell.f) !== '') {
+                    return String(cell.f);
+                }
+                if (cell.v === null || cell.v === undefined) return '';
+                const val = cell.v;
+                if (Object.prototype.toString.call(val) === '[object Date]') {
+                    try {
+                        const y = val.getFullYear();
+                        const m = String(val.getMonth() + 1).padStart(2, '0');
+                        const d = String(val.getDate()).padStart(2, '0');
+                        return `${y}-${m}-${d}`;
+                    } catch (e) {}
+                }
+                return String(val);
+            };
+
+            let headers = cols.map(col => String((col && (col.label || col.id)) || '').trim());
+            let dataRows = rows;
+
+            const findHeaderIndexFrom = function(headersInput, keys) {
+                const wanted = keys.map(k => normalizeHoja3HeaderKey(k));
+                for (let i = 0; i < headersInput.length; i++) {
+                    const hdr = normalizeHoja3HeaderKey(headersInput[i]);
+                    if (wanted.indexOf(hdr) !== -1) return i;
+                }
+                return -1;
+            };
+
+            let idxTurnoFound = findHeaderIndexFrom(headers, ['TURNO']);
+            if (idxTurnoFound === -1 && rows.length > 0) {
+                const firstRowCells = (rows[0] && Array.isArray(rows[0].c)) ? rows[0].c : [];
+                const headersFromRow = [];
+                for (let hi = 0; hi < firstRowCells.length; hi++) {
+                    headersFromRow.push(getCellValue(firstRowCells, hi));
+                }
+                if (headersFromRow.length > 0) {
+                    headers = headersFromRow;
+                    dataRows = rows.slice(1);
+                    idxTurnoFound = findHeaderIndexFrom(headers, ['TURNO']);
+                }
+            }
+
+            const idxClienteFound = findHeaderIndexFrom(headers, ['CLIENTE']);
+            const idxOpsFound = findHeaderIndexFrom(headers, ['OPS', 'OP']);
+            const idxColorFound = findHeaderIndexFrom(headers, ['COLOR']);
+            const idxPdsFound = findHeaderIndexFrom(headers, ['PDS']);
+            const idxComentarioFound = findHeaderIndexFrom(headers, ['COMENTARIO']);
+            const idxComentarioGeneralFound = findHeaderIndexFrom(headers, ['COMENTARIOSGENERALES', 'COMENTARIOGENERAL']);
+            const idxTurno = idxTurnoFound !== -1 ? idxTurnoFound : 0;
+            const idxCliente = idxClienteFound !== -1 ? idxClienteFound : 1;
+            const idxOps = idxOpsFound !== -1 ? idxOpsFound : 2;
+            const idxColor = idxColorFound !== -1 ? idxColorFound : 3;
+            const idxPds = idxPdsFound !== -1 ? idxPdsFound : 4;
+            const idxComentario = idxComentarioFound !== -1 ? idxComentarioFound : 5;
+            const idxComentarioGeneral = idxComentarioGeneralFound !== -1 ? idxComentarioGeneralFound : 6;
+
+            const turnoNorm = normalizeHabilitadoHoja3Turno(turno);
+            const out = [];
+            dataRows.forEach((row) => {
+                const cells = (row && Array.isArray(row.c)) ? row.c : [];
+                const rowTurno = String(getCellValue(cells, idxTurno) || '').toUpperCase().trim();
+                if (turnoNorm && rowTurno !== turnoNorm) return;
+
+                const clienteRaw = String(getCellValue(cells, idxCliente) || '').trim();
+                const cliente = String(normalizeClientName(clienteRaw) || clienteRaw || '').trim();
+                const ops = String(getCellValue(cells, idxOps) || '').trim();
+                const color = String(getCellValue(cells, idxColor) || '').trim();
+                const pds = String(getCellValue(cells, idxPds) || '').trim();
+                const comentario = String(getCellValue(cells, idxComentario) || '').trim();
+                const comentario_general = String(getCellValue(cells, idxComentarioGeneral) || '').trim();
+
+                if (!cliente && !ops && !color && !pds && !comentario && !comentario_general) return;
+                out.push({ cliente, ops, color, pds, comentario, comentario_general });
+            });
+            return out;
+        }
+
+        function fetchHoja3RowsByTurn(turno) {
+            return new Promise((resolve, reject) => {
+                const cbName = '__loadHoja3Rows_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
+                let script = null;
+                let timer = null;
+                let settled = false;
+
+                const cleanup = function() {
+                    if (timer) clearTimeout(timer);
+                    if (script && script.parentNode) {
+                        try { script.parentNode.removeChild(script); } catch (e) {}
+                    }
+                    try { delete window[cbName]; } catch (e) { window[cbName] = undefined; }
+                };
+
+                const finish = function(handler, payload) {
+                    if (settled) return;
+                    settled = true;
+                    cleanup();
+                    handler(payload);
+                };
+
+                window[cbName] = function(jsonResponse) {
+                    try {
+                        const parsed = parseHoja3RowsFromGvizResponse(jsonResponse, turno);
+                        finish(resolve, parsed);
+                    } catch (err) {
+                        finish(reject, err);
+                    }
+                };
+
+                script = document.createElement('script');
+                script.async = true;
+                script.src = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=responseHandler:${cbName}&sheet=${encodeURIComponent('Hoja 3')}&headers=0&_=${Date.now()}`;
+                script.onerror = function() {
+                    finish(reject, new Error('No se pudo cargar Hoja 3'));
+                };
+
+                timer = setTimeout(() => {
+                    finish(reject, new Error('Tiempo de espera agotado cargando Hoja 3'));
+                }, 12000);
+
+                document.body.appendChild(script);
+            });
+        }
+
+        async function loadHabilitadoHoja3FromSheet(turno, requestId) {
+            const turnoNorm = normalizeHabilitadoHoja3Turno(turno);
+            if (!turnoNorm) return;
+            try {
+                const rows = await fetchHoja3RowsByTurn(turnoNorm);
+                if (requestId !== habilitadoHoja3LoadRequestId) return;
+                if (getHabilitadoHoja3TurnoActual() !== turnoNorm) return;
+                habilitadoHoja3Rows = cloneHabilitadoHoja3Rows(rows);
+                ensureHabilitadoHoja3Rows();
+                persistHabilitadoHoja3Draft();
+                renderHabilitadoHoja3Rows();
+            } catch (err) {
+                console.error('Error cargando Hoja 3 por turno', err);
+            }
+        }
+
+        function ensureHabilitadoHoja3Rows(minRows = HABILITADO_HOJA3_MIN_ROWS) {
+            if (!Array.isArray(habilitadoHoja3Rows)) habilitadoHoja3Rows = [];
+            while (habilitadoHoja3Rows.length < minRows) habilitadoHoja3Rows.push(createEmptyHabilitadoHoja3Row());
+        }
+
+        function getUniqueClientesHoja1ForHabilitadoHoja3() {
+            const map = new Map();
+            if (!Array.isArray(rawData) || rawData.length <= 1) return [];
+            for (let i = 1; i < rawData.length; i++) {
+                const row = rawData[i];
+                const rawCliente = String(getVal(row, 'CLIENTE') || '').trim();
+                const clienteNorm = String(normalizeClientName(rawCliente) || rawCliente || '').trim();
+                if (!clienteNorm) continue;
+                const key = clienteNorm.toUpperCase();
+                if (!map.has(key)) map.set(key, clienteNorm);
+            }
+            return Array.from(map.values()).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+        }
+
+        function renderHabilitadoHoja3Rows() {
+            const leftBody = document.getElementById('tbody-habilitado-hoja3-left');
+            const rightBody = document.getElementById('tbody-habilitado-hoja3-right');
+            if (!leftBody || !rightBody) return;
+
+            ensureHabilitadoHoja3Rows();
+            const clientes = getUniqueClientesHoja1ForHabilitadoHoja3();
+
+            leftBody.innerHTML = '';
+            rightBody.innerHTML = '';
+
+            habilitadoHoja3Rows.forEach((rowData, idx) => {
+                const trLeft = document.createElement('tr');
+
+                const tdCliente = document.createElement('td');
+                const selCliente = document.createElement('select');
+                selCliente.className = 'habilitado-hoja3-select';
+                const optEmpty = document.createElement('option');
+                optEmpty.value = '';
+                optEmpty.textContent = 'Seleccionar';
+                selCliente.appendChild(optEmpty);
+                clientes.forEach(c => {
+                    const o = document.createElement('option');
+                    o.value = c;
+                    o.textContent = c;
+                    selCliente.appendChild(o);
+                });
+                selCliente.value = rowData.cliente || '';
+                selCliente.onchange = function() {
+                    habilitadoHoja3Rows[idx].cliente = this.value || '';
+                    persistHabilitadoHoja3Draft();
+                };
+                tdCliente.appendChild(selCliente);
+                trLeft.appendChild(tdCliente);
+
+                const tdOps = document.createElement('td');
+                const inpOps = document.createElement('input');
+                inpOps.type = 'text';
+                inpOps.className = 'habilitado-hoja3-input';
+                inpOps.value = rowData.ops || '';
+                inpOps.oninput = function() {
+                    habilitadoHoja3Rows[idx].ops = this.value || '';
+                    persistHabilitadoHoja3Draft();
+                };
+                tdOps.appendChild(inpOps);
+                trLeft.appendChild(tdOps);
+
+                const tdColor = document.createElement('td');
+                const inpColor = document.createElement('input');
+                inpColor.type = 'text';
+                inpColor.className = 'habilitado-hoja3-input';
+                inpColor.value = rowData.color || '';
+                inpColor.oninput = function() {
+                    habilitadoHoja3Rows[idx].color = this.value || '';
+                    persistHabilitadoHoja3Draft();
+                };
+                tdColor.appendChild(inpColor);
+                trLeft.appendChild(tdColor);
+
+                const tdPds = document.createElement('td');
+                const inpPds = document.createElement('input');
+                inpPds.type = 'text';
+                inpPds.className = 'habilitado-hoja3-input';
+                inpPds.value = rowData.pds || '';
+                inpPds.oninput = function() {
+                    habilitadoHoja3Rows[idx].pds = this.value || '';
+                    persistHabilitadoHoja3Draft();
+                };
+                tdPds.appendChild(inpPds);
+                trLeft.appendChild(tdPds);
+
+                const tdComentario = document.createElement('td');
+                const inpComentario = document.createElement('input');
+                inpComentario.type = 'text';
+                inpComentario.className = 'habilitado-hoja3-input';
+                inpComentario.value = rowData.comentario || '';
+                inpComentario.oninput = function() {
+                    habilitadoHoja3Rows[idx].comentario = this.value || '';
+                    persistHabilitadoHoja3Draft();
+                };
+                tdComentario.appendChild(inpComentario);
+                trLeft.appendChild(tdComentario);
+
+                leftBody.appendChild(trLeft);
+
+                const trRight = document.createElement('tr');
+                const tdGeneral = document.createElement('td');
+                const inpGeneral = document.createElement('input');
+                inpGeneral.type = 'text';
+                inpGeneral.className = 'habilitado-hoja3-input';
+                inpGeneral.value = rowData.comentario_general || '';
+                inpGeneral.oninput = function() {
+                    habilitadoHoja3Rows[idx].comentario_general = this.value || '';
+                    persistHabilitadoHoja3Draft();
+                };
+                tdGeneral.appendChild(inpGeneral);
+                trRight.appendChild(tdGeneral);
+                rightBody.appendChild(trRight);
+            });
+
+            persistHabilitadoHoja3Draft();
+        }
+
+        function setHabilitadoHoja3ModalSubtitle(turno) {
+            const subtitle = document.getElementById('modal-habilitado-hoja3-subtitle');
+            if (!subtitle) return;
+            const turnoNorm = normalizeHabilitadoHoja3Turno(turno);
+            subtitle.textContent = turnoNorm ? `Turno: ${turnoNorm}` : 'Turno: -';
+        }
+
+        function closeHabilitadoHoja3Modal() {
+            persistHabilitadoHoja3Draft();
+            const modal = document.getElementById('modal-habilitado-hoja3');
+            if (modal) modal.classList.remove('active');
+        }
+
+        function openHabilitadoHoja3Modal() {
+            if (isHabilitadoIngresosMode || !isHabilitadoProgTurnSubtab()) return;
+            const turno = normalizeHabilitadoHoja3Turno(currentHabilitadoFilter);
+            if (!turno) return;
+            loadHabilitadoHoja3Draft(turno);
+            ensureHabilitadoHoja3Rows();
+            setHabilitadoHoja3ModalSubtitle(turno);
+            renderHabilitadoHoja3Rows();
+            const modal = document.getElementById('modal-habilitado-hoja3');
+            if (modal) modal.classList.add('active');
+            const requestId = ++habilitadoHoja3LoadRequestId;
+            loadHabilitadoHoja3FromSheet(turno, requestId);
+        }
+
+        function updateHabilitadoHoja3BlockVisibility() {
+            const btn = document.getElementById('btn-habilitado-notas');
+            const shouldShow = !isHabilitadoIngresosMode && isHabilitadoProgTurnSubtab();
+            if (btn) btn.style.display = shouldShow ? 'inline-flex' : 'none';
+            if (!shouldShow) {
+                closeHabilitadoHoja3Modal();
+                return;
+            }
+            setHabilitadoHoja3ModalSubtitle(currentHabilitadoFilter);
+        }
+
+        window.abrirModalHabilitadoHoja3 = openHabilitadoHoja3Modal;
+        window.cerrarModalHabilitadoHoja3 = closeHabilitadoHoja3Modal;
+
+        window.addHabilitadoHoja3Row = function() {
+            ensureHabilitadoHoja3Rows();
+            habilitadoHoja3Rows.push(createEmptyHabilitadoHoja3Row());
+            persistHabilitadoHoja3Draft();
+            renderHabilitadoHoja3Rows();
+        };
+
+        window.limpiarHabilitadoHoja3 = function() {
+            habilitadoHoja3Rows = [];
+            ensureHabilitadoHoja3Rows();
+            persistHabilitadoHoja3Draft();
+            renderHabilitadoHoja3Rows();
+        };
+
+        window.guardarHabilitadoHoja3 = function() {
+            const turnoGuardar = getHabilitadoHoja3TurnoActual();
+            if (!turnoGuardar) {
+                alert('Seleccione PROG 1T, PROG 2T o PROG 3T para guardar notas.');
+                return;
+            }
+            const rows = (habilitadoHoja3Rows || []).map(r => ({
+                cliente: String(r.cliente || '').trim(),
+                ops: String(r.ops || '').trim(),
+                color: String(r.color || '').trim(),
+                pds: String(r.pds || '').trim(),
+                comentario: String(r.comentario || '').trim(),
+                comentario_general: String(r.comentario_general || '').trim()
+            })).filter(r => (r.cliente || r.ops || r.color || r.pds || r.comentario || r.comentario_general));
+
+            if (rows.length === 0) {
+                alert('No hay datos para guardar en Hoja 3.');
+                return;
+            }
+
+            const btn = document.getElementById('btn-guardar-habilitado-hoja3');
+            if (btn) btn.disabled = true;
+
+            fetch(WEB_APP_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'saveHoja3Rows',
+                    turno: turnoGuardar,
+                    rows: rows
+                })
+            }).then(() => {
+                alert(`Datos enviados a Hoja 3 (${rows.length} fila(s)).`);
+                window.limpiarHabilitadoHoja3();
+            }).catch((err) => {
+                console.error('Error guardando Hoja 3', err);
+                alert('No se pudo guardar en Hoja 3.');
+            }).finally(() => {
+                if (btn) btn.disabled = false;
+            });
         };
         
         // Funciones para el menú contextual de filtro en Habilitado
@@ -12115,20 +12734,15 @@
                 const evNorm = (ev || '').toString().toUpperCase().trim();
                 if (evNorm === '') continue; // estado_enumerado diferente de vacío
 
-                // estado_habilitado diferente de OK
-                const rawHabil = getVal(row, 'estado_habilitado') || getVal(row, 'ESTADO_HABILITADO') || '';
-                const habilNorm = (rawHabil || '').toString().toUpperCase().trim();
-                if (habilNorm === 'OK') continue;
+                // estado_habilitado: ocultar filas en OK (incluye variantes como "OK S/DESTINO")
+                const rawHabil = getVal(row, 'estado_habilitado') || getVal(row, 'ESTADO_HABILITADO') || getVal(row, 'ESTADO HABILITADO') || '';
+                const habilNorm = (rawHabil || '').toString().toUpperCase().replace(/\s+/g, ' ').trim();
+                if (/^OK(\s|$)/.test(habilNorm)) continue;
 
-                // Filtrar por n.bordadoxpda: diferente a NO LLEVA
-                const rawNbordado = getVal(row, 'n.bordadoxpda') || getVal(row, 'N.BORDADOXPDA') || '';
-                const nbordadoNorm = (rawNbordado || '').toString().toUpperCase().trim();
-                if (nbordadoNorm.indexOf('NO LLEVA') !== -1) continue;
-
-                // Filtrar por n.BDxpda: diferente a NO LLEVA
+                // Filtrar por n.BDxpda: mostrar solo valores numericos y excluir vacios/NO LLEVA
                 const rawNbd = getVal(row, 'n.BDxpda') || getVal(row, 'N.BDXPDA') || getVal(row, 'n.BDxpda ') || '';
                 const nbdNorm = (rawNbd || '').toString().toUpperCase().trim();
-                if (nbdNorm.indexOf('NO LLEVA') !== -1) continue;
+                if (nbdNorm === '' || nbdNorm.indexOf('NO LLEVA') !== -1 || !/\d/.test(nbdNorm)) continue;
 
                 // determinar estado_bordado normalizado (vacío => 'X PROG')
                 let rawEstadoB = getVal(row, 'estado_bordado') || '';
@@ -12185,6 +12799,56 @@
                 }
                 tr.appendChild(tdFCost);
 
+                // STATUS (igual que Habilitado)
+                const rutaTela = (getVal(row, 'RUTA TELA') || getVal(row, 'RUTA_TELA') || getVal(row, 'RUTA') || '').toString().toUpperCase().trim();
+                const estadoCorte = (getVal(row, 'STATUS_CORTE') || getVal(row, 'STATUS') || getVal(row, 'estado_corte') || getVal(row, 'ESTADO_CORTE') || '').toString().toUpperCase().trim();
+                const estadoBloqueo = (getVal(row, 'estado_bloqueo') || getVal(row, 'ESTADO_BLOQUEO') || '').toString().toUpperCase().trim();
+                const estadoLavada = (getVal(row, 'estado_lavada') || getVal(row, 'ESTADO_LAVADA') || '').toString().toUpperCase().trim();
+                let statusValue = '';
+                if (rutaTela === 'ACABADA') {
+                    if (estadoCorte === '' || estadoCorte === 'X PROG') statusValue = 'x cortar';
+                    else if (estadoCorte === 'PROG' || estadoCorte === 'PROG 1T' || estadoCorte === 'PROG 2T' || estadoCorte === 'PROG 3T') statusValue = 'Proc Corte';
+                    else if (estadoCorte === 'OK') {
+                        if (evNorm === '' || evNorm === 'X PROG') statusValue = 'x enm';
+                        else if (evNorm === 'OK ENM' || evNorm === 'OK PAQUETEO') statusValue = 'x Hab';
+                        else statusValue = 'x enm';
+                    }
+                } else if (rutaTela === 'LAVADA') {
+                    if (estadoBloqueo === '') statusValue = 'x pedir';
+                    else if (estadoBloqueo.indexOf('PROG') !== -1) statusValue = 'x bloq';
+                    else if (estadoBloqueo === 'OK') {
+                        if (estadoLavada !== 'OK') statusValue = 'x lavar';
+                        else if (estadoCorte === '' || estadoCorte === 'X PROG') statusValue = 'x cortar';
+                        else if (estadoCorte === 'PROG' || estadoCorte === 'PROG 1T' || estadoCorte === 'PROG 2T' || estadoCorte === 'PROG 3T') statusValue = 'Proc Corte';
+                        else if (estadoCorte === 'OK') {
+                            if (evNorm === 'OK ENM' || evNorm === 'OK PAQUETEO') statusValue = 'x Hab';
+                            else statusValue = 'x enm';
+                        }
+                    }
+                }
+                const tdStatus = document.createElement('td');
+                tdStatus.style.textAlign = 'center';
+                tdStatus.title = statusValue || '';
+                const statusUpper = (statusValue || '').toString().toUpperCase();
+                if (statusUpper.indexOf('X CORTAR') !== -1) {
+                    tdStatus.innerHTML = `<span class="pill pill-pda">${statusValue}</span>`;
+                } else if (statusUpper.indexOf('PROC CORTE') !== -1) {
+                    tdStatus.innerHTML = `<span class="pill pill-pza">${statusValue}</span>`;
+                } else if (statusUpper.indexOf('X PEDIR') !== -1) {
+                    tdStatus.innerHTML = `<span class="pill pill-xpedir">${statusValue}</span>`;
+                } else if (statusUpper.indexOf('X ENM') !== -1) {
+                    tdStatus.innerHTML = `<span class="pill pill-pda">${statusValue}</span>`;
+                } else if (statusUpper.indexOf('X HAB') !== -1) {
+                    tdStatus.innerHTML = `<span class="pill pill-ok-dark">${statusValue}</span>`;
+                } else if (statusUpper.indexOf('X BLOQ') !== -1) {
+                    tdStatus.innerHTML = `<span class="pill pill-pda">${statusValue}</span>`;
+                } else if (statusUpper.indexOf('X LAVAR') !== -1) {
+                    tdStatus.innerHTML = `<span class="pill pill-pda">${statusValue}</span>`;
+                } else {
+                    tdStatus.innerText = statusValue || '';
+                }
+                tr.appendChild(tdStatus);
+
                 // CLIENTE (normalizado)
                 const tdCliente = document.createElement('td'); tdCliente.innerText = normalizeClientForTransfer(getVal(row, 'CLIENTE') || ''); tr.appendChild(tdCliente);
 
@@ -12213,9 +12877,15 @@
 
                 // n.BDxpda (nuevo)
                 const tdNbd = document.createElement('td');
-                const valNbd = getVal(row, 'n.BDxpda') || getVal(row, 'N.BDXPDA') || getVal(row, 'n.BDx pda') || '';
+                const valNbd = getVal(row, 'n.BDxpda') || '';
                 tdNbd.innerText = valNbd;
                 tr.appendChild(tdNbd);
+
+                // tipo-bordado (dato desde sheet, no editable)
+                const tdTipoBordado = document.createElement('td');
+                const valTipoBordado = getVal(row, 'tipo-bordado') || getVal(row, 'TIPO-BORDADO') || getVal(row, 'tipo_bordado') || '';
+                tdTipoBordado.innerText = valTipoBordado;
+                tr.appendChild(tdTipoBordado);
 
                 // estado_bordado -> select editable (X PROG / PROG) or text if X PROG
                 const tdEst = document.createElement('td');
@@ -12272,14 +12942,15 @@
                 const evNorm = (ev || '').toString().toUpperCase().trim();
                 if (evNorm === '') continue; // estado_enumerado diferente de vacío
 
-                // estado_habilitado diferente de OK
-                const rawHabil = getVal(row, 'estado_habilitado') || getVal(row, 'ESTADO_HABILITADO') || '';
-                const habilNorm = (rawHabil || '').toString().toUpperCase().trim();
-                if (habilNorm === 'OK') continue;
+                // estado_habilitado: ocultar filas en OK (incluye variantes como "OK S/DESTINO")
+                const rawHabil = getVal(row, 'estado_habilitado') || getVal(row, 'ESTADO_HABILITADO') || getVal(row, 'ESTADO HABILITADO') || '';
+                const habilNorm = (rawHabil || '').toString().toUpperCase().replace(/\s+/g, ' ').trim();
+                if (/^OK(\s|$)/.test(habilNorm)) continue;
 
-                const rawNest = getVal(row, 'n.ESTAMPxpda') || getVal(row, 'N.ESTAMPXPDA') || getVal(row, 'n.ESTAMP xpda') || '';
+                const rawNest = getVal(row, 'n.ESTAMPxpda') || getVal(row, 'N.ESTAMPXPDA') || getVal(row, 'n.ESTAMP xpda') || getVal(row, 'n.ESTAMPxpda ') || '';
                 const nestNorm = (rawNest || '').toString().toUpperCase().trim();
-                if (nestNorm.indexOf('NO LLEVA') !== -1) continue;
+                // Mostrar solo cuando n.ESTAMPxpda tenga algun numero; ocultar vacios y NO LLEVA
+                if (nestNorm === '' || nestNorm.indexOf('NO LLEVA') !== -1 || !/\d/.test(nestNorm)) continue;
 
                 let rawEstado = getVal(row, 'estado_estampado') || '';
                 let estadoNorm = (rawEstado || '').toString().trim();
@@ -12444,7 +13115,7 @@
             }
 
             Array.from(grupo.values()).sort((a,b)=> (a.cliente||'').localeCompare(b.cliente) || (a.estilo||'').localeCompare(b.estilo)).forEach(g => {
-                // calcular representativos para n.BDxpda y n.ESTAMPxpda
+                // calcular representativos para tipo-bordado, n.BDxpda y n.ESTAMPxpda
                 function calcularRepresentativo(colName) {
                     let idx = getColIndex(colName);
                     if (idx === -1) {
@@ -12504,39 +13175,35 @@
                     return best || 'LLEVA?';
                 }
 
+                const normalizarTipoBordado = function(value) {
+                    const raw = String(value || '').trim();
+                    const norm = raw.toUpperCase().replace(/\s+/g, ' ').trim();
+                    if (!norm || norm === 'LLEVA?') return 'LLEVA?';
+                    if (norm.indexOf('NO LLEVA') !== -1) return 'NO LLEVA';
+                    if (norm.indexOf('EN PRENDA') !== -1) return 'En prenda';
+                    if (norm.indexOf('EN PIEZA') !== -1) return 'En pieza';
+                    return raw;
+                };
+
+                const repTipoBordado = normalizarTipoBordado(calcularRepresentativo('tipo-bordado'));
                 const repBD = calcularRepresentativo('n.BDxpda');
                 const repEST = calcularRepresentativo('n.ESTAMPxpda');
 
-                // aplicar filtro HayDato (CON/SIN) inspeccionando filas reales del grupo
-                // CON: mostrar grupos donde exista AL MENOS UNA fila con AMBAS columnas (BD y EST) llenas
-                // SIN: mostrar grupos donde exista AL MENOS UNA fila con BD o EST vacía
+                // aplicar filtro HayDato (CON/SIN) usando las 3 columnas de Asignar Artes
                 const uiFilterHayDato = document.getElementById('filter-artes-haydato')?.value || '';
-                let anyRowBothFilled = false;
-                let anyRowMissingBDorEST = false;
-                // localizar índices si es posible
-                let idxBD = getColIndex('n.BDxpda');
-                if (idxBD === -1) {
-                    for (const k in colMap) { if (k.toString().toUpperCase().indexOf('N.BDXPDA')!==-1) { idxBD = colMap[k]; break; } }
-                }
-                let idxEST = getColIndex('n.ESTAMPxpda');
-                if (idxEST === -1) {
-                    for (const k in colMap) { if (k.toString().toUpperCase().indexOf('N.ESTAMPXPDA')!==-1) { idxEST = colMap[k]; break; } }
-                }
-                for (const rIdx of g.rows) {
-                    const rawBD = (idxBD !== -1 && idxBD !== undefined) ? (rawData[rIdx][idxBD] || '') : (getVal(rawData[rIdx],'n.BDxpda') || '');
-                    const rawEST = (idxEST !== -1 && idxEST !== undefined) ? (rawData[rIdx][idxEST] || '') : (getVal(rawData[rIdx],'n.ESTAMPxpda') || '');
-                    const normBD = (rawBD||'').toString().trim();
-                    const normEST = (rawEST||'').toString().trim();
-                    const bdHas = (normBD !== '' && normBD.toUpperCase() !== 'LLEVA?');
-                    const estHas = (normEST !== '' && normEST.toUpperCase() !== 'LLEVA?');
-                    if (bdHas && estHas) anyRowBothFilled = true;
-                    if (!bdHas || !estHas) anyRowMissingBDorEST = true;
-                }
+                const hasDatoAsignar = function(v) {
+                    const norm = String(v || '').trim().toUpperCase();
+                    return norm !== '' && norm !== 'LLEVA?';
+                };
+                const tipoHasDato = hasDatoAsignar(repTipoBordado);
+                const bdHasDato = hasDatoAsignar(repBD);
+                const estHasDato = hasDatoAsignar(repEST);
+                const allThreeWithData = tipoHasDato && bdHasDato && estHasDato;
 
                 if (uiFilterHayDato === 'CON') {
-                    if (!anyRowBothFilled) return; // no hay ninguna fila con ambas columnas llenas -> saltar
+                    if (!allThreeWithData) return;
                 } else if (uiFilterHayDato === 'SIN') {
-                    if (!anyRowMissingBDorEST) return; // ninguna fila con columna vacía -> saltar
+                    if (allThreeWithData) return;
                 }
 
                 const tr = document.createElement('tr');
@@ -12551,6 +13218,27 @@
                 }
                 tdOP.textContent = opValue;
                 tr.appendChild(tdOP);
+
+                const tdTipoBordado = document.createElement('td');
+                const selTipoB = document.createElement('select'); selTipoB.className='table-select sel-tipobord-artes';
+                selTipoB.setAttribute('data-cliente', g.cliente); selTipoB.setAttribute('data-estilo', g.estilo);
+                selTipoB.innerHTML = `<option value="LLEVA?">LLEVA?</option><option value="NO LLEVA">NO LLEVA</option><option value="En prenda">En prenda</option><option value="En pieza">En pieza</option>`;
+                if (repTipoBordado && repTipoBordado !== '') {
+                    const existeTipo = Array.from(selTipoB.options).some(opt => opt.value.toUpperCase() === repTipoBordado.toUpperCase());
+                    if (existeTipo) {
+                        selTipoB.value = Array.from(selTipoB.options).find(opt => opt.value.toUpperCase() === repTipoBordado.toUpperCase()).value;
+                    } else {
+                        const newOptTipo = document.createElement('option');
+                        newOptTipo.value = repTipoBordado;
+                        newOptTipo.textContent = repTipoBordado;
+                        selTipoB.appendChild(newOptTipo);
+                        selTipoB.value = repTipoBordado;
+                    }
+                } else {
+                    selTipoB.value = 'LLEVA?';
+                }
+                selTipoB.onchange = function(){ updateClienteEstiloArtes(this.getAttribute('data-cliente'), this.getAttribute('data-estilo'), this.value, 'tipo-bordado', this); };
+                tdTipoBordado.appendChild(selTipoB); tr.appendChild(tdTipoBordado);
 
                 const tdBord = document.createElement('td');
                 const selB = document.createElement('select'); selB.className='table-select sel-nbd-artes';
@@ -12620,6 +13308,9 @@
                 // intenta buscar en colMap por variantes
                 for (const k in colMap) { if (k.toString().toUpperCase().indexOf(colName.toUpperCase())!==-1) { idx = colMap[k]; break; } }
             }
+            if (idx === -1 && typeof findHeaderIndexCaseInsensitive === 'function') {
+                idx = findHeaderIndexCaseInsensitive(colName);
+            }
             if (idx === -1 || idx === undefined) {
                 // no se encontró columna; solo actualizar localmente (comparar clientes normalizados)
                 const clienteNorm = normalizeClientForTransfer(cliente || '');
@@ -12653,16 +13344,15 @@
                     if (uiFilterEstilo && rEstilo !== uiFilterEstilo) continue;
 
                     if (uiFilterHayDato === 'CON' || uiFilterHayDato === 'SIN') {
-                        // verificar valor actual de la columna objetivo en esta fila
-                        let idxCheck = getColIndex(colName);
-                        if (idxCheck === -1) {
-                            for (const k in colMap) { if (k.toString().toUpperCase().indexOf(colName.toUpperCase())!==-1) { idxCheck = colMap[k]; break; } }
-                        }
-                        const rawVal = (idxCheck !== -1 && idxCheck !== undefined) ? (rawData[i][idxCheck] || '') : (getVal(rawData[i], colName) || '');
-                        const rawNorm = (rawVal||'').toString().trim();
-                        const hasDato = (rawNorm !== '' && rawNorm.toUpperCase().indexOf('NO LLEVA') === -1);
-                        if (uiFilterHayDato === 'CON' && !hasDato) continue;
-                        if (uiFilterHayDato === 'SIN' && hasDato) continue;
+                        const normTipo = String(getVal(rawData[i], 'tipo-bordado') || '').trim().toUpperCase();
+                        const normBD = String(getVal(rawData[i], 'n.BDxpda') || '').trim().toUpperCase();
+                        const normEST = String(getVal(rawData[i], 'n.ESTAMPxpda') || '').trim().toUpperCase();
+                        const hasDatoAsignar = function(vNorm) {
+                            return vNorm !== '' && vNorm !== 'LLEVA?';
+                        };
+                        const allThreeWithData = hasDatoAsignar(normTipo) && hasDatoAsignar(normBD) && hasDatoAsignar(normEST);
+                        if (uiFilterHayDato === 'CON' && !allThreeWithData) continue;
+                        if (uiFilterHayDato === 'SIN' && allThreeWithData) continue;
                     }
 
                     rowsToUpdate.push(i);
