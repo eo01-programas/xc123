@@ -6125,8 +6125,6 @@
                     <select class="table-select ${enumClass}" onchange="updateRow(${item.i}, 'estado_enumerado', this.value, this)">
                         <option value="X ENM" ${(!estadoEnumVal || estadoEnumVal === 'X ENM') ? 'selected' : ''}>X ENM</option>
                         <option value="OK ENM" ${estadoEnumVal === 'OK ENM' ? 'selected' : ''}>OK ENM</option>
-                        <option value="OK S/ENM" ${estadoEnumVal === 'OK S/ENM' ? 'selected' : ''}>OK S/ENM</option>
-                        <option value="OK PAQUETEO" ${estadoEnumVal === 'OK PAQUETEO' ? 'selected' : ''}>OK PAQUETEO</option>
                     </select>
                 `;
                 tr.appendChild(estadoEnumCell);
@@ -8971,7 +8969,6 @@
                                                 <select class="table-select" onchange="updateRow(${rowIndex}, 'estado_enumerado', this.value, this)">
                                                     <option value="X ENM" ${(evNorm === '' || evNorm === 'X ENM') ? 'selected' : ''}>X ENM</option>
                                                     <option value="OK ENM" ${evNorm === 'OK ENM' ? 'selected' : ''}>OK ENM</option>
-                                                    <option value="OK Paqueteo" ${evNorm === 'OK PAQUETEO' || evNorm === 'OK Paqueteo' ? 'selected' : ''}>OK Paqueteo</option>
                                                 </select>
                                             </td>`;
 
@@ -8984,7 +8981,7 @@
                                                 </select>
                                             </td>`;
 
-                                        // Si estamos en Enumerado, mostrar solo las opciones solicitadas (OK ENM, OK Paqueteo)
+                                        // Si estamos en Enumerado, mostrar solo las opciones solicitadas (X ENM, OK ENM)
                                         if (isEnumeradoView() && !isHabilitadoView()) {
                                             return bloqCell + enmSelectEnumerado;
                                         }
