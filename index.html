@@ -2752,7 +2752,7 @@
 
     <script>
         // --- CONFIGURACIÓN ---
-        const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwIYjG8nf8kNsnVwGAkhfjKYUY-zvoIWQpj_xaNXXKC0bGt5JxqG0pYF1TWvQ8o0O3t3Q/exec"; 
+        const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzRjQ_24oGNicmDkF_1dMS0Kumu4MFV8Bz1pFJ-n9HeVWZ-XuWO-VfvBWblL-cNwxTlsw/exec"; 
         const SHEET_ID = "18cQuwqerdMggAeJ8TCUKA7-gujXsA91-CRMUTNpr8aQ";
 
         let rawData = [];
@@ -11179,10 +11179,7 @@
                 comentario_general: String(r.comentario_general || '').trim()
             })).filter(r => (r.cliente || r.ops || r.color || r.pds || r.comentario || r.comentario_general));
 
-            if (rows.length === 0) {
-                alert('No hay datos para guardar en Hoja 3.');
-                return;
-            }
+            const isClearAll = rows.length === 0;
 
             const btn = document.getElementById('btn-guardar-habilitado-hoja3');
             if (btn) btn.disabled = true;
@@ -11197,7 +11194,11 @@
                     rows: rows
                 })
             }).then(() => {
-                alert(`Datos enviados a Hoja 3 (${rows.length} fila(s)).`);
+                if (isClearAll) {
+                    alert(`Notas del turno ${turnoGuardar} actualizadas: se limpiaron los registros en Hoja 3.`);
+                } else {
+                    alert(`Datos actualizados en Hoja 3 (${rows.length} fila(s)).`);
+                }
                 window.limpiarHabilitadoHoja3();
             }).catch((err) => {
                 console.error('Error guardando Hoja 3', err);
