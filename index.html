@@ -14287,9 +14287,14 @@
                 const opTelaNorm = String(opTelaResolved || '').trim().toUpperCase();
                 const partidaNorm = String(partidaResolved || '').trim().toUpperCase();
                 const colorNorm = String(colorResolved || '').trim().toUpperCase();
+                const currentCorteNorm = String(corteResolved || '').trim();
                 const escapeRegExp = s => String(s || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
                 const matchRegex = new RegExp(`^${escapeRegExp(corteBase)}(\\d{2})$`);
+                const firstTendidoCode = `${corteBase}01`;
                 let tendidoMatches = 0;
+                let hasSiblingTendido = false;
+                let hasBaseRowSameContext = false;
+                let hasFirstTendidoSameContext = false;
 
                 for (let i = 1; i < rawData.length; i++) {
                     const r = rawData[i];
@@ -14314,22 +14319,33 @@
                     }
 
                     const rowCorte = String(getVal(r, 'CORTE') || '').trim();
-                    if (matchRegex.test(rowCorte)) tendidoMatches++;
-                    if (tendidoMatches > 1) break;
+                    if (rowCorte === firstTendidoCode) hasFirstTendidoSameContext = true;
+                    if (rowCorte === corteBase) hasBaseRowSameContext = true;
+                    if (matchRegex.test(rowCorte)) {
+                        tendidoMatches++;
+                        if (rowCorte !== currentCorteNorm) hasSiblingTendido = true;
+                    }
+                    if (hasSiblingTendido && hasBaseRowSameContext) break;
                 }
 
-                const baseMarked = hasCreatedTendidoContext(corteBase, opResolved, opTelaResolved, partidaResolved, colorResolved);
-                const currentCorteMatches = matchRegex.test(String(corteResolved || '').trim());
-                isTendidoExistente = currentCorteMatches || corteHint.forcedExistingByMaxBase || tendidoMatches > 1 || baseMarked;
+                // Evidencia fuerte de tendido existente:
+                // - corte fuera de rango base (forzado), o
+                // - existe la fila ...01 en el mismo contexto, o
+                // - existe fila base en el mismo contexto, o
+                // Esto evita falsos positivos como CORTE=110 tratado como base=1
+                // cuando no existe ...01 para esa base/contexto.
+                const isCurrentFirstTendido = (currentCorteNorm === firstTendidoCode);
+                const hasStrongSiblingEvidence = hasFirstTendidoSameContext && (hasSiblingTendido || tendidoMatches > 1 || isCurrentFirstTendido);
+                isTendidoExistente = !!(corteHint.forcedExistingByMaxBase || hasStrongSiblingEvidence || hasBaseRowSameContext);
             }
-            const corteForCreate = (looksLikeTendido && corteHint.corteBase) ? corteHint.corteBase : corteResolved;
             
             if (isTendidoExistente) {
                 // Modo EDICIÓN: mostrar los tendidos ya existentes
                 abrirModalTendidoEdicion(rowIndexResolved, opResolved, corteResolved, colorResolved, opTelaResolved, partidaResolved);
             } else {
                 // Modo CREACIÓN: crear nuevos tendidos
-                abrirModalTendidoCreacion(rowIndexResolved, opResolved, corteForCreate, colorResolved, pdsResolved, opTelaResolved, partidaResolved);
+                // Mantener el CORTE real de la fila; no truncar por heurística.
+                abrirModalTendidoCreacion(rowIndexResolved, opResolved, corteResolved, colorResolved, pdsResolved, opTelaResolved, partidaResolved);
             }
         };
 
@@ -14359,7 +14375,8 @@
         };
 
         window.abrirModalTendidoEdicion = function(rowIndex, op, corte, color, opTela, partida) {
-            const corteBase = String(corte).slice(0, -2);
+            const corteHint = parseTendidoHintFromCorte(corte);
+            const corteBase = corteHint.looksLikeTendido ? corteHint.corteBase : String(corte || '').trim();
             const corteIdx = colMap["CORTE"];
             const pdsIdx = colMap["PDS GIRADAS"];
             const opIdx = colMap["OP"];
