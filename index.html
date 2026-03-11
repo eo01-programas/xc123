@@ -2752,7 +2752,7 @@
 
     <script>
         // --- CONFIGURACIÓN ---
-        const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzRjQ_24oGNicmDkF_1dMS0Kumu4MFV8Bz1pFJ-n9HeVWZ-XuWO-VfvBWblL-cNwxTlsw/exec"; 
+        const WEB_APP_URL = "https://script.google.com/macros/s/AKfycby2WZW0qUf09n8XMB5tZW4gVA4hRzTIWzgqYcbYKanQrdQu6PfYaDVs6jX43oGNeg00fw/exec"; 
         const SHEET_ID = "18cQuwqerdMggAeJ8TCUKA7-gujXsA91-CRMUTNpr8aQ";
 
         let rawData = [];
@@ -9497,6 +9497,7 @@
 
         window.updateRow = function(rowIndex, colName, value, selectElement, skipPropagation, skipEnumPrompt) {
             const parsedRowIndex = Number.isInteger(rowIndex) ? rowIndex : parseInt(rowIndex, 10);
+            let statusSavedByBatch = false;
             // Log para debugging
             console.log('updateRow llamado:', {rowIndex: parsedRowIndex, colName, value, skipPropagation: !!skipPropagation, skipEnumPrompt: !!skipEnumPrompt});
             
@@ -9551,6 +9552,30 @@
             }
 
             let writeIdx = colMap[colName];
+            const isStatusCorteColumn = (colName === 'estado_corte' || (typeof colName === 'string' && colName.toUpperCase() === 'STATUS') || (typeof colName === 'string' && colName.toUpperCase() === 'STATUS_CORTE'));
+            let previousStatusCorteValue = '';
+            if (isStatusCorteColumn) {
+                try {
+                    const fromWriteIdx = (writeIdx !== undefined && writeIdx !== -1 && rawData[rowIndex] && rawData[rowIndex][writeIdx] !== undefined)
+                        ? String(rawData[rowIndex][writeIdx] || '').trim()
+                        : '';
+                    if (fromWriteIdx) {
+                        previousStatusCorteValue = fromWriteIdx;
+                    } else {
+                        previousStatusCorteValue = String(
+                            getVal(rawData[rowIndex], 'STATUS_CORTE') ||
+                            getVal(rawData[rowIndex], 'STATUS') ||
+                            getVal(rawData[rowIndex], 'status') ||
+                            getVal(rawData[rowIndex], 'estado_corte') ||
+                            getVal(rawData[rowIndex], 'ESTADO CORTE') ||
+                            getVal(rawData[rowIndex], 'ESTADO_CORTE') ||
+                            ''
+                        ).trim();
+                    }
+                } catch (e) {
+                    previousStatusCorteValue = '';
+                }
+            }
 
             // Evitar escribir por índice en filas recién insertadas localmente que aún no existen en sheet.
             if (rawData[rowIndex] && rawData[rowIndex]._inserted) {
@@ -9960,40 +9985,24 @@
                     const isProgSubtab = (currentCorteFilter && currentCorteFilter.toString().toUpperCase().startsWith('PROG ') && currentCorteFilter !== 'X PROG');
                     const isProgTarget = (valNorm === 'PROG 1T' || valNorm === 'PROG 2T' || valNorm === 'PROG 3T');
                     const isDirectUiChange = !!(selectElement && document.body && document.body.contains(selectElement));
+                    const resolvedStatusColName = (writeIdx !== undefined && writeIdx !== -1 && rawData[0] && rawData[0][writeIdx]) ? rawData[0][writeIdx] : colName;
 
                     // Al marcar OK desde Corte PROG 1T/2T/3T:
                     // TURNO CORTE = estado_corte anterior (antes de OK)
                     // FECHA CORTE = fecha de hoy en formato dd/mm/yyyy
                     if (valNorm === 'OK' && onCorteView && isProgSubtab) {
                         try {
-                            const estadoCorteAnterior = (() => {
-                                const fromWriteIdx = (writeIdx !== undefined && writeIdx !== -1 && rawData[rowIndex] && rawData[rowIndex][writeIdx] !== undefined)
-                                    ? String(rawData[rowIndex][writeIdx] || '').trim()
-                                    : '';
-                                if (fromWriteIdx) return fromWriteIdx;
-                                return String(
-                                    getVal(rawData[rowIndex], 'STATUS_CORTE') ||
-                                    getVal(rawData[rowIndex], 'STATUS') ||
-                                    getVal(rawData[rowIndex], 'status') ||
-                                    getVal(rawData[rowIndex], 'estado_corte') ||
-                                    getVal(rawData[rowIndex], 'ESTADO CORTE') ||
-                                    getVal(rawData[rowIndex], 'ESTADO_CORTE') ||
-                                    ''
-                                ).trim();
-                            })();
+                            const estadoCorteAnterior = String(previousStatusCorteValue || '').trim();
                             const turnoCorteValue = (estadoCorteAnterior && estadoCorteAnterior.toUpperCase() !== 'OK')
                                 ? estadoCorteAnterior
                                 : String(currentCorteFilter || '').trim();
+                            const updates = [{ colName: resolvedStatusColName, value: value }];
 
                             const idxTurnoCorte = findColIndexNormalized('TURNO CORTE');
                             if (idxTurnoCorte !== -1 && turnoCorteValue) {
                                 rawData[rowIndex][idxTurnoCorte] = turnoCorteValue;
                                 const turnoColName = (rawData[0] && rawData[0][idxTurnoCorte]) ? rawData[0][idxTurnoCorte] : 'TURNO CORTE';
-                                fetch(WEB_APP_URL, {
-                                    method: 'POST',
-                                    mode: 'no-cors',
-                                    body: JSON.stringify({ action: 'update', row: rowIndex, colName: turnoColName, value: turnoCorteValue })
-                                }).catch(e => console.error('Error guardando TURNO CORTE:', e));
+                                updates.push({ colName: turnoColName, value: turnoCorteValue });
                             }
 
                             const idxFechaCorte = findColIndexNormalized('FECHA CORTE');
@@ -10002,21 +10011,31 @@
                                 const fechaCorte = `${String(now.getDate()).padStart(2, '0')}/${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()}`;
                                 rawData[rowIndex][idxFechaCorte] = fechaCorte;
                                 const fechaColName = (rawData[0] && rawData[0][idxFechaCorte]) ? rawData[0][idxFechaCorte] : 'FECHA CORTE';
-                                fetch(WEB_APP_URL, {
-                                    method: 'POST',
-                                    mode: 'no-cors',
-                                    body: JSON.stringify({ action: 'update', row: rowIndex, colName: fechaColName, value: fechaCorte })
-                                }).catch(e => console.error('Error guardando FECHA CORTE:', e));
+                                updates.push({ colName: fechaColName, value: fechaCorte });
                             }
+
+                            const rowDataForKeys = rawData[rowIndex] || [];
+                            fetch(WEB_APP_URL, {
+                                method: 'POST',
+                                mode: 'no-cors',
+                                body: JSON.stringify({
+                                    action: 'batchUpdateRow',
+                                    row: rowIndex,
+                                    sourceOp: String(getVal(rowDataForKeys, 'OP') || '').trim(),
+                                    sourceCorte: String(getVal(rowDataForKeys, 'CORTE') || '').trim(),
+                                    sourceOpTela: String(getVal(rowDataForKeys, 'OP TELA') || '').trim(),
+                                    sourcePartida: String(getVal(rowDataForKeys, 'PARTIDA') || '').trim(),
+                                    sourceColor: String(getVal(rowDataForKeys, 'COLOR') || '').trim(),
+                                    updates: updates
+                                })
+                            }).catch(e => console.error('Error guardando STATUS/TURNO/FECHA CORTE:', e));
+                            statusSavedByBatch = true;
                         } catch (e) {
                             console.error('Error registrando TURNO/FECHA CORTE al marcar OK:', e);
                         }
                     }
 
                     const shouldPropagate = !skipPropagation && !isDirectUiChange && !(valNorm === 'OK' && onCorteView && isProgSubtab);
-
-                    // Resolver el nombre exacto de la cabecera para propagar con el nombre correcto
-                    const resolvedStatusColName = (writeIdx !== undefined && writeIdx !== -1 && rawData[0] && rawData[0][writeIdx]) ? rawData[0][writeIdx] : colName;
 
                     if (shouldPropagate && opTelaIdx !== -1 && partidaIdx !== -1) {
                         const opTelaBase = String(rawData[rowIndex][opTelaIdx] || '').trim().toLowerCase();
@@ -10183,6 +10202,9 @@
             // Enviar al backend el nombre exacto de la cabecera si podemos
             // localizarlo para asegurar que el sheet reciba la columna correcta.
             try {
+                const isStatusColForFinalSave = (colName === 'estado_corte' || (typeof colName === 'string' && colName.toUpperCase() === 'STATUS') || (typeof colName === 'string' && colName.toUpperCase() === 'STATUS_CORTE'));
+                if (statusSavedByBatch && isStatusColForFinalSave) return;
+
                 let sendColName = colName;
                 if (writeIdx !== undefined && writeIdx !== -1 && rawData[0] && rawData[0][writeIdx]) {
                     sendColName = rawData[0][writeIdx];
@@ -10209,6 +10231,7 @@
                 }
 
                 console.log('Guardando en backend:', { row: rowIndex, colName: sendColName, value: value, writeIdx: writeIdx });
+                const rowDataForKeys = rawData[rowIndex] || [];
                 fetch(WEB_APP_URL, {
                     method: 'POST',
                     mode: 'no-cors',
@@ -10216,13 +10239,19 @@
                         action: "update",
                         row: rowIndex,
                         colName: sendColName,
-                        value: value
+                        value: value,
+                        sourceOp: String(getVal(rowDataForKeys, 'OP') || '').trim(),
+                        sourceCorte: String(getVal(rowDataForKeys, 'CORTE') || '').trim(),
+                        sourceOpTela: String(getVal(rowDataForKeys, 'OP TELA') || '').trim(),
+                        sourcePartida: String(getVal(rowDataForKeys, 'PARTIDA') || '').trim(),
+                        sourceColor: String(getVal(rowDataForKeys, 'COLOR') || '').trim()
                     })
                 }).catch(e => console.error("Error guardando", e));
             } catch (e) {
                 console.error('Error preparando guardado:', e);
                 // Intento de emergencia: enviar con colName original
                 try {
+                    const rowDataForKeys = rawData[rowIndex] || [];
                     fetch(WEB_APP_URL, {
                         method: 'POST',
                         mode: 'no-cors',
@@ -10230,7 +10259,12 @@
                             action: "update",
                             row: rowIndex,
                             colName: colName,
-                            value: value
+                            value: value,
+                            sourceOp: String(getVal(rowDataForKeys, 'OP') || '').trim(),
+                            sourceCorte: String(getVal(rowDataForKeys, 'CORTE') || '').trim(),
+                            sourceOpTela: String(getVal(rowDataForKeys, 'OP TELA') || '').trim(),
+                            sourcePartida: String(getVal(rowDataForKeys, 'PARTIDA') || '').trim(),
+                            sourceColor: String(getVal(rowDataForKeys, 'COLOR') || '').trim()
                         })
                     }).catch(e2 => console.error("Error guardando (emergencia)", e2));
                 } catch (e2) { console.error('Error total guardando:', e2); }
@@ -14245,7 +14279,6 @@
             // Detectar si realmente pertenece a un grupo de tendidos existente.
             // No basta con terminar en 01/02...; validamos por OP + OP TELA + PARTIDA (+ COLOR).
             const corteHint = parseTendidoHintFromCorte(corteResolved);
-            const corteStr = corteHint.corteStr;
             const looksLikeTendido = corteHint.looksLikeTendido;
             let isTendidoExistente = false;
             if (looksLikeTendido) {
@@ -14286,15 +14319,17 @@
                 }
 
                 const baseMarked = hasCreatedTendidoContext(corteBase, opResolved, opTelaResolved, partidaResolved, colorResolved);
-                isTendidoExistente = corteHint.forcedExistingByMaxBase || tendidoMatches > 1 || baseMarked;
+                const currentCorteMatches = matchRegex.test(String(corteResolved || '').trim());
+                isTendidoExistente = currentCorteMatches || corteHint.forcedExistingByMaxBase || tendidoMatches > 1 || baseMarked;
             }
+            const corteForCreate = (looksLikeTendido && corteHint.corteBase) ? corteHint.corteBase : corteResolved;
             
             if (isTendidoExistente) {
                 // Modo EDICIÓN: mostrar los tendidos ya existentes
                 abrirModalTendidoEdicion(rowIndexResolved, opResolved, corteResolved, colorResolved, opTelaResolved, partidaResolved);
             } else {
                 // Modo CREACIÓN: crear nuevos tendidos
-                abrirModalTendidoCreacion(rowIndexResolved, opResolved, corteResolved, colorResolved, pdsResolved, opTelaResolved, partidaResolved);
+                abrirModalTendidoCreacion(rowIndexResolved, opResolved, corteForCreate, colorResolved, pdsResolved, opTelaResolved, partidaResolved);
             }
         };
 
@@ -14972,6 +15007,7 @@
                     sourceCorte: String(getVal(sourceRow, 'CORTE') || '').trim(),
                     sourceOpTela: String(getVal(sourceRow, 'OP TELA') || '').trim(),
                     sourcePartida: String(getVal(sourceRow, 'PARTIDA') || '').trim(),
+                    sourceColor: String(getVal(sourceRow, 'COLOR') || '').trim(),
                     newCorte: corteCode,
                     newPds: pdsNum,
                     estadoCorte: estadoDestino,
@@ -15210,6 +15246,8 @@
                 const corte = getVal(row, 'CORTE') || '';
                 const color = getVal(row, 'COLOR') || '';
                 const pds = getVal(row, 'PDS GIRADAS') || '';
+                const opTela = getVal(row, 'OP TELA') || '';
+                const partida = getVal(row, 'PARTIDA') || '';
                 
                 // Obtener PLANTA y LINEA
                 const planta = getVal(row, 'PLANTA') || '';
@@ -15223,6 +15261,8 @@
                     corte: corte,
                     color: color,
                     pds: pds,
+                    opTela: opTela,
+                    partida: partida,
                     planta: planta,
                     linea: linea,
                     estadoHabTarget: estadoHabTarget || 'OK'
@@ -15323,11 +15363,13 @@
                     { colName: 'estado_habilitado', value: currentIngresoCosturaData.estadoHabTarget || 'OK' }
                 ];
                 
+                const sourceData = Object.assign({}, currentIngresoCosturaData);
+
                 // Cerrar el modal inmediatamente
                 cerrarModalIngresoCostura();
                 
                 // Guardar todos los datos
-                guardarVariosDatosIngresoCostura(rowIndex, updates);
+                guardarVariosDatosIngresoCostura(rowIndex, updates, sourceData);
                 
             } catch (e) {
                 console.error('Error en guardarModalIngresoCostura:', e);
@@ -15335,12 +15377,58 @@
             }
         };
 
-        window.guardarVariosDatosIngresoCostura = function(rowIndex, updates) {
+        window.guardarVariosDatosIngresoCostura = function(rowIndex, updates, sourceData) {
             try {
-                // PROTECCIÓN: No permitir escritura en encabezados
-                if (rowIndex < 1 || !rawData[rowIndex]) {
-                    console.error('PROTECCIÓN guardarVariosDatosIngresoCostura: rowIndex inválido=' + rowIndex);
-                    alert('Error: índice de fila inválido. Recargue la página.');
+                const norm = (v) => String(v || '').trim().toUpperCase();
+                const fallbackRowIndex = Number.isInteger(rowIndex) ? rowIndex : parseInt(rowIndex, 10);
+
+                const source = sourceData || {};
+                const sourceKeys = {
+                    op: norm(source.op),
+                    corte: norm(source.corte),
+                    opTela: norm(source.opTela),
+                    partida: norm(source.partida),
+                    color: norm(source.color)
+                };
+                const hasAnySourceKey = !!(sourceKeys.op || sourceKeys.corte || sourceKeys.opTela || sourceKeys.partida || sourceKeys.color);
+
+                let targetRowIndex = fallbackRowIndex;
+                if (hasAnySourceKey && Array.isArray(rawData)) {
+                    let bestMatch = null;
+                    let bestDistance = Number.MAX_SAFE_INTEGER;
+                    for (let i = 1; i < rawData.length; i++) {
+                        const row = rawData[i];
+                        if (!row) continue;
+                        const rowOp = norm(getVal(row, 'OP'));
+                        const rowCorte = norm(getVal(row, 'CORTE'));
+                        const rowOpTela = norm(getVal(row, 'OP TELA'));
+                        const rowPartida = norm(getVal(row, 'PARTIDA'));
+                        const rowColor = norm(getVal(row, 'COLOR'));
+                        const match = (!sourceKeys.op || rowOp === sourceKeys.op)
+                            && (!sourceKeys.corte || rowCorte === sourceKeys.corte)
+                            && (!sourceKeys.opTela || rowOpTela === sourceKeys.opTela)
+                            && (!sourceKeys.partida || rowPartida === sourceKeys.partida)
+                            && (!sourceKeys.color || rowColor === sourceKeys.color);
+                        if (match) {
+                            if (Number.isInteger(fallbackRowIndex)) {
+                                const distance = Math.abs(i - fallbackRowIndex);
+                                if (bestMatch === null || distance < bestDistance) {
+                                    bestMatch = i;
+                                    bestDistance = distance;
+                                }
+                            } else {
+                                bestMatch = i;
+                                break;
+                            }
+                        }
+                    }
+                    if (bestMatch !== null) targetRowIndex = bestMatch;
+                }
+
+                // PROTECCION: No permitir escritura en encabezados
+                if (!Number.isInteger(targetRowIndex) || targetRowIndex < 1 || !rawData[targetRowIndex]) {
+                    console.error('PROTECCION guardarVariosDatosIngresoCostura: rowIndex invalido=' + targetRowIndex);
+                    alert('Error: indice de fila invalido. Recargue la pagina.');
                     return;
                 }
                 
@@ -15348,8 +15436,8 @@
                 updates.forEach(update => {
                     try {
                         const idx = findHeaderIndexCaseInsensitive(update.colName);
-                        if (idx !== -1 && rawData[rowIndex]) {
-                            rawData[rowIndex][idx] = update.value;
+                        if (idx !== -1 && rawData[targetRowIndex]) {
+                            rawData[targetRowIndex][idx] = update.value;
                         }
                     } catch(e) { console.error('Error actualizando rawData local:', e); }
                 });
@@ -15373,8 +15461,13 @@
                 // 4) Enviar UNA sola solicitud al backend con todas las actualizaciones
                 const params = {
                     action: 'batchUpdateRow',
-                    row: rowIndex,
-                    updates: batchUpdates
+                    row: targetRowIndex,
+                    updates: batchUpdates,
+                    sourceOp: String(source.op || '').trim(),
+                    sourceCorte: String(source.corte || '').trim(),
+                    sourceOpTela: String(source.opTela || '').trim(),
+                    sourcePartida: String(source.partida || '').trim(),
+                    sourceColor: String(source.color || '').trim()
                 };
                 
                 fetch(WEB_APP_URL, {
@@ -15387,7 +15480,7 @@
                 })
                 .catch(e => {
                     console.error('Error guardando datos de ingreso costura:', e);
-                    showToast('Error al guardar. Los datos se reintentarán al recargar.', 'error');
+                    showToast('Error al guardar. Los datos se reintentaran al recargar.', 'error');
                 });
             } catch (e) {
                 console.error('Error en guardarVariosDatosIngresoCostura:', e);
@@ -15563,6 +15656,7 @@
                     sourceCorte: String(getVal(originalRow, 'CORTE') || '').trim(),
                     sourceOpTela: String(getVal(originalRow, 'OP TELA') || '').trim(),
                     sourcePartida: String(getVal(originalRow, 'PARTIDA') || '').trim(),
+                    sourceColor: String(getVal(originalRow, 'COLOR') || '').trim(),
                     tendidos: tendidosData
                 };
                 if (estadoCorteIdx !== -1) payload.estadoCorte = estadoCorteVal || '';
@@ -15686,6 +15780,7 @@
                             sourceCorte: String(getVal(sourceRow, 'CORTE') || '').trim(),
                             sourceOpTela: String(getVal(sourceRow, 'OP TELA') || '').trim(),
                             sourcePartida: String(getVal(sourceRow, 'PARTIDA') || '').trim(),
+                            sourceColor: String(getVal(sourceRow, 'COLOR') || '').trim(),
                             newCorte: tendido,
                             newPds: pds
                         };
