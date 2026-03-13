@@ -9989,7 +9989,7 @@
 
                     // Al marcar OK desde Corte PROG 1T/2T/3T:
                     // TURNO CORTE = estado_corte anterior (antes de OK)
-                    // FECHA CORTE = fecha de hoy en formato dd/mm/yyyy
+                    // FECHA CORTE = fecha y hora actual en formato dd/mmm/yy HH:mm (24h)
                     if (valNorm === 'OK' && onCorteView && isProgSubtab) {
                         try {
                             const estadoCorteAnterior = String(previousStatusCorteValue || '').trim();
@@ -10008,7 +10008,8 @@
                             const idxFechaCorte = findColIndexNormalized('FECHA CORTE');
                             if (idxFechaCorte !== -1) {
                                 const now = new Date();
-                                const fechaCorte = `${String(now.getDate()).padStart(2, '0')}/${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()}`;
+                                const monthsShort = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+                                const fechaCorte = `${String(now.getDate()).padStart(2, '0')}/${monthsShort[now.getMonth()]}/${String(now.getFullYear()).slice(-2)} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
                                 rawData[rowIndex][idxFechaCorte] = fechaCorte;
                                 const fechaColName = (rawData[0] && rawData[0][idxFechaCorte]) ? rawData[0][idxFechaCorte] : 'FECHA CORTE';
                                 updates.push({ colName: fechaColName, value: fechaCorte });
@@ -17545,4 +17546,3 @@ NOTA: Por favor adjunte los archivos descargados (${fileName}.xlsx y ${fileName}
 
     </body>
     </html>
-
