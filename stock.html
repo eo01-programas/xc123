@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Stock - Gráfica BLOQUEO vs PDS GIRADAS</title>
+    <title>Stock - GrÃ¡fica BLOQUEO vs PDS GIRADAS</title>
     <style>
         body{font-family:Calibri,Inter,sans-serif;margin:18px;color:#1f2937}
         h1{font-size:18px;margin:0 0 12px}
@@ -12,7 +12,7 @@
         @keyframes spin{to{transform:rotate(360deg)}}
         #chart-wrap{margin-top:18px;max-width:954px}
         .chart-title{font-size:15px;font-weight:700;color:#1e293b;margin:0 0 8px;padding-left:4px}
-        .bars{display:flex;align-items:flex-end;gap:18px;padding:18px;border:1px solid #e6e7ec;background:#fff;border-radius:8px;flex-wrap:nowrap;overflow-x:auto;position:relative;padding-top:36px}
+        .bars{display:flex;align-items:flex-end;gap:12px;padding:18px 14px;border:1px solid #e6e7ec;background:#fff;border-radius:8px;flex-wrap:nowrap;overflow-x:hidden;position:relative;padding-top:36px}
         /* Horizontal breakdown chart */
         #chart2-wrap{margin-top:24px;max-width:954px}
         .hbar-container{padding:18px;border:1px solid #e6e7ec;background:#fff;border-radius:8px;position:relative;padding-top:36px}
@@ -32,12 +32,12 @@
         .legend-inside .legend-swatch{width:12px;height:12px;border-radius:3px;display:inline-block}
         .sw-lavada{background:#8b5cf6}
         .sw-acabada{background:#14b8a6}
-        .bar-item{display:flex;flex-direction:column;align-items:center;flex:0 0 110px;min-width:90px}
+        .bar-item{display:flex;flex-direction:column;align-items:center;flex:1 1 0;min-width:0}
         .bar{width:100%;background:transparent;border-radius:6px 6px 0 0;display:flex;flex-direction:column;justify-content:flex-end;color:#fff;font-weight:700;overflow:hidden}
         .segment{width:100%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:13px}
         .seg-prog{background:#2563eb}
         .seg-xprog{background:#fb923c}
-        .label{margin-top:8px;font-size:12px;text-align:center;color:#374151;font-weight:700}
+        .label{margin-top:8px;font-size:11px;line-height:1.1;text-align:center;color:#374151;font-weight:700;word-break:break-word;min-height:24px}
         .value{font-size:15px;color:#0f172a;margin-bottom:6px;font-weight:700}
         #no-data{color:#6b7280}
         .controls{display:flex;gap:8px;align-items:center}
@@ -61,9 +61,13 @@
         .switch-active input[type="checkbox"]{background:#2563eb !important}
         .switch-active input[type="checkbox"]:before{transform:translateX(18px) !important}
         /* 2-column layout */
-        .main-columns{display:flex;gap:24px;align-items:flex-start;flex-wrap:wrap}
-        .col-left{flex:0 0 auto;max-width:960px;min-width:600px}
-        .col-right{flex:1 1 400px;min-width:350px}
+        .main-columns{display:flex;gap:24px;align-items:flex-start;flex-wrap:nowrap;justify-content:flex-start}
+        .col-left{flex:0 0 65%;max-width:65%;min-width:600px}
+        .col-right{flex:0 0 35%;max-width:35%;min-width:330px}
+        @media (max-width: 1250px){
+            .main-columns{flex-wrap:wrap}
+            .col-left,.col-right{flex:1 1 100%;max-width:100%;min-width:0}
+        }
         /* Chart 3 - Monthly dispatch */
         #chart3-wrap{margin-top:0}
         .chart3-container{padding:18px;border:1px solid #e6e7ec;background:#fff;border-radius:8px;position:relative;padding-top:36px;overflow-y:auto;max-height:700px}
@@ -95,7 +99,7 @@
             <input id="chk-kg" type="checkbox" onchange="toggleUnit('kg')">
             <label for="chk-kg">kg</label>
         </div>
-        <a href="tabla_dinamica.html" style="margin-left:auto"><button type="button">Tabla dinámica</button></a>
+        <a href="tabla_dinamica.html" style="margin-left:auto"><button type="button">Tabla dinÃ¡mica</button></a>
         <a href="index.html" aria-label="volver a inicio"><button id="btn-volver" type="button">volver</button></a>
     </div>
 
@@ -136,7 +140,7 @@
     </div><!-- main-columns -->
 
 <script>
-// Copiamos la configuración del proyecto (usar la misma web app y sheet id que en index.html)
+// Copiamos la configuraciÃ³n del proyecto (usar la misma web app y sheet id que en index.html)
 const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbx60YybYKRbVhtY-ihpE0KOzi5ifRA2tXcP0LhtcnrcYnv5rZdCK0nMYeJSkVGWZfsuDQ/exec";
 const SHEET_ID = "18cQuwqerdMggAeJ8TCUKA7-gujXsA91-CRMUTNpr8aQ";
 
@@ -158,7 +162,7 @@ function reloadData(){
 
 window.loadStockData = function(jsonResponse){
     try{
-        if(!jsonResponse || !jsonResponse.table) throw new Error('Respuesta inválida');
+        if(!jsonResponse || !jsonResponse.table) throw new Error('Respuesta invÃ¡lida');
         const rowsRaw = jsonResponse.table.rows.map(r => r.c.map(cell => (cell && cell.v !== null) ? cell.v : ""));
         const gvizHeaders = jsonResponse.table.cols.map(col => col.label || col.id);
 
@@ -259,7 +263,7 @@ function buildSegmentTooltip(label, segmentValue, totalValue, clientTotals){
 }
 
 function processAndRender(){
-    // columnas de interés (variantes posibles)
+    // columnas de interÃ©s (variantes posibles)
     const idxRuta = getColIndexFlexible(['RUTA TELA','RUTA','RUTA_TELA','RUTA TELA ']);
     const idxEstadoBloq = getColIndexFlexible(['estado_bloqueo','ESTADO_BLOQUEO','BLOQUEO','BLOQUEO_ESTADO','ESTADO BLOQUEO']);
     const idxPds = getColIndexFlexible(['PDS GIRADAS','PDS_GIRADAS','PDS','PDS GIRADAS ']);
@@ -269,17 +273,17 @@ function processAndRender(){
     const idxValue = useKg ? idxKg : idxPds;
 
     if(idxValue === -1){
-        showError(useKg ? 'No se encontró la columna "KG GIRADOS"' : 'No se encontró la columna "PDS GIRADAS"');
+        showError(useKg ? 'No se encontrÃ³ la columna "KG GIRADOS"' : 'No se encontrÃ³ la columna "PDS GIRADAS"');
         return;
     }
-    if(idxRuta === -1){ showError('No se encontró la columna "RUTA TELA"'); return; }
-    if(idxEstadoBloq === -1){ showError('No se encontró la columna "estado_bloqueo / BLOQUEO"'); return; }
+    if(idxRuta === -1){ showError('No se encontrÃ³ la columna "RUTA TELA"'); return; }
+    if(idxEstadoBloq === -1){ showError('No se encontrÃ³ la columna "estado_bloqueo / BLOQUEO"'); return; }
 
     // Calculamos dos series para BLOQUEO: PROG (estado que contiene 'PROG') y X PROG (filas sin valor -> X PROG)
     let sumPROG = 0;
     let sumXPROG = 0;
 
-    // Además calculamos LAVANDERIA: filas con estado_bloqueo = 'OK' y estado_lavada != 'OK'
+    // AdemÃ¡s calculamos LAVANDERIA: filas con estado_bloqueo = 'OK' y estado_lavada != 'OK'
     let sumLavPROG = 0;
 
     // Calculamos CORTE PZAS: filas con RUTA = ACABADA OR (LAVADA y estado_lavada = OK)
@@ -312,6 +316,13 @@ function processAndRender(){
     // Se muestra solo PROG (X PROG = 0)
     let sumTransferPROG = 0;
 
+    // BORDADO:
+    // - estado_enumerado = 'OK ENM'
+    // - estado_habilitado != OK / PROG 1T / PROG 2T / PROG 3T / OK S/DESTINO
+    // - tipo-bordado = 'En pieza'
+    // Se muestra solo PROG (X PROG = 0)
+    let sumBordadoPROG = 0;
+
     // HABILITADO: filas con estado_enumerado = 'OK ENM'|'OK S/ENM'|'OK PAQUETEO'
     // y estado_habilitado distinto de 'OK' y 'OK S/DESTINO'
     let sumHabPROG = 0;
@@ -325,6 +336,7 @@ function processAndRender(){
         'CORTE BLOQ': {},
         ENUMERADO: {},
         TRANSFER: {},
+        BORDADO: {},
         HABILITADO: {}
     };
     const clientTotalsByBarSegment = {
@@ -334,6 +346,7 @@ function processAndRender(){
         'CORTE BLOQ': { prog:{}, xprog:{} },
         ENUMERADO: { prog:{}, xprog:{} },
         TRANSFER: { prog:{}, xprog:{} },
+        BORDADO: { prog:{}, xprog:{} },
         HABILITADO: { prog:{}, xprog:{} }
     };
     const corteBreakdownClients = {
@@ -356,7 +369,7 @@ function processAndRender(){
         }
     }
 
-    // índices auxiliares
+    // Ã­ndices auxiliares
     const idxEstadoLav = getColIndexFlexible(['estado_lavada','ESTADO_LAVADA','estado_lavado','ESTADO_LAVADO']);
     const idxEstadoCorte = getColIndexFlexible(['estado_corte','STATUS_CORTE','STATUS','ESTADO CORTE','ESTADO_CORTE','estado corte']);
     const idxEstadoBloques = getColIndexFlexible(['estado_bloques','ESTADO_BLOQUES','ESTADO BLOQUES','ESTADO_BLOQUES']);
@@ -364,6 +377,7 @@ function processAndRender(){
     const idxEstadoEnumerado = getColIndexFlexible(['estado_enumerado','ESTADO_ENUMERADO','estado enumerado']);
     const idxNTransfxpda = getColIndexFlexible(['n.transfxpda','N.TRANSFXPDA','n_transfxpda','N_TRANSFXPDA']);
     const idxEstadoHabilitado = getColIndexFlexible(['estado_habilitado','ESTADO_HABILITADO','estado habilitado']);
+    const idxTipoBordado = getColIndexFlexible(['tipo-bordado','TIPO-BORDADO','tipo_bordado','TIPO_BORDADO','tipo bordado']);
     const idxFDespacho = getColIndexFlexible(['F. DESPACHO','F.DESPACHO','FDESPACHO','F DESPACHO','F. DESPACHO ']);
 
     // Monthly data by F. DESPACHO: { 'YYYY-MM': { bloqueo:{prog,xprog}, corte:{prog,xprog}, hab:{prog,xprog} } }
@@ -376,7 +390,7 @@ function processAndRender(){
         const rutaVal = String(getVal(row, idxRuta) || '').toUpperCase().trim();
         const clienteNorm = normalizeClientName(hasClienteCol ? getVal(row, idxCliente) : '');
 
-        // valor según el switch (PDS o KG)
+        // valor segÃºn el switch (PDS o KG)
         let valRaw = getVal(row, idxValue);
         let val = 0;
         if (valRaw === null || valRaw === undefined || String(valRaw).trim() === '') val = 0;
@@ -402,7 +416,7 @@ function processAndRender(){
                     sumXPROG += val;
                     addClientToBar('BLOQUEO', clienteNorm, val, 'xprog');
                 } else {
-                    // otras etiquetas (no PROG ni vacío) las sumamos a PROG
+                    // otras etiquetas (no PROG ni vacÃ­o) las sumamos a PROG
                     sumPROG += val;
                     addClientToBar('BLOQUEO', clienteNorm, val, 'prog');
                 }
@@ -414,7 +428,7 @@ function processAndRender(){
         const estadoBloqUpper2 = String(estadoBloqVal2).toUpperCase().trim();
         const estadoLavVal = (idxEstadoLav !== -1) ? String(getVal(row, idxEstadoLav) || '').toUpperCase().trim() : '';
         if(estadoBloqUpper2 === 'OK' && estadoLavVal !== 'OK'){
-            // según requerimiento, esta suma entra en la misma categoría PROG
+            // segÃºn requerimiento, esta suma entra en la misma categorÃ­a PROG
             sumLavPROG += val;
             addClientToBar('LAVANDERIA', clienteNorm, val, 'prog');
         }
@@ -470,15 +484,15 @@ function processAndRender(){
             }
 
             // TRANSFER: considerar solo estados permitidos en Enumerado y excluir habilitado OK/S-DESTINO
-            const estadoHabTransferRow = (idxEstadoHabilitado !== -1) ? String(getVal(row, idxEstadoHabilitado) || '').toUpperCase().trim() : '';
+            const estadoHabRow = (idxEstadoHabilitado !== -1) ? String(getVal(row, idxEstadoHabilitado) || '').toUpperCase().trim() : '';
             const includeByEnumerado =
                 estadoEnumeradoRow === 'OK ENM' ||
                 estadoEnumeradoRow === 'OK S/ENM' ||
                 estadoEnumeradoRow === 'OK PAQUETEO' ||
                 estadoEnumeradoRow === 'OK PAQUETO';
             const excludeByHabilitado =
-                estadoHabTransferRow === 'OK' ||
-                estadoHabTransferRow === 'OK S/DESTINO';
+                estadoHabRow === 'OK' ||
+                estadoHabRow === 'OK S/DESTINO';
             if(includeByEnumerado && !excludeByHabilitado){
                 const rawNTransf = (idxNTransfxpda !== -1) ? getVal(row, idxNTransfxpda) : '';
                 const nTransfTxt = String(rawNTransf || '').toUpperCase().trim();
@@ -497,6 +511,23 @@ function processAndRender(){
                 addClientToBar('TRANSFER', clienteNorm, transferVal, 'prog');
             }
 
+            // BORDADO: solo OK ENM, habilitado en cola (no OK/PROGs), tipo-bordado = EN PIEZA
+            const tipoBordadoRow = (idxTipoBordado !== -1)
+                ? String(getVal(row, idxTipoBordado) || '').toUpperCase().replace(/\s+/g, ' ').trim()
+                : '';
+            const isBordadoEnPieza =
+                estadoEnumeradoRow === 'OK ENM' &&
+                estadoHabRow !== 'OK' &&
+                estadoHabRow !== 'PROG 1T' &&
+                estadoHabRow !== 'PROG 2T' &&
+                estadoHabRow !== 'PROG 3T' &&
+                estadoHabRow !== 'OK S/DESTINO' &&
+                tipoBordadoRow === 'EN PIEZA';
+            if(isBordadoEnPieza){
+                sumBordadoPROG += val;
+                addClientToBar('BORDADO', clienteNorm, val, 'prog');
+            }
+
         if(estadoCorteRow === 'OK' && estadoBloquesRow === 'OK CORTE' && estadoCorteBloquesRow !== 'OK'){
             if(estadoCorteBloquesRow === 'PROG'){
                 sumCorteBloqPROG += val;
@@ -510,21 +541,20 @@ function processAndRender(){
 
         // HABILITADO: estado_enumerado IN ('OK ENM','OK S/ENM','OK PAQUETEO')
         // y estado_habilitado != 'OK' y != 'OK S/DESTINO'
-        const estadoHabRow = (idxEstadoHabilitado !== -1) ? String(getVal(row, idxEstadoHabilitado) || '').toUpperCase().trim() : '';
         if(estadoEnumeradoRow === 'OK ENM' || estadoEnumeradoRow === 'OK S/ENM' || estadoEnumeradoRow === 'OK PAQUETEO' || estadoEnumeradoRow === 'OK PAQUETO'){
             if(estadoHabRow !== 'OK' && estadoHabRow !== 'OK S/DESTINO'){
                 if(estadoHabRow === 'PROG 1T' || estadoHabRow === 'PROG 2T' || estadoHabRow === 'PROG 3T'){
                     sumHabPROG += val;
                     addClientToBar('HABILITADO', clienteNorm, val, 'prog');
-                } else {
-                    // vacío, 'X PROG', u otro → X PROG
+                } else if(!isBordadoEnPieza) {
+                    // vacÃ­o, 'X PROG', u otro â†’ X PROG
                     sumHabXPROG += val;
                     addClientToBar('HABILITADO', clienteNorm, val, 'xprog');
                 }
             }
         }
 
-        // ── Monthly F. DESPACHO tracking for chart3 ──
+        // â”€â”€ Monthly F. DESPACHO tracking for chart3 â”€â”€
         if(idxFDespacho !== -1){
             const rawDespacho = getVal(row, idxFDespacho);
             const mKey = parseMonthKey(rawDespacho) || 'SIN-FECHA';
@@ -588,16 +618,17 @@ function processAndRender(){
         { label: 'CORTE BLOQ', prog: sumCorteBloqPROG, xprog: sumCorteBloqXPROG, clientTotals: clientTotalsByBar['CORTE BLOQ'], clientTotalsProg: clientTotalsByBarSegment['CORTE BLOQ'].prog, clientTotalsXProg: clientTotalsByBarSegment['CORTE BLOQ'].xprog },
         { label: 'ENUMERADO', prog: sumEnumeradoPROG, xprog: 0, clientTotals: clientTotalsByBar.ENUMERADO, clientTotalsProg: clientTotalsByBarSegment.ENUMERADO.prog, clientTotalsXProg: clientTotalsByBarSegment.ENUMERADO.xprog },
         { label: 'TRANSFER', prog: sumTransferPROG, xprog: 0, clientTotals: clientTotalsByBar.TRANSFER, clientTotalsProg: clientTotalsByBarSegment.TRANSFER.prog, clientTotalsXProg: clientTotalsByBarSegment.TRANSFER.xprog },
+        { label: 'BORDADO', prog: sumBordadoPROG, xprog: 0, clientTotals: clientTotalsByBar.BORDADO, clientTotalsProg: clientTotalsByBarSegment.BORDADO.prog, clientTotalsXProg: clientTotalsByBarSegment.BORDADO.xprog },
         { label: 'HABILITADO', prog: sumHabPROG, xprog: sumHabXPROG, clientTotals: clientTotalsByBar.HABILITADO, clientTotalsProg: clientTotalsByBarSegment.HABILITADO.prog, clientTotalsXProg: clientTotalsByBarSegment.HABILITADO.xprog }
     ]);
 
-    // Renderizar gráfico horizontal de desglose CORTE PZAS
+    // Renderizar grÃ¡fico horizontal de desglose CORTE PZAS
     renderCorteBreakdown({
         prog:  { lavada: cortePROG_lavada,  acabada: cortePROG_acabada,  clients: corteBreakdownClients.prog  },
         xprog: { lavada: corteXPROG_lavada, acabada: corteXPROG_acabada, clients: corteBreakdownClients.xprog }
     });
 
-    // Renderizar gráfico mensual por F. DESPACHO
+    // Renderizar grÃ¡fico mensual por F. DESPACHO
     renderMonthlyChart(monthlyData, monthlyClientData, monthlyPdsIngresadas);
 }
 
@@ -629,7 +660,7 @@ function renderChartFromAgg(agg){
 
         const bar = document.createElement('div');
         bar.className = 'bar';
-        // altura relativa (máx 240px)
+        // altura relativa (mÃ¡x 240px)
         const height = Math.round((value / max) * 220) || 2;
         bar.style.height = height + 'px';
         bar.title = key + ': ' + value;
@@ -779,7 +810,7 @@ function parseMonthKey(val){
         d = val;
     }
 
-    // 2) Número serial de Excel (> 30000) — igual que index.html
+    // 2) NÃºmero serial de Excel (> 30000) â€” igual que index.html
     if(!d && typeof val === 'number' && val > 30000){
         d = new Date(Math.round((val - 25569) * 86400 * 1000));
     }
@@ -800,7 +831,7 @@ function parseMonthKey(val){
             const meses = {ene:0,feb:1,mar:2,abr:3,may:4,jun:5,jul:6,ago:7,sep:8,oct:9,nov:10,dic:11};
             const mp = parts[1].toLowerCase().trim();
             let year = parseInt(parts[2]);
-            if(!isNaN(year) && year < 100) year += 2000; // Fix año de 2 dígitos: 26 → 2026
+            if(!isNaN(year) && year < 100) year += 2000; // Fix aÃ±o de 2 dÃ­gitos: 26 â†’ 2026
             const day = parseInt(parts[0]);
             if(!isNaN(year) && !isNaN(day)){
                 if(meses[mp] !== undefined){
@@ -934,7 +965,7 @@ function toggleUnit(unit){
         chkPds.parentElement.classList.add('switch-active');
         chkKg.parentElement.classList.remove('switch-active');
     }
-    // Actualizar título del gráfico
+    // Actualizar tÃ­tulo del grÃ¡fico
     updateChartTitle();
     // si ya cargamos datos, re-renderizamos inmediatamente
     if(rawData && rawData.length>1){
@@ -985,5 +1016,6 @@ reloadData();
 </script>
 </body>
 </html>
+
 
 
