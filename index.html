@@ -7892,40 +7892,11 @@
                     }
                     const validacionNorm = String(validacionRaw).trim().toUpperCase();
                     const validacionChecked = validacionRaw === true || validacionRaw === 1 || validacionNorm === 'TRUE' || validacionNorm === 'VERDADERO' || validacionNorm === '1' || validacionNorm === 'SI' || validacionNorm === 'X';
-                    const validacionHtml = `<td class="cell-validacion col-validacion"><input type="checkbox" class="validacion-checkbox" aria-label="Validacion" ${validacionChecked ? 'checked' : ''} onchange="updateRow(${i}, 'VALIDACION', this.checked, this)" /></td>`;
+                    const validacionHtml = `<td class="cell-validacion col-validacion"><input type="checkbox" class="validacion-checkbox" aria-label="Validacion" ${validacionChecked ? 'checked' : ''} disabled tabindex="-1" /></td>`;
 
-                    // estado_habilitado -> select editable con opciones X PROG, PROG 1T, PROG 2T, PROG 3T (y OK para PROG 1T/2T/3T)
-                    const habilValNorm = (habilVal || '').toString().toUpperCase().trim();
-                    let habilClass = '';
-                    if (habilValNorm === 'PROG 1T' || habilValNorm === 'PROG 2T' || habilValNorm === 'PROG 3T') habilClass = 'sel-PROG';
-                    if (habilValNorm === 'OK' || habilValNorm === 'OK S/DESTINO') habilClass = 'sel-OK';
-                    
-                    // Mostrar opción OK solo en sub-tabs PROG 1T, PROG 2T, PROG 3T
-                    const showOkOption = (currentHabilitadoFilter === 'PROG 1T' || currentHabilitadoFilter === 'PROG 2T' || currentHabilitadoFilter === 'PROG 3T');
-                    
-                    let habilHtml = '';
-                    if (currentHabilitadoFilter === 'X PROG' || currentHabilitadoFilter === 'S/DESTINO') {
-                        // Mostrar estado_habilitado como dropdown con opciones X PROG, OK y OK S/DESTINO en X PROG / S/DESTINO
-                        habilHtml = `<td class="cell-hab">
-                            <select class="table-select ${habilClass}" onchange="if(this.value === 'OK' || this.value === 'OK S/DESTINO') { abrirModalIngresoCostura(${i}, this.value); this.value = '${habilValNorm || 'X PROG'}'; } else { updateRow(${i}, 'estado_habilitado', this.value, this); setTimeout(renderHabilitado, 300); }">
-                                <option value="X PROG" ${habilValNorm === 'X PROG' || habilValNorm === '' ? 'selected' : ''}>X PROG</option>
-                                <option value="OK" ${habilValNorm === 'OK' ? 'selected' : ''}>OK</option>
-                                <option value="OK S/DESTINO" ${habilValNorm === 'OK S/DESTINO' ? 'selected' : ''}>OK S/DESTINO</option>
-                            </select>
-                        </td>`;
-                    } else {
-                        // Mostrar como select (editable) en otros sub-tabs
-                        habilHtml = `<td class="cell-hab">
-                            <select class="table-select ${habilClass}" onchange="if(this.value === 'OK' || this.value === 'OK S/DESTINO') { abrirModalIngresoCostura(${i}, this.value); this.value = '${habilValNorm}'; } else { updateRow(${i}, 'estado_habilitado', this.value, this); setTimeout(renderHabilitado, 300); }">
-                                <option value="X PROG" ${habilValNorm === 'X PROG' || habilValNorm === '' ? 'selected' : ''}>X PROG</option>
-                                <option value="PROG 1T" ${habilValNorm === 'PROG 1T' ? 'selected' : ''}>PROG 1T</option>
-                                <option value="PROG 2T" ${habilValNorm === 'PROG 2T' ? 'selected' : ''}>PROG 2T</option>
-                                <option value="PROG 3T" ${habilValNorm === 'PROG 3T' ? 'selected' : ''}>PROG 3T</option>
-                                ${showOkOption ? `<option value="OK" ${habilValNorm === 'OK' ? 'selected' : ''}>OK</option>` : ''}
-                                <option value="OK S/DESTINO" ${habilValNorm === 'OK S/DESTINO' ? 'selected' : ''}>OK S/DESTINO</option>
-                            </select>
-                        </td>`;
-                    }
+                    // estado_habilitado como dato (sin select)
+                    const habilValDisplay = (habilVal || '').toString().trim() || 'X PROG';
+                    const habilHtml = `<td class="cell-hab" style="text-align:center;">${escapeHtml(habilValDisplay)}</td>`;
 
                     // STATUS - Columna calculada según RUTA TELA y estados
                     const rutaTela = (getVal(row, 'RUTA TELA') || getVal(row, 'RUTA_TELA') || getVal(row, 'RUTA') || '').toString().toUpperCase().trim();
@@ -8002,26 +7973,16 @@
                         statusHtml = `<td title="${statusValue}">${statusValue}</td>`;
                     }
 
-                    // PLANTA - Obtener valor y generar celda con dropdown
+                    // PLANTA como dato (sin select)
                     const plantaVal = getVal(row, 'PLANTA') || '';
                     const plantaDisplay = plantaVal.toString().trim() || 'XASIG';
-                    const plantaHtml = `<td class="cell-planta" style="text-align:center;">
-                        <select class="table-select planta-select" data-row="${i}" onchange="updatePlanta(${i}, this.value, this)">
-                            <option value="" ${plantaVal === '' ? 'selected' : ''}>XASIG</option>
-                            <option value="COFACO" ${plantaVal === 'COFACO' ? 'selected' : ''}>COFACO</option>
-                            <option value="CITI1" ${plantaVal === 'CITI1' ? 'selected' : ''}>CITI1</option>
-                            <option value="CITI2" ${plantaVal === 'CITI2' ? 'selected' : ''}>CITI2</option>
-                            <option value="CITI3" ${plantaVal === 'CITI3' ? 'selected' : ''}>CITI3</option>
-                            <option value="CITI4" ${plantaVal === 'CITI4' ? 'selected' : ''}>CITI4</option>
-                            <option value="S/DESTINO" ${plantaVal === 'S/DESTINO' ? 'selected' : ''}>S/DESTINO</option>
-                        </select>
-                    </td>`;
+                    const plantaHtml = `<td class="cell-planta" style="text-align:center;">${escapeHtml(plantaDisplay)}</td>`;
 
-                    // LINEA - Obtener valor y generar celda editable con doble click
+                    // LINEA como dato (sin edición en tabla)
                     const lineaVal = getVal(row, 'LINEA') || '';
                     const lineaDisplay = lineaVal.toString().trim() || 'XASIG';
-                    const lineaHtml = `<td style="text-align:center;" class="linea-cell" data-row="${i}" data-value="${lineaVal}" ondblclick="editLinea(this, ${i})">
-                        <span class="linea-display">${lineaDisplay}</span>
+                    const lineaHtml = `<td style="text-align:center;" class="linea-cell" data-row="${i}" data-value="${escapeHtml(lineaVal)}">
+                        <span class="linea-display">${escapeHtml(lineaDisplay)}</span>
                     </td>`;
 
                     const hodHtml = `<td class="date-cell hod-cell" data-value="${fDesp}" ondblclick="editHodDate(this, ${i})">${fDesp}</td>`;
