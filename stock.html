@@ -141,11 +141,12 @@
 
 <script>
 // Copiamos la configuraciÃ³n del proyecto (usar la misma web app y sheet id que en index.html)
-const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbx60YybYKRbVhtY-ihpE0KOzi5ifRA2tXcP0LhtcnrcYnv5rZdCK0nMYeJSkVGWZfsuDQ/exec";
+const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzWV9x39Qw5EcQJtBP9Om8LZdYnFCZ_ikXFuHix9qMo2kWQKMXv2mJ_rLahzNOxRBmhhQ/exec";
 const SHEET_ID = "18cQuwqerdMggAeJ8TCUKA7-gujXsA91-CRMUTNpr8aQ";
 
 let rawData = [];
 let useKg = false; // false => use PDS GIRADAS, true => use KG GIRADOS
+let monthlyDespachosByMonth = {}; // { 'YYYY-MM': prendas }
 
 function reloadData(){
     document.getElementById('btn-refresh').style.display='none';
@@ -153,11 +154,21 @@ function reloadData(){
     clearChartKeepLegend('chart');
     if(document.getElementById('chart3')) clearChartKeepLegend('chart3');
     document.getElementById('no-data').style.display='none';
+    monthlyDespachosByMonth = {};
     // Insert gviz script
     const scr = document.createElement('script');
     scr.src = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=responseHandler:loadStockData&gid=0`;
     scr.onerror = () => showError('Error cargando Google Sheets');
     document.body.appendChild(scr);
+
+    // Cargar hoja "despachos" (anio, mes, prendas) para cabecera mensual
+    const scrDesp = document.createElement('script');
+    scrDesp.src = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=responseHandler:loadDespachosData&sheet=despachos`;
+    scrDesp.onerror = () => {
+        monthlyDespachosByMonth = {};
+        if(rawData && rawData.length > 1) processAndRender();
+    };
+    document.body.appendChild(scrDesp);
 }
 
 window.loadStockData = function(jsonResponse){
@@ -188,6 +199,63 @@ window.loadStockData = function(jsonResponse){
     }
 };
 
+window.loadDespachosData = function(jsonResponse){
+    try{
+        monthlyDespachosByMonth = {};
+        if(!jsonResponse || !jsonResponse.table) return;
+
+        const rowsRaw = (jsonResponse.table.rows || []).map(r => (r && r.c ? r.c.map(cell => (cell && cell.v !== null) ? cell.v : "") : []));
+        let headers = (jsonResponse.table.cols || []).map(col => String(col.label || col.id || '').trim());
+        let dataRows = rowsRaw;
+
+        let idxAnio = getHeaderIndexFlexible(headers, ['año','ano','anio','year']);
+        let idxMes = getHeaderIndexFlexible(headers, ['mes','month']);
+        let idxPrendas = getHeaderIndexFlexible(headers, ['prendas','pds','cantidad']);
+
+        // Fallback: buscar fila de encabezado dentro de rows
+        if(idxAnio === -1 || idxMes === -1 || idxPrendas === -1){
+            let headerRowIndex = -1;
+            for(let i=0;i<rowsRaw.length;i++){
+                const row = rowsRaw[i];
+                if(
+                    getHeaderIndexFlexible(row, ['año','ano','anio','year']) !== -1 &&
+                    getHeaderIndexFlexible(row, ['mes','month']) !== -1 &&
+                    getHeaderIndexFlexible(row, ['prendas','pds','cantidad']) !== -1
+                ){
+                    headerRowIndex = i;
+                    break;
+                }
+            }
+            if(headerRowIndex !== -1){
+                headers = rowsRaw[headerRowIndex].map(v => String(v || '').trim());
+                dataRows = rowsRaw.slice(headerRowIndex + 1);
+                idxAnio = getHeaderIndexFlexible(headers, ['año','ano','anio','year']);
+                idxMes = getHeaderIndexFlexible(headers, ['mes','month']);
+                idxPrendas = getHeaderIndexFlexible(headers, ['prendas','pds','cantidad']);
+            }
+        }
+
+        if(idxAnio === -1 || idxMes === -1 || idxPrendas === -1){
+            if(rawData && rawData.length > 1) processAndRender();
+            return;
+        }
+
+        for(let i=0;i<dataRows.length;i++){
+            const row = dataRows[i] || [];
+            const monthKey = buildMonthKeyFromYearMonth(row[idxAnio], row[idxMes]);
+            if(!monthKey) continue;
+            const prendas = parseDespachoNumber(row[idxPrendas]);
+            monthlyDespachosByMonth[monthKey] = (monthlyDespachosByMonth[monthKey] || 0) + prendas;
+        }
+
+        if(rawData && rawData.length > 1) processAndRender();
+    }catch(err){
+        console.error('Error cargando hoja despachos:', err);
+        monthlyDespachosByMonth = {};
+        if(rawData && rawData.length > 1) processAndRender();
+    }
+};
+
 function showError(msg){
     document.getElementById('loader').style.display='none';
     document.getElementById('btn-refresh').style.display='inline-flex';
@@ -210,6 +278,63 @@ function getVal(row, idx){
     if(!row) return '';
     if(idx<0 || idx>=row.length) return '';
     return row[idx];
+}
+
+function normalizeHeaderText(txt){
+    return String(txt || '')
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .trim();
+}
+
+function getHeaderIndexFlexible(headers, candidates){
+    const normHeaders = (headers || []).map(h => normalizeHeaderText(h));
+    for(const cand of candidates){
+        const target = normalizeHeaderText(cand);
+        const idx = normHeaders.indexOf(target);
+        if(idx !== -1) return idx;
+    }
+    return -1;
+}
+
+function parseDespachoNumber(value){
+    if(value === null || value === undefined) return 0;
+    if(typeof value === 'number' && Number.isFinite(value)) return value;
+    const txt = String(value).trim();
+    if(!txt) return 0;
+    if(/^\d{1,3}([.,]\d{3})+$/.test(txt)) return Number(txt.replace(/[.,]/g, '')) || 0;
+    const n1 = Number(txt.replace(/,/g, ''));
+    if(Number.isFinite(n1)) return n1;
+    const n2 = Number(txt.replace(/\./g, ''));
+    return Number.isFinite(n2) ? n2 : 0;
+}
+
+function buildMonthKeyFromYearMonth(yearVal, monthVal){
+    const y = parseInt(String(yearVal || '').trim(), 10);
+    if(!Number.isFinite(y) || y < 1900) return null;
+    const mTxt = normalizeHeaderText(monthVal);
+    const monthMap = {
+        ene:1, enero:1,
+        feb:2, febrero:2,
+        mar:3, marzo:3,
+        abr:4, abril:4,
+        may:5, mayo:5,
+        jun:6, junio:6,
+        jul:7, julio:7,
+        ago:8, agosto:8,
+        sep:9, set:9, septiembre:9, setiembre:9,
+        oct:10, octubre:10,
+        nov:11, noviembre:11,
+        dic:12, diciembre:12
+    };
+    let m = monthMap[mTxt];
+    if(!m){
+        const mn = parseInt(mTxt, 10);
+        if(Number.isFinite(mn) && mn >= 1 && mn <= 12) m = mn;
+    }
+    if(!m) return null;
+    return y + '-' + String(m).padStart(2, '0');
 }
 
 function normalizeClientName(clientName){
@@ -384,6 +509,7 @@ function processAndRender(){
     const monthlyData = {};
     const monthlyClientData = {};
     const monthlyPdsIngresadas = {};
+    const monthlyPdsCorte = {};
 
     for(let i=1;i<rawData.length;i++){
         const row = rawData[i];
@@ -566,11 +692,16 @@ function processAndRender(){
                     bloqueo:{prog:{},xprog:{}}, corte:{prog:{},xprog:{}}, hab:{prog:{},xprog:{}}
                 };
                 if(monthlyPdsIngresadas[mKey] === undefined) monthlyPdsIngresadas[mKey] = 0;
+                if(monthlyPdsCorte[mKey] === undefined) monthlyPdsCorte[mKey] = 0;
                 const md = monthlyData[mKey];
                 const mcd = monthlyClientData[mKey];
                 // PDS ingresadas: estado_habilitado exactamente "OK"
                 if(estadoHabRow === 'OK'){
                     monthlyPdsIngresadas[mKey] += pdsVal;
+                }
+                // PDS corte: estado_corte exactamente "OK"
+                if(estadoCorteRow === 'OK'){
+                    monthlyPdsCorte[mKey] += pdsVal;
                 }
                 // BLOQUEO
                 if(rutaVal === 'LAVADA' && estadoBloqUpper2 !== 'OK'){
@@ -629,7 +760,7 @@ function processAndRender(){
     });
 
     // Renderizar grÃ¡fico mensual por F. DESPACHO
-    renderMonthlyChart(monthlyData, monthlyClientData, monthlyPdsIngresadas);
+    renderMonthlyChart(monthlyData, monthlyClientData, monthlyPdsIngresadas, monthlyPdsCorte, monthlyDespachosByMonth);
 }
 
 function renderChartFromAgg(agg){
@@ -855,7 +986,7 @@ function monthKeyToLabel(key){
     return names[parseInt(m)-1] + '/' + y;
 }
 
-function renderMonthlyChart(monthlyData, monthlyClientData, monthlyPdsIngresadas){
+function renderMonthlyChart(monthlyData, monthlyClientData, monthlyPdsIngresadas, monthlyPdsCorte, monthlyDespachos){
     const chart3 = document.getElementById('chart3');
     if(!chart3) return;
     clearChartKeepLegend('chart3');
@@ -894,9 +1025,13 @@ function renderMonthlyChart(monthlyData, monthlyClientData, monthlyPdsIngresadas
         const label = document.createElement('div');
         label.className = 'month-label';
         const baseMonthLabel = monthKeyToLabel(k);
+        const pdsDespacho = Number(monthlyDespachos && monthlyDespachos[k]) || 0;
         const pdsIngresadas = Number(monthlyPdsIngresadas && monthlyPdsIngresadas[k]) || 0;
+        const pdsCorte = Number(monthlyPdsCorte && monthlyPdsCorte[k]) || 0;
+        const pctCorte = formatPercentRounded(pdsCorte, pdsDespacho);
+        const pctIng = formatPercentRounded(pdsIngresadas, pdsDespacho);
         label.innerText = !useKg
-            ? `${baseMonthLabel} | ${formatNumber(pdsIngresadas)} pds ingresadas`
+            ? `${baseMonthLabel} | ${formatCompactK(pdsDespacho)} despacho | ${formatCompactK(pdsCorte)} corte (${pctCorte}) | ${formatCompactK(pdsIngresadas)} ing (${pctIng})`
             : baseMonthLabel;
         group.appendChild(label);
 
@@ -1001,6 +1136,19 @@ function formatNumber(n){
     // entero => separador de miles con coma; decimal => 2 dec con separador de miles
     if(Number.isInteger(n)) return n.toLocaleString('en-US');
     return n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+}
+
+function formatCompactK(n){
+    const num = Number(n) || 0;
+    if(Math.abs(num) >= 1000){
+        return Math.round(num / 1000) + 'k';
+    }
+    return formatNumber(Math.round(num));
+}
+
+function formatPercentRounded(part, total){
+    if(!Number.isFinite(part) || !Number.isFinite(total) || total <= 0) return '0%';
+    return Math.round((part / total) * 100) + '%';
 }
 
 function clearChartKeepLegend(id){
