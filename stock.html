@@ -73,7 +73,8 @@
         .chart3-container{padding:18px;border:1px solid #e6e7ec;background:#fff;border-radius:8px;position:relative;padding-top:36px;overflow-y:auto;max-height:700px}
         .month-group{margin-bottom:10px;border-bottom:1px solid #f1f5f9;padding-bottom:8px}
         .month-group:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}
-        .month-label{font-size:14px;font-weight:700;color:#0f172a;margin-bottom:8px}
+        .month-label{font-size:14px;font-weight:700;color:#0f172a;margin-bottom:2px}
+        .month-subnote{font-size:13px;font-style:italic;font-weight:400;color:#000;margin:0 0 8px}
         .month-row{display:flex;align-items:center;margin-bottom:6px}
         .month-row:last-child{margin-bottom:0}
         .month-row-label{width:100px;font-size:12px;font-weight:700;color:#374151;flex-shrink:0;text-align:right;padding-right:10px}
@@ -986,10 +987,19 @@ function monthKeyToLabel(key){
     return names[parseInt(m)-1] + '/' + y;
 }
 
+function getCurrentAndNextMonthKeys(){
+    const now = new Date();
+    const currentKey = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+    const nextDate = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+    const nextKey = nextDate.getFullYear() + '-' + String(nextDate.getMonth() + 1).padStart(2, '0');
+    return new Set([currentKey, nextKey]);
+}
+
 function renderMonthlyChart(monthlyData, monthlyClientData, monthlyPdsIngresadas, monthlyPdsCorte, monthlyDespachos){
     const chart3 = document.getElementById('chart3');
     if(!chart3) return;
     clearChartKeepLegend('chart3');
+    const monthKeysWithFaltaTela = getCurrentAndNextMonthKeys();
 
     const keys = Object.keys(monthlyData).sort((a,b) => {
         if(a === 'SIN-FECHA') return 1;
@@ -1030,10 +1040,21 @@ function renderMonthlyChart(monthlyData, monthlyClientData, monthlyPdsIngresadas
         const pdsCorte = Number(monthlyPdsCorte && monthlyPdsCorte[k]) || 0;
         const pctCorte = formatPercentRounded(pdsCorte, pdsDespacho);
         const pctIng = formatPercentRounded(pdsIngresadas, pdsDespacho);
+        const hideDetailsForEarly2026 = (k === '2026-01' || k === '2026-02') && pdsDespacho === 0;
         label.innerText = !useKg
-            ? `${baseMonthLabel} | ${formatCompactK(pdsDespacho)} despacho | ${formatCompactK(pdsCorte)} corte (${pctCorte}) | ${formatCompactK(pdsIngresadas)} ing (${pctIng})`
+            ? (hideDetailsForEarly2026
+                ? `${baseMonthLabel} |`
+                : `${baseMonthLabel} | ${formatCompactK(pdsDespacho)} despacho | ${formatCompactK(pdsCorte)} corte (${pctCorte}) | ${formatCompactK(pdsIngresadas)} ing (${pctIng})`)
             : baseMonthLabel;
         group.appendChild(label);
+
+        if(!useKg && monthKeysWithFaltaTela.has(k)){
+            const faltaTela = Math.round((pdsDespacho * 1.02) - pdsCorte - 309 - 1284);
+            const sub = document.createElement('div');
+            sub.className = 'month-subnote';
+            sub.innerText = `${formatCompactK(faltaTela)} pds por falta de tela`;
+            group.appendChild(sub);
+        }
 
         categories.forEach(cat => {
             const total = cat.data.prog + cat.data.xprog;
