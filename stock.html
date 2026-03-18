@@ -74,6 +74,8 @@
         .month-group{margin-bottom:10px;border-bottom:1px solid #f1f5f9;padding-bottom:8px}
         .month-group:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}
         .month-label{font-size:14px;font-weight:700;color:#0f172a;margin-bottom:2px}
+        .month-metric-tip{cursor:help;border-bottom:1px dotted #94a3b8}
+        .month-metric-tip:hover{color:#1d4ed8}
         .month-subnote{font-size:13px;font-style:italic;font-weight:400;color:#000;margin:0 0 8px}
         .month-row{display:flex;align-items:center;margin-bottom:6px}
         .month-row:last-child{margin-bottom:0}
@@ -511,6 +513,8 @@ function processAndRender(){
     const monthlyClientData = {};
     const monthlyPdsIngresadas = {};
     const monthlyPdsCorte = {};
+    const monthlyPdsIngresadasClients = {};
+    const monthlyPdsCorteClients = {};
 
     for(let i=1;i<rawData.length;i++){
         const row = rawData[i];
@@ -694,15 +698,19 @@ function processAndRender(){
                 };
                 if(monthlyPdsIngresadas[mKey] === undefined) monthlyPdsIngresadas[mKey] = 0;
                 if(monthlyPdsCorte[mKey] === undefined) monthlyPdsCorte[mKey] = 0;
+                if(!monthlyPdsIngresadasClients[mKey]) monthlyPdsIngresadasClients[mKey] = {};
+                if(!monthlyPdsCorteClients[mKey]) monthlyPdsCorteClients[mKey] = {};
                 const md = monthlyData[mKey];
                 const mcd = monthlyClientData[mKey];
                 // PDS ingresadas: estado_habilitado exactamente "OK"
                 if(estadoHabRow === 'OK'){
                     monthlyPdsIngresadas[mKey] += pdsVal;
+                    addClientToTotals(monthlyPdsIngresadasClients[mKey], clienteNorm, pdsVal);
                 }
                 // PDS corte: estado_corte exactamente "OK"
                 if(estadoCorteRow === 'OK'){
                     monthlyPdsCorte[mKey] += pdsVal;
+                    addClientToTotals(monthlyPdsCorteClients[mKey], clienteNorm, pdsVal);
                 }
                 // BLOQUEO
                 if(rutaVal === 'LAVADA' && estadoBloqUpper2 !== 'OK'){
@@ -761,7 +769,15 @@ function processAndRender(){
     });
 
     // Renderizar grÃ¡fico mensual por F. DESPACHO
-    renderMonthlyChart(monthlyData, monthlyClientData, monthlyPdsIngresadas, monthlyPdsCorte, monthlyDespachosByMonth);
+    renderMonthlyChart(
+        monthlyData,
+        monthlyClientData,
+        monthlyPdsIngresadas,
+        monthlyPdsCorte,
+        monthlyDespachosByMonth,
+        monthlyPdsIngresadasClients,
+        monthlyPdsCorteClients
+    );
 }
 
 function renderChartFromAgg(agg){
@@ -995,7 +1011,15 @@ function getCurrentAndNextMonthKeys(){
     return new Set([currentKey, nextKey]);
 }
 
-function renderMonthlyChart(monthlyData, monthlyClientData, monthlyPdsIngresadas, monthlyPdsCorte, monthlyDespachos){
+function renderMonthlyChart(
+    monthlyData,
+    monthlyClientData,
+    monthlyPdsIngresadas,
+    monthlyPdsCorte,
+    monthlyDespachos,
+    monthlyPdsIngresadasClients,
+    monthlyPdsCorteClients
+){
     const chart3 = document.getElementById('chart3');
     if(!chart3) return;
     clearChartKeepLegend('chart3');
@@ -1038,14 +1062,32 @@ function renderMonthlyChart(monthlyData, monthlyClientData, monthlyPdsIngresadas
         const pdsDespacho = Number(monthlyDespachos && monthlyDespachos[k]) || 0;
         const pdsIngresadas = Number(monthlyPdsIngresadas && monthlyPdsIngresadas[k]) || 0;
         const pdsCorte = Number(monthlyPdsCorte && monthlyPdsCorte[k]) || 0;
+        const pdsIngresadasByClient = (monthlyPdsIngresadasClients && monthlyPdsIngresadasClients[k]) ? monthlyPdsIngresadasClients[k] : {};
+        const pdsCorteByClient = (monthlyPdsCorteClients && monthlyPdsCorteClients[k]) ? monthlyPdsCorteClients[k] : {};
         const pctCorte = formatPercentRounded(pdsCorte, pdsDespacho);
         const pctIng = formatPercentRounded(pdsIngresadas, pdsDespacho);
         const hideDetailsForEarly2026 = (k === '2026-01' || k === '2026-02') && pdsDespacho === 0;
-        label.innerText = !useKg
-            ? (hideDetailsForEarly2026
-                ? `${baseMonthLabel} |`
-                : `${baseMonthLabel} | ${formatCompactK(pdsDespacho)} despacho | ${formatCompactK(pdsCorte)} corte (${pctCorte}) | ${formatCompactK(pdsIngresadas)} ing (${pctIng})`)
-            : baseMonthLabel;
+        if(useKg){
+            label.innerText = baseMonthLabel;
+        } else if(hideDetailsForEarly2026){
+            label.innerText = `${baseMonthLabel} |`;
+        } else {
+            label.appendChild(document.createTextNode(`${baseMonthLabel} | ${formatCompactK(pdsDespacho)} despacho | `));
+
+            const corteTip = document.createElement('span');
+            corteTip.className = 'month-metric-tip';
+            corteTip.innerText = `${formatCompactK(pdsCorte)} corte (${pctCorte})`;
+            corteTip.title = buildSegmentTooltip('CORTE OK', pdsCorte, pdsCorte, pdsCorteByClient);
+            label.appendChild(corteTip);
+
+            label.appendChild(document.createTextNode(' | '));
+
+            const ingTip = document.createElement('span');
+            ingTip.className = 'month-metric-tip';
+            ingTip.innerText = `${formatCompactK(pdsIngresadas)} ing (${pctIng})`;
+            ingTip.title = buildSegmentTooltip('ING OK', pdsIngresadas, pdsIngresadas, pdsIngresadasByClient);
+            label.appendChild(ingTip);
+        }
         group.appendChild(label);
 
         if(!useKg && monthKeysWithFaltaTela.has(k)){
