@@ -12,7 +12,7 @@
         @keyframes spin{to{transform:rotate(360deg)}}
         #chart-wrap{margin-top:18px;max-width:954px}
         .chart-title{font-size:15px;font-weight:700;color:#1e293b;margin:0 0 8px;padding-left:4px}
-        .bars{display:flex;align-items:flex-end;gap:12px;padding:18px 14px;border:1px solid #e6e7ec;background:#fff;border-radius:8px;flex-wrap:nowrap;overflow-x:hidden;position:relative;padding-top:36px}
+        .bars{display:flex;align-items:flex-end;gap:12px;padding:18px 14px;border:1px solid #e6e7ec;background:#fff;border-radius:8px;flex-wrap:nowrap;overflow-x:hidden;position:relative;padding-top:18px}
         /* Horizontal breakdown chart */
         #chart2-wrap{margin-top:24px;max-width:954px}
         .hbar-container{padding:18px;border:1px solid #e6e7ec;background:#fff;border-radius:8px;position:relative;padding-top:36px}
@@ -39,6 +39,42 @@
         .seg-xprog{background:#fb923c}
         .label{margin-top:8px;font-size:11px;line-height:1.1;text-align:center;color:#374151;font-weight:700;word-break:break-word;min-height:24px}
         .value{font-size:15px;color:#0f172a;margin-bottom:6px;font-weight:700}
+        .ok-destino-pill{
+            display:flex;
+            flex-direction:column;
+            align-items:center;
+            justify-content:center;
+            min-width:110px;
+            margin-bottom:4px;
+            padding:4px 10px;
+            border-radius:999px;
+            border:1px solid #f59e0b;
+            background:#fff7e6;
+            color:#9a3412;
+            font-size:11px;
+            font-weight:700;
+            line-height:1.15;
+            text-align:center;
+            white-space:normal
+        }
+        .ok-pill-top{
+            width:100%;
+            display:grid;
+            grid-template-columns:auto auto;
+            column-gap:5px;
+            align-items:start
+        }
+        .ok-pill-ok{justify-self:end}
+        .ok-pill-text{
+            justify-self:start;
+            text-align:left;
+            line-height:1.05
+        }
+        .ok-pill-value{
+            margin-top:2px;
+            white-space:nowrap;
+            text-align:center
+        }
         #no-data{color:#6b7280}
         .controls{display:flex;gap:8px;align-items:center}
         .legend{display:flex;gap:12px;align-items:center;margin-left:12px}
@@ -455,6 +491,7 @@ function processAndRender(){
     // y estado_habilitado distinto de 'OK' y 'OK S/DESTINO'
     let sumHabPROG = 0;
     let sumHabXPROG = 0;
+    let sumHabOkSinDestino = 0;
 
     const hasClienteCol = idxCliente !== -1;
     const clientTotalsByBar = {
@@ -481,6 +518,7 @@ function processAndRender(){
         prog: { lavada: {}, acabada: {} },
         xprog: { lavada: {}, acabada: {} }
     };
+    const habOkSinDestinoClients = {};
     function addClientToTotals(bucket, clientName, amount){
         if(!hasClienteCol) return;
         if(!Number.isFinite(amount) || amount === 0) return;
@@ -673,7 +711,10 @@ function processAndRender(){
         // HABILITADO: estado_enumerado IN ('OK ENM','OK S/ENM','OK PAQUETEO')
         // y estado_habilitado != 'OK' y != 'OK S/DESTINO'
         if(estadoEnumeradoRow === 'OK ENM' || estadoEnumeradoRow === 'OK S/ENM' || estadoEnumeradoRow === 'OK PAQUETEO' || estadoEnumeradoRow === 'OK PAQUETO'){
-            if(estadoHabRow !== 'OK' && estadoHabRow !== 'OK S/DESTINO'){
+            if(estadoHabRow === 'OK S/DESTINO'){
+                sumHabOkSinDestino += val;
+                addClientToTotals(habOkSinDestinoClients, clienteNorm, val);
+            } else if(estadoHabRow !== 'OK'){
                 if(estadoHabRow === 'PROG 1T' || estadoHabRow === 'PROG 2T' || estadoHabRow === 'PROG 3T'){
                     sumHabPROG += val;
                     addClientToBar('HABILITADO', clienteNorm, val, 'prog');
@@ -759,7 +800,7 @@ function processAndRender(){
         { label: 'ENUMERADO', prog: sumEnumeradoPROG, xprog: 0, clientTotals: clientTotalsByBar.ENUMERADO, clientTotalsProg: clientTotalsByBarSegment.ENUMERADO.prog, clientTotalsXProg: clientTotalsByBarSegment.ENUMERADO.xprog },
         { label: 'TRANSFER', prog: sumTransferPROG, xprog: 0, clientTotals: clientTotalsByBar.TRANSFER, clientTotalsProg: clientTotalsByBarSegment.TRANSFER.prog, clientTotalsXProg: clientTotalsByBarSegment.TRANSFER.xprog },
         { label: 'BORDADO', prog: sumBordadoPROG, xprog: 0, clientTotals: clientTotalsByBar.BORDADO, clientTotalsProg: clientTotalsByBarSegment.BORDADO.prog, clientTotalsXProg: clientTotalsByBarSegment.BORDADO.xprog },
-        { label: 'HABILITADO', prog: sumHabPROG, xprog: sumHabXPROG, clientTotals: clientTotalsByBar.HABILITADO, clientTotalsProg: clientTotalsByBarSegment.HABILITADO.prog, clientTotalsXProg: clientTotalsByBarSegment.HABILITADO.xprog }
+        { label: 'HABILITADO', prog: sumHabPROG, xprog: sumHabXPROG, clientTotals: clientTotalsByBar.HABILITADO, clientTotalsProg: clientTotalsByBarSegment.HABILITADO.prog, clientTotalsXProg: clientTotalsByBarSegment.HABILITADO.xprog, okSinDestino: sumHabOkSinDestino, okSinDestinoClients: habOkSinDestinoClients }
     ]);
 
     // Renderizar grÃ¡fico horizontal de desglose CORTE PZAS
@@ -846,6 +887,21 @@ function renderMultipleBars(bars){
         const total = (b.prog || 0) + (b.xprog || 0);
         const item = document.createElement('div');
         item.className = 'bar-item';
+
+        if(b.label === 'HABILITADO'){
+            const okSinDestinoVal = Number(b.okSinDestino) || 0;
+            const pill = document.createElement('div');
+            pill.className = 'ok-destino-pill';
+            pill.innerHTML = `
+                <div class="ok-pill-top">
+                    <span class="ok-pill-ok">Ok</span>
+                    <span class="ok-pill-text">Sin compl.<br>Sin destino</span>
+                </div>
+                <div class="ok-pill-value">${formatNumber(okSinDestinoVal)} ${useKg ? 'kg' : 'prendas'}</div>
+            `;
+            pill.title = buildSegmentTooltip('OK S/DESTINO', okSinDestinoVal, okSinDestinoVal, b.okSinDestinoClients || {});
+            item.appendChild(pill);
+        }
 
         const valEl = document.createElement('div');
         valEl.className = 'value';
