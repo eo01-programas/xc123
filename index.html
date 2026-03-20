@@ -2991,7 +2991,10 @@
             sourceRowIndex: null,
             op: '',
             corteBase: '',
+            opTela: '',
+            partida: '',
             color: '',
+            colorNorm: '',
             pdsTotal: 0,
             estadoCorteTarget: '',
             rows: []
@@ -9528,23 +9531,31 @@
             }
 
             // Evitar escribir por índice en filas recién insertadas localmente que aún no existen en sheet.
+            // Mantener el bloqueo solo durante una ventana corta real de sincronización.
             if (rawData[rowIndex] && rawData[rowIndex]._inserted) {
+                const insertedAt = Number(rawData[rowIndex]._inserted) || Date.now();
                 const nowTs = Date.now();
-                if (!window._lastPendingSyncWarning || (nowTs - window._lastPendingSyncWarning) > 1500) {
-                    window._lastPendingSyncWarning = nowTs;
-                    if (typeof showToast === 'function') {
-                        showToast('Sincronizando filas nuevas. Espere 2 segundos y reintente.', 'error');
-                    } else {
-                        alert('Sincronizando filas nuevas con el sheet. Espere 2 segundos y vuelva a intentar.');
+                const pendingMs = nowTs - insertedAt;
+                if (pendingMs < 2000) {
+                    if (!window._lastPendingSyncWarning || (nowTs - window._lastPendingSyncWarning) > 1500) {
+                        window._lastPendingSyncWarning = nowTs;
+                        if (typeof showToast === 'function') {
+                            showToast('Sincronizando filas nuevas. Espere 2 segundos y reintente.', 'error');
+                        } else {
+                            alert('Sincronizando filas nuevas con el sheet. Espere 2 segundos y vuelva a intentar.');
+                        }
                     }
+                    try {
+                        if (selectElement && writeIdx !== undefined && writeIdx !== -1) {
+                            selectElement.value = String(rawData[rowIndex][writeIdx] || '');
+                        }
+                    } catch (e) {}
+                    try { scheduleSheetResync(900); } catch (e) {}
+                    return;
                 }
-                try {
-                    if (selectElement && writeIdx !== undefined && writeIdx !== -1) {
-                        selectElement.value = String(rawData[rowIndex][writeIdx] || '');
-                    }
-                } catch (e) {}
-                try { scheduleSheetResync(900); } catch (e) {}
-                return;
+
+                // Si ya pasó la ventana de sincronización, liberar el flag temporal.
+                try { delete rawData[rowIndex]._inserted; } catch (e) { rawData[rowIndex]._inserted = undefined; }
             }
 
             // Corta cualquier escritura de estados en filas sin llave OP/CORTE para evitar filas parciales.
@@ -14537,28 +14548,73 @@
             };
         }
 
+        function getVisibleCorteRowIndicesNuevoCorte() {
+            const out = [];
+            try {
+                const viewCorte = document.getElementById('view-corte');
+                const tbody = document.getElementById('tbody-corte');
+                if (!viewCorte || !viewCorte.classList.contains('active') || !tbody) return out;
+
+                const visibleRows = tbody.querySelectorAll('tr[data-row-index]');
+                visibleRows.forEach(tr => {
+                    if (tr.offsetParent === null || getComputedStyle(tr).display === 'none') return;
+                    const idx = parseInt(tr.getAttribute('data-row-index'), 10);
+                    if (!Number.isInteger(idx) || idx < 1 || !rawData[idx]) return;
+                    out.push(idx);
+                });
+            } catch (e) {}
+            return out;
+        }
+
         function findSourceRowNuevoCorte(ocQuery) {
             const q = splitOcNuevoCorte(ocQuery);
             if (!q.op || !q.corte) return { anyRow: -1, targetRow: -1 };
+            const queryBase = String(getCorteBaseNuevoCorte(q.corte) || '').trim().toUpperCase();
+
+            const evalMatch = (i) => {
+                const row = rawData[i];
+                if (!row) return null;
+
+                const op = String(getVal(row, 'OP') || '').trim().toUpperCase();
+                const corte = String(getVal(row, 'CORTE') || '').trim().toUpperCase();
+                if (!op || !corte) return null;
+                if (op !== q.op) return null;
+
+                const rowBase = String(getCorteBaseNuevoCorte(corte) || '').trim().toUpperCase();
+                const isExact = (corte === q.corte);
+                const isBaseMatch = (!isExact && rowBase && queryBase && rowBase === queryBase);
+                if (!isExact && !isBaseMatch) return null;
+                return { isExact: isExact };
+            };
+
+            let visibleExactRow = -1;
+            let visibleBaseRow = -1;
+            const visibleRows = getVisibleCorteRowIndicesNuevoCorte();
+            for (let i = 0; i < visibleRows.length; i++) {
+                const idx = visibleRows[i];
+                const match = evalMatch(idx);
+                if (!match) continue;
+                if (match.isExact) {
+                    visibleExactRow = idx;
+                    break;
+                }
+                if (visibleBaseRow === -1) visibleBaseRow = idx;
+            }
+            const visiblePicked = visibleExactRow !== -1 ? visibleExactRow : visibleBaseRow;
+            if (visiblePicked !== -1) {
+                return {
+                    anyRow: visiblePicked,
+                    targetRow: visiblePicked
+                };
+            }
 
             let anyExactRow = -1;
             let anyBaseRow = -1;
             for (let i = 1; i < rawData.length; i++) {
-                const row = rawData[i];
-                if (!row) continue;
+                const match = evalMatch(i);
+                if (!match) continue;
 
-                const op = String(getVal(row, 'OP') || '').trim().toUpperCase();
-                const corte = String(getVal(row, 'CORTE') || '').trim().toUpperCase();
-                if (!op || !corte) continue;
-                if (op !== q.op) continue;
-
-                const rowBase = String(getCorteBaseNuevoCorte(corte) || '').trim().toUpperCase();
-                const queryBase = String(getCorteBaseNuevoCorte(q.corte) || '').trim().toUpperCase();
-                const isExact = (corte === q.corte);
-                const isBaseMatch = (!isExact && rowBase && queryBase && rowBase === queryBase);
-                if (!isExact && !isBaseMatch) continue;
-
-                if (isExact) {
+                if (match.isExact) {
                     anyExactRow = i;
                     break;
                 } else {
@@ -14576,6 +14632,9 @@
             if (!modalNuevoCorteData || modalNuevoCorteData.sourceRowIndex === null) return '';
             const base = String(modalNuevoCorteData.corteBase || '').trim();
             const op = String(modalNuevoCorteData.op || '').trim();
+            const opTelaNorm = String(modalNuevoCorteData.opTela || '').trim().toUpperCase();
+            const partidaNorm = String(modalNuevoCorteData.partida || '').trim().toUpperCase();
+            const colorNorm = String(modalNuevoCorteData.colorNorm || '').trim().toUpperCase();
             if (!base || !op) return '';
 
             const corteIdx = findHeaderIndexCaseInsensitive('CORTE');
@@ -14590,6 +14649,22 @@
                 if (!row) continue;
                 const rowOp = String(row[opIdx] || '').trim();
                 if (rowOp !== op) continue;
+
+                if (opTelaNorm) {
+                    const rowOpTela = String(getVal(row, 'OP TELA') || '').trim().toUpperCase();
+                    if (rowOpTela !== opTelaNorm) continue;
+                }
+
+                if (partidaNorm) {
+                    const rowPartida = String(getVal(row, 'PARTIDA') || '').trim().toUpperCase();
+                    if (rowPartida !== partidaNorm) continue;
+                }
+
+                if (colorNorm) {
+                    const rowColorNorm = String(abbreviateHeather(getVal(row, 'COLOR') || '') || '').trim().toUpperCase();
+                    if (rowColorNorm !== colorNorm) continue;
+                }
+
                 const rowCorte = String(row[corteIdx] || '').trim();
                 const m = rowCorte.match(re);
                 if (!m) continue;
@@ -14713,7 +14788,10 @@
                 sourceRowIndex: null,
                 op: '',
                 corteBase: '',
+                opTela: '',
+                partida: '',
                 color: '',
+                colorNorm: '',
                 pdsTotal: 0,
                 estadoCorteTarget: '',
                 rows: []
@@ -14812,7 +14890,10 @@
             const op = String(getVal(row, 'OP') || '').trim();
             const corteRaw = String(getVal(row, 'CORTE') || '').trim();
             const corteBase = getCorteBaseNuevoCorte(corteRaw);
+            const opTela = String(getVal(row, 'OP TELA') || '').trim();
+            const partida = String(getVal(row, 'PARTIDA') || '').trim();
             const color = abbreviateHeather(getVal(row, 'COLOR') || '');
+            const colorNorm = String(color || '').trim().toUpperCase();
             const pdsTotal = parseFloat(getVal(row, 'PDS GIRADAS') || getVal(row, 'PDS') || 0) || 0;
             const equipoDefault = String(getVal(row, 'equipo_corte') || getVal(row, 'EQUIPO CORTE') || getVal(row, 'EQUIPO_CORTE') || '').trim();
             const estadoDefault = normalizarEstadoDestinoNuevoCorte(estadoCorteFilaNuevoCorte(row));
@@ -14820,7 +14901,10 @@
             modalNuevoCorteData.sourceRowIndex = result.targetRow;
             modalNuevoCorteData.op = op;
             modalNuevoCorteData.corteBase = corteBase;
+            modalNuevoCorteData.opTela = opTela;
+            modalNuevoCorteData.partida = partida;
             modalNuevoCorteData.color = color;
+            modalNuevoCorteData.colorNorm = colorNorm;
             modalNuevoCorteData.pdsTotal = pdsTotal;
             modalNuevoCorteData.estadoCorteTarget = '';
             modalNuevoCorteData.rows = [];
@@ -14834,10 +14918,10 @@
             modalNuevoCorteData.rows.push({ corte: firstCode, estado: estadoDefault, equipo: equipoDefault });
             renderModalNuevoCorteRows();
 
-            if (info) {
-                info.style.display = 'block';
-                info.innerText = `OC: ${op}-${corteRaw} | COLOR: ${color || '-'} | PDS: ${formatThousands(pdsTotal, 0)} | Estado default: ${estadoDefault}`;
-            }
+                if (info) {
+                    info.style.display = 'block';
+                    info.innerText = `OC: ${op}-${corteRaw} | OP-PTDA: ${opTela || '-'}-${partida || '-'} | COLOR: ${color || '-'} | PDS: ${formatThousands(pdsTotal, 0)} | Estado default: ${estadoDefault}`;
+                }
         };
 
         window.agregarFilaNuevoCorte = function() {
@@ -14898,7 +14982,10 @@
                 sourceRowIndex: null,
                 op: '',
                 corteBase: '',
+                opTela: '',
+                partida: '',
                 color: '',
+                colorNorm: '',
                 pdsTotal: 0,
                 estadoCorteTarget: '',
                 rows: []
@@ -15696,6 +15783,7 @@
                     const tendido = `${corte}${tendidoNum}`;
                     
                     rawData[rowIdx][pdsIdx] = pds;
+                    const sourceUpdateRow = rawData[rowIdx];
 
                     fetch(WEB_APP_URL, {
                         method: 'POST',
@@ -15704,7 +15792,12 @@
                             action: "update",
                             row: rowIdx,
                             colName: "PDS GIRADAS",
-                            value: pds
+                            value: pds,
+                            sourceOp: String(getVal(sourceUpdateRow, 'OP') || '').trim(),
+                            sourceCorte: String(getVal(sourceUpdateRow, 'CORTE') || '').trim(),
+                            sourceOpTela: String(getVal(sourceUpdateRow, 'OP TELA') || '').trim(),
+                            sourcePartida: String(getVal(sourceUpdateRow, 'PARTIDA') || '').trim(),
+                            sourceColor: String(getVal(sourceUpdateRow, 'COLOR') || '').trim()
                         })
                     }).catch(e => console.error(`Error guardando PDS tendido ${i + 1}`, e));
 
