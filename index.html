@@ -8720,7 +8720,7 @@
                 const estadoCollTap = getVal(row, "ESTADO COLL TAP") || getVal(row, "ESTADO_COLL_TAP") || getVal(row, "estado_coll_tap") || "";
 
                 // Determinar si mostrar el botón de tendido (solo en sub-tabs PROG 1T/2T/3T)
-                const showTendidoBtn = (currentCorteFilter === 'PROG 1T' || currentCorteFilter === 'PROG 2T' || currentCorteFilter === 'PROG 3T') && !isHabilitadoView();
+                const showTendidoBtn = esSubtabProgCorteParaTendido() && !isHabilitadoView() && !esCorteInicialBloqueadoParaTendido(corte);
                 const tendidoBtnHtml = showTendidoBtn
                     ? `<button class="btn-tendido" onclick="abrirModalTendido(${rowIndex})" title="Dividir en tendidos">+</button>`
                     : '';
@@ -14175,6 +14175,26 @@
             }
         };
 
+        function esSubtabProgCorteParaTendido() {
+            const filterNorm = String(currentCorteFilter || '').toUpperCase().trim();
+            return (filterNorm === 'PROG 1T' || filterNorm === 'PROG 2T' || filterNorm === 'PROG 3T');
+        }
+
+        function esCorteInicialBloqueadoParaTendido(corteValue) {
+            const corteStr = String(corteValue || '').trim();
+            if (!/^\d+$/.test(corteStr)) return false;
+            const corteNum = parseInt(corteStr, 10);
+            return (
+                (corteNum >= 3000 && corteNum <= 3099) ||
+                (corteNum >= 5000 && corteNum <= 5099) ||
+                (corteNum >= 8000 && corteNum <= 8099)
+            );
+        }
+
+        function debeBloquearDivisionTendido(corteValue) {
+            return esSubtabProgCorteParaTendido() && esCorteInicialBloqueadoParaTendido(corteValue);
+        }
+
         function parseTendidoHintFromCorte(corteValue) {
             const corteStr = String(corteValue || '').trim();
             const lastTwoChars = corteStr.slice(-2);
@@ -14235,6 +14255,11 @@
 
             if (!opResolved || !corteResolved) {
                 alert('No se pudo obtener OP/CORTE de la fila seleccionada.');
+                return;
+            }
+
+            if (debeBloquearDivisionTendido(corteResolved)) {
+                alert('No se permite dividir en tendidos los cortes iniciales 3000-3099, 5000-5099 y 8000-8099.');
                 return;
             }
 
@@ -14441,6 +14466,10 @@
             }
             
             const corte = modalTendidoData.corte;
+            if (debeBloquearDivisionTendido(corte)) {
+                alert('No se permite dividir en tendidos los cortes iniciales 3000-3099, 5000-5099 y 8000-8099.');
+                return;
+            }
             // Buscar el sufijo máximo existente en rawData para este OP+corteBase
             // para evitar conflictos con tendidos que existan pero no estén visibles
             let maxSuffix = 0;
