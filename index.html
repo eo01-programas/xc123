@@ -3804,11 +3804,12 @@
                     else if (estBloqNorm === "PROG") { b_kgP += kgVal; b_pdsP += pdsVal; }
                 }
 
-                // Contador de Lavandería: incluir todas las filas cuyo estado_bloqueo sea OK,
-                // independientemente de la columna RUTA TELA
+                // Contador de Lavanderia: debe reflejar exactamente la vista Lavanderia
+                // (RUTA TELA = LAVADA, estado_bloqueo = OK y estado_lavada != OK)
                 const estBloqAll = row[colMap["estado_bloqueo"]];
                 const estBloqAllNorm = (!estBloqAll || estBloqAll === "") ? "X PROG" : estBloqAll;
-                if (estBloqAllNorm === "OK") {
+                const rutaLavNorm = String(getVal(row, 'RUTA TELA') || getVal(row, 'RUTA_TELA') || getVal(row, 'RUTA') || '').toUpperCase().trim();
+                if (rutaLavNorm === 'LAVADA' && estBloqAllNorm === "OK") {
                     const estLav = row[colMap["estado_lavada"]];
                     const estLavUpper = String(estLav || '').toUpperCase().trim();
                     if (estLavUpper !== 'OK') { l_kgEnLav += kgVal; l_pdsEnLav += pdsVal; }
