@@ -2090,10 +2090,10 @@
                     <select id="modal-ingreso-planta" style="width:100%; padding:8px; border:1px solid var(--gray-300); border-radius:4px; font-size:12px;">
                         <option value="">-- Seleccione --</option>
                         <option value="COFACO">COFACO</option>
-                        <option value="CITI-1">CITI-1</option>
-                        <option value="CITI-2">CITI-2</option>
-                        <option value="CITI-3">CITI-3</option>
-                        <option value="CITI-4">CITI-4</option>
+                        <option value="CITI1">CITI1</option>
+                        <option value="CITI2">CITI2</option>
+                        <option value="CITI3">CITI3</option>
+                        <option value="CITI4">CITI4</option>
                         <option value="S/DESTINO">S/DESTINO</option>
                     </select>
                 </div>
@@ -4255,6 +4255,54 @@
             });
         }
 
+        const HABILITADO_OK_ALLOWED_PLANTAS = ['COFACO', 'CITI1', 'CITI2', 'CITI3', 'CITI4'];
+
+        function normalizeHabilitadoPlantaValue(value) {
+            const plantaRaw = String(value || '').trim();
+            const plantaNorm = plantaRaw.toUpperCase().replace(/\s+/g, '').replace(/-/g, '');
+            if (!plantaNorm) return '';
+            if (plantaNorm === 'COFACO') return 'COFACO';
+            if (plantaNorm === 'S/DESTINO') return 'S/DESTINO';
+            const citiMatch = plantaNorm.match(/^CITI([1-4])$/);
+            if (citiMatch) return `CITI${citiMatch[1]}`;
+            return plantaRaw.toUpperCase();
+        }
+
+        function getHabilitadoEstadoNorm(rowIndex) {
+            if (!rawData[rowIndex]) return '';
+            return String(
+                getVal(rawData[rowIndex], 'estado_habilitado')
+                || getVal(rawData[rowIndex], 'ESTADO_HABILITADO')
+                || getVal(rawData[rowIndex], 'ESTADO HABILITADO')
+                || ''
+            ).trim().toUpperCase();
+        }
+
+        function validateHabilitadoPlantaForEstado(plantaValue, estadoHabValue) {
+            const estadoNorm = String(estadoHabValue || '').trim().toUpperCase();
+            const normalizedPlanta = normalizeHabilitadoPlantaValue(plantaValue);
+            if (estadoNorm === 'OK' && HABILITADO_OK_ALLOWED_PLANTAS.indexOf(normalizedPlanta) === -1) {
+                return {
+                    valid: false,
+                    normalizedPlanta,
+                    message: 'Si HAB = OK, PLANTA solo puede ser COFACO, CITI1, CITI2, CITI3 o CITI4.'
+                };
+            }
+            return { valid: true, normalizedPlanta };
+        }
+
+        function syncIngresoCosturaPlantaOptions(estadoHabTarget) {
+            const plantaSelect = document.getElementById('modal-ingreso-planta');
+            if (!plantaSelect) return;
+            const allowSDestino = String(estadoHabTarget || '').trim().toUpperCase() === 'OK S/DESTINO';
+            Array.from(plantaSelect.options).forEach(option => {
+                if (option.value === 'S/DESTINO') {
+                    option.hidden = !allowSDestino;
+                    option.disabled = !allowSDestino;
+                }
+            });
+        }
+
         // --- FUNCIÓN PARA ACTUALIZAR PLANTA EN HABILITADO ---
         function updatePlanta(rowIndex, value, selectElement) {
             // PROTECCIÓN: No permitir escritura en encabezados
@@ -4262,14 +4310,27 @@
                 console.error('PROTECCIÓN updatePlanta: rowIndex inválido=' + rowIndex);
                 return;
             }
+            const currentPlanta = getVal(rawData[rowIndex], 'PLANTA') || '';
+            const validation = validateHabilitadoPlantaForEstado(value, getHabilitadoEstadoNorm(rowIndex));
+            if (!validation.valid) {
+                if (selectElement) {
+                    selectElement.value = normalizeHabilitadoPlantaValue(currentPlanta);
+                }
+                alert(validation.message);
+                return;
+            }
+            const normalizedValue = validation.normalizedPlanta;
+            if (selectElement && selectElement.value !== normalizedValue) {
+                selectElement.value = normalizedValue;
+            }
             // Actualizar en rawData
             const idxPlanta = findHeaderIndexCaseInsensitive('PLANTA');
             if (idxPlanta !== -1 && rawData[rowIndex]) {
-                rawData[rowIndex][idxPlanta] = value;
+                rawData[rowIndex][idxPlanta] = normalizedValue;
             }
             
             // Guardar en el backend
-            updateRow(rowIndex, 'PLANTA', value, selectElement);
+            updateRow(rowIndex, 'PLANTA', normalizedValue, selectElement);
         }
 
         // --- FUNCION PARA EDITAR HOD CON DOBLE CLICK EN HABILITADO ---
@@ -7978,7 +8039,7 @@
                     }
 
                     // PLANTA como dato (sin select)
-                    const plantaVal = getVal(row, 'PLANTA') || '';
+                    const plantaVal = normalizeHabilitadoPlantaValue(getVal(row, 'PLANTA') || '');
                     const plantaDisplay = plantaVal.toString().trim() || 'XASIG';
                     const plantaHtml = `<td class="cell-planta" style="text-align:center;">${escapeHtml(plantaDisplay)}</td>`;
 
@@ -15335,7 +15396,7 @@
                 const partida = getVal(row, 'PARTIDA') || '';
                 
                 // Obtener PLANTA y LINEA
-                const planta = getVal(row, 'PLANTA') || '';
+                const planta = normalizeHabilitadoPlantaValue(getVal(row, 'PLANTA') || '');
                 const linea = getVal(row, 'LINEA') || '';
                 
                 // Guardar datos actuales
@@ -15358,20 +15419,23 @@
                 
                 // Establecer valor de PLANTA en el select
                 const plantaSelect = document.getElementById('modal-ingreso-planta');
+                syncIngresoCosturaPlantaOptions(estadoHabTarget || 'OK');
                 // Eliminar opciones dinámicas anteriores
                 plantaSelect.querySelectorAll('option[data-dynamic]').forEach(opt => opt.remove());
-                if (planta) {
+                const plantaValidation = validateHabilitadoPlantaForEstado(planta, estadoHabTarget || 'OK');
+                const plantaModalValue = plantaValidation.valid ? plantaValidation.normalizedPlanta : '';
+                if (plantaModalValue) {
                     // Si el valor del sheet no existe como opción en el select, agregarlo dinámicamente
-                    const existeOpcion = Array.from(plantaSelect.options).some(opt => opt.value === planta);
+                    const existeOpcion = Array.from(plantaSelect.options).some(opt => opt.value === plantaModalValue);
                     if (!existeOpcion) {
                         const newOpt = document.createElement('option');
-                        newOpt.value = planta;
-                        newOpt.textContent = planta;
+                        newOpt.value = plantaModalValue;
+                        newOpt.textContent = plantaModalValue;
                         newOpt.setAttribute('data-dynamic', 'true');
                         // Insertar después de la primera opción (-- Seleccione --)
                         plantaSelect.insertBefore(newOpt, plantaSelect.options[1]);
                     }
-                    plantaSelect.value = planta;
+                    plantaSelect.value = plantaModalValue;
                 } else {
                     plantaSelect.value = '';
                 }
@@ -15414,6 +15478,13 @@
                     planta = currentIngresoCosturaData.planta;
                 }
                 
+                const estadoHabTarget = currentIngresoCosturaData.estadoHabTarget || 'OK';
+                const plantaValidation = validateHabilitadoPlantaForEstado(planta, estadoHabTarget);
+                planta = plantaValidation.normalizedPlanta;
+                if (!plantaValidation.valid) {
+                    alert(plantaValidation.message);
+                    return;
+                }
                 if (!planta) {
                     alert('Por favor seleccione la planta');
                     return;
@@ -15445,7 +15516,7 @@
                     { colName: 'PLANTA', value: planta },
                     { colName: 'LINEA', value: linea },
                     { colName: 'F.ING.REAL', value: fechaHora },
-                    { colName: 'estado_habilitado', value: currentIngresoCosturaData.estadoHabTarget || 'OK' }
+                    { colName: 'estado_habilitado', value: estadoHabTarget }
                 ];
                 
                 const sourceData = Object.assign({}, currentIngresoCosturaData);
