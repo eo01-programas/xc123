@@ -1980,6 +1980,11 @@
                 <button class="modal-close" onclick="cerrarModalEquipoCorteOC()">&times;</button>
             </div>
             <div style="padding: 10px 6px; font-size: 13px; color: var(--gray-700);">
+                <div style="margin-bottom: 8px;"><strong>Mover cortes?</strong></div>
+                <select id="modal-corte-oc-equipo-scope" class="table-select" style="width:100%; margin-bottom:12px;" onchange="updateModalEquipoCorteOCInfo()">
+                    <option value="group">Varias OC (OP-PTDA)</option>
+                    <option value="single">Solo esta OC</option>
+                </select>
                 <div style="margin-bottom: 8px;"><strong>Nuevo equipo:</strong></div>
                 <select id="modal-corte-oc-equipo-select" class="table-select" style="width:100%;">
                     <option value="">-- Seleccionar --</option>
@@ -2009,6 +2014,40 @@
             </table>
             <div class="modal-buttons">
                 <button class="btn-modal btn-limpiar" onclick="cerrarModalOC()">Cerrar</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-oc-search-ok" class="modal-overlay" onclick="if(event.target === this) cerrarModalOcSearchHabilitadoOk()">
+        <div class="modal-content" style="max-width:980px; width:88%;">
+            <div class="modal-header">
+                <div>
+                    <div class="modal-title">OC con estado_habilitado = OK</div>
+                    <div class="modal-subtitle" id="modal-oc-search-ok-subtitle">Resultado de búsqueda</div>
+                </div>
+                <button class="modal-close" onclick="cerrarModalOcSearchHabilitadoOk()">&times;</button>
+            </div>
+            <div style="max-height:420px; overflow:auto;">
+                <table class="modal-table" style="width:100%; margin:0;">
+                    <thead>
+                        <tr>
+                            <th>CLIENTE</th>
+                            <th>OC encontrada</th>
+                            <th>COLOR</th>
+                            <th>PDS</th>
+                            <th>F.ING.REAL</th>
+                            <th>PLANTA</th>
+                            <th>LINEA</th>
+                            <th>estado_habilitado</th>
+                        </tr>
+                    </thead>
+                    <tbody id="modal-oc-search-ok-tbody">
+                        <tr><td colspan="8" style="text-align:center; padding:18px; color:var(--gray-500);">No hay datos para mostrar.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="modal-buttons">
+                <button class="btn-modal btn-limpiar" onclick="cerrarModalOcSearchHabilitadoOk()">Cerrar</button>
             </div>
         </div>
     </div>
@@ -2070,6 +2109,23 @@
             <div class="modal-buttons">
                 <button class="btn-modal btn-limpiar" onclick="handleConfirmEnumerado(false)">NO</button>
                 <button class="btn-modal btn-guardar" onclick="handleConfirmEnumerado(true)">SI</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL CONFIRMACION DEPURADO -->
+    <div id="modal-confirm-depurado" class="modal-overlay" onclick="if(event.target === this) cerrarModalConfirmDepurado()">
+        <div class="modal-content" style="max-width:380px; width:42%;">
+            <div class="modal-header">
+                <div class="modal-title">Confirmar</div>
+                <button class="modal-close" onclick="cerrarModalConfirmDepurado()">&times;</button>
+            </div>
+            <p style="margin: 16px 0; font-size:13px; color:var(--gray-600); line-height:1.5;">
+                Esta seguro de Depurar todo el corte?
+            </p>
+            <div class="modal-buttons">
+                <button class="btn-modal btn-limpiar" onclick="handleConfirmDepurado(false)">NO</button>
+                <button class="btn-modal btn-guardar" onclick="handleConfirmDepurado(true)">SI</button>
             </div>
         </div>
     </div>
@@ -2211,7 +2267,7 @@
                     <path d="M3 4h18v2H3V4zM6 10h12v2H6v-2zM10 16h4v2h-4v-2z" fill="currentColor"/>
                 </svg>
             </button>
-            <button class="floating-menu-item" title="Reporte" onclick="window.location.href='index_reportecorte.html'" aria-label="Reporte">
+            <button class="floating-menu-item" title="Reporte" onclick="window.location.href='reportecorte.html'" aria-label="Reporte">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <path d="M5 4h10l4 4v12H5V4zm9 1.5V9h3.5L14 5.5zM8 12h8v1.8H8V12zm0 3.5h8v1.8H8v-1.8zm0-7h4v1.8H8V8.5z" fill="currentColor"/>
                 </svg>
@@ -3003,7 +3059,9 @@
         // Variables para modal de cambio de equipo_corte desde OC (click derecho)
         let modalCorteOcEquipoData = {
             rowIndices: [],
-            opPtda: ''
+            opPtda: '',
+            targetRowIndex: null,
+            scope: 'group'
         };
         let corteOcContextMenuRowIndex = null;
         let modalDevolucionHabilitadoData = { matches: [] };
@@ -6682,6 +6740,14 @@
             return `${String(hh).padStart(2, '0')}:${mm}${suffix}`;
         }
 
+        function formatOcSearchFIngRealLabel(rawVal) {
+            const dateLabel = getFIngRealDayMonthLabel(rawVal);
+            const timeLabel = getFIngRealTimeLabel(rawVal);
+            if (dateLabel && timeLabel) return `${dateLabel} ${timeLabel}`;
+            if (dateLabel) return dateLabel;
+            return String(rawVal || '').trim() || '-';
+        }
+
         function getRawFIngRealFromRow(row) {
             const direct = getVal(row, 'F.ING.REAL') || getVal(row, 'F ING REAL') || getVal(row, 'F. ING. REAL') || '';
             if (direct !== '') return direct;
@@ -7398,9 +7464,9 @@
                 const pdsVal = parseFloat(getVal(row, 'PDS GIRADAS')) || 0;
                 // xHabilitar: suma de PDS GIRADAS donde
                 // estado_enumerado = OK ENM | OK S/ENM | OK PAQUETEO
-                // y estado_habilitado != OK | OK S/DESTINO
+                // y estado_habilitado != OK | OK S/DESTINO | DEPURADO
                 const esEnumOk = (evNorm === 'OK ENM' || evNorm === 'OK S/ENM' || evNorm === 'OK PAQUETEO');
-                const esHabPendiente = (habilNorm !== 'OK' && habilNorm !== 'OK S/DESTINO');
+                const esHabPendiente = (habilNorm !== 'OK' && habilNorm !== 'OK S/DESTINO' && habilNorm !== 'DEPURADO');
                 if (esEnumOk && esHabPendiente) {
                     pdsXHabilitar += pdsVal;
                 }
@@ -7959,9 +8025,38 @@
                     const validacionChecked = validacionRaw === true || validacionRaw === 1 || validacionNorm === 'TRUE' || validacionNorm === 'VERDADERO' || validacionNorm === '1' || validacionNorm === 'SI' || validacionNorm === 'X';
                     const validacionHtml = `<td class="cell-validacion col-validacion"><input type="checkbox" class="validacion-checkbox" aria-label="Validacion" ${validacionChecked ? 'checked' : ''} disabled tabindex="-1" /></td>`;
 
-                    // estado_habilitado como dato (sin select)
-                    const habilValDisplay = (habilVal || '').toString().trim() || 'X PROG';
-                    const habilHtml = `<td class="cell-hab" style="text-align:center;">${escapeHtml(habilValDisplay)}</td>`;
+                    // estado_habilitado -> select editable con DEPURADO con confirmacion
+                    const habilValNorm = (habilVal || '').toString().toUpperCase().trim();
+                    let habilClass = '';
+                    if (habilValNorm === 'PROG 1T' || habilValNorm === 'PROG 2T' || habilValNorm === 'PROG 3T') habilClass = 'sel-PROG';
+                    if (habilValNorm === 'OK' || habilValNorm === 'OK S/DESTINO') habilClass = 'sel-OK';
+                    const showOkOption = (currentHabilitadoFilter === 'PROG 1T' || currentHabilitadoFilter === 'PROG 2T' || currentHabilitadoFilter === 'PROG 3T');
+                    let habilHtml = '';
+                    if (currentHabilitadoFilter === 'X PROG' || currentHabilitadoFilter === 'S/DESTINO') {
+                        habilHtml = `<td class="cell-hab">
+                            <select class="table-select ${habilClass}" data-rowindex="${i}" onchange="handleHabilitadoSelectChange(${i}, this.value, this, '${habilValNorm || 'X PROG'}')">
+                                <option value="X PROG" ${habilValNorm === 'X PROG' || habilValNorm === '' ? 'selected' : ''}>X PROG</option>
+                                <option value="PROG 1T" ${habilValNorm === 'PROG 1T' ? 'selected' : ''}>PROG 1T</option>
+                                <option value="PROG 2T" ${habilValNorm === 'PROG 2T' ? 'selected' : ''}>PROG 2T</option>
+                                <option value="PROG 3T" ${habilValNorm === 'PROG 3T' ? 'selected' : ''}>PROG 3T</option>
+                                <option value="OK" ${habilValNorm === 'OK' ? 'selected' : ''}>OK</option>
+                                <option value="OK S/DESTINO" ${habilValNorm === 'OK S/DESTINO' ? 'selected' : ''}>OK S/DESTINO</option>
+                                <option value="DEPURADO" ${habilValNorm === 'DEPURADO' ? 'selected' : ''}>DEPURADO</option>
+                            </select>
+                        </td>`;
+                    } else {
+                        habilHtml = `<td class="cell-hab">
+                            <select class="table-select ${habilClass}" data-rowindex="${i}" onchange="handleHabilitadoSelectChange(${i}, this.value, this, '${habilValNorm || 'X PROG'}')">
+                                <option value="X PROG" ${habilValNorm === 'X PROG' || habilValNorm === '' ? 'selected' : ''}>X PROG</option>
+                                <option value="PROG 1T" ${habilValNorm === 'PROG 1T' ? 'selected' : ''}>PROG 1T</option>
+                                <option value="PROG 2T" ${habilValNorm === 'PROG 2T' ? 'selected' : ''}>PROG 2T</option>
+                                <option value="PROG 3T" ${habilValNorm === 'PROG 3T' ? 'selected' : ''}>PROG 3T</option>
+                                ${showOkOption ? `<option value="OK" ${habilValNorm === 'OK' ? 'selected' : ''}>OK</option>` : ''}
+                                <option value="OK S/DESTINO" ${habilValNorm === 'OK S/DESTINO' ? 'selected' : ''}>OK S/DESTINO</option>
+                                <option value="DEPURADO" ${habilValNorm === 'DEPURADO' ? 'selected' : ''}>DEPURADO</option>
+                            </select>
+                        </td>`;
+                    }
 
                     // STATUS - Columna calculada según RUTA TELA y estados
                     const rutaTela = (getVal(row, 'RUTA TELA') || getVal(row, 'RUTA_TELA') || getVal(row, 'RUTA') || '').toString().toUpperCase().trim();
@@ -9343,6 +9438,41 @@
             return { groupKey, rows };
         }
 
+        window.handleHabilitadoSelectChange = function(rowIndex, value, selectElement, previousValue) {
+            const nextValue = String(value || '').toUpperCase().trim();
+            const prevValue = String(previousValue || 'X PROG').toUpperCase().trim() || 'X PROG';
+
+            if (nextValue === 'OK' || nextValue === 'OK S/DESTINO') {
+                abrirModalIngresoCostura(rowIndex, nextValue);
+                if (selectElement) selectElement.value = prevValue;
+                return;
+            }
+
+            if (nextValue !== 'DEPURADO') {
+                updateRow(rowIndex, 'estado_habilitado', value, selectElement, true, true);
+                setTimeout(renderHabilitado, 300);
+                return;
+            }
+
+            askDepuradoConfirmModal().then(async function(confirmed) {
+                if (!confirmed) {
+                    if (selectElement) selectElement.value = prevValue;
+                    return;
+                }
+
+                updateRow(rowIndex, 'estado_habilitado', 'DEPURADO', selectElement, true, true);
+                await propagateToSameOPAndCorteSeries(rowIndex, 'estado_habilitado', 'DEPURADO');
+
+                setTimeout(function() {
+                    try { renderHabilitado(); } catch (e) {}
+                    try { updateCounters(); } catch (e) {}
+                }, 300);
+            }).catch(function(error) {
+                console.error('Error confirmando depurado', error);
+                if (selectElement) selectElement.value = prevValue;
+            });
+        };
+
         // =============================================
         // PROPAGACION DE RIB EN CORTE PZAS PROG 1T/2T/3T
         // Al cambiar RIB, replicar a las filas visibles del mismo grupo OC
@@ -10348,6 +10478,7 @@
                 msgEl.style.display = 'none';
             }
             try { clearTimeout(window._searchOcMsgTimer); } catch (e) {}
+            try { if (typeof window.cerrarModalOcSearchHabilitadoOk === 'function') window.cerrarModalOcSearchHabilitadoOk(); } catch (e) {}
 
             try { renderBloqueo(); } catch (e) {}
             try { renderLavado(); } catch (e) {}
@@ -10643,7 +10774,75 @@
                 return ocNorm.indexOf(query) !== -1;
             }
 
-            let searchState = canReuseState ? prevSearchState : null; if (!searchState) { const matches = []; const seen = new Set(); for (const entry of order) { for (let i = 1; i < rawData.length; i++) { const row = rawData[i]; const ocCandidates = rowOCCandidates(row); const ocMatched = ocCandidates.some(oc => matchesOC(oc, q)); if (!ocMatched || !entry.check(row)) continue; const opTela = String(getVal(row, 'OP TELA') || getVal(row, 'OP') || '').trim(); const partida = String(getVal(row, 'PARTIDA') || getVal(row, 'CORTE') || '').trim(); const opPtda = opTela + '-' + partida; const opPtdaKey = (opPtda && opPtda !== '-') ? opPtda : ('ROW_' + i); const key = entry.vista + '|' + entry.subtab + '|' + opPtdaKey; if (seen.has(key)) continue; seen.add(key); matches.push({ vista: entry.vista, subtab: entry.subtab, go: entry.go, opPtda: opPtda }); } } if (matches.length === 0) { window._ocSearchState = { query: q, rawDataLen: rawData.length, results: [], index: -1 }; showMsg('OC "' + ocQuery.trim() + '" no encontrada', false); return; } searchState = { query: q, rawDataLen: rawData.length, results: matches, index: -1 }; window._ocSearchState = searchState; } searchState.index = (searchState.index + 1) % searchState.results.length; const currentResult = searchState.results[searchState.index]; currentResult.go(); applyOpPtdaFilter(currentResult.vista, currentResult.opPtda); showMsg('\u2714 Encontrado en ' + currentResult.vista.replace('-',' ') + ' -> ' + currentResult.subtab + ' (' + (searchState.index + 1) + '/' + searchState.results.length + ')', true);
+            function collectOcHabilitadoOkMatches() {
+                const rows = [];
+                for (let i = 1; i < rawData.length; i++) {
+                    const row = rawData[i];
+                    const ocCandidates = rowOCCandidates(row);
+                    const matchedOc = ocCandidates.find(oc => matchesOC(oc, q));
+                    if (!matchedOc) continue;
+                    if (est(row, 'estado_habilitado') !== 'OK') continue;
+                    const clienteRaw = getVal(row, 'CLIENTE') || getVal(row, 'CLI') || '';
+                    const cliente = (typeof normalizeClientName === 'function' ? normalizeClientName(clienteRaw) : clienteRaw) || '-';
+                    const colorRaw = getVal(row, 'COLOR') || '';
+                    const color = typeof abbreviateHeather === 'function' ? abbreviateHeather(colorRaw) : (colorRaw || '-');
+                    const pdsRaw = parseFloat(getVal(row, 'PDS GIRADAS') || getVal(row, 'PDS') || 0) || 0;
+                    rows.push({
+                        cliente: cliente || '-',
+                        oc: matchedOc || '-',
+                        color: color || '-',
+                        pds: `${formatThousands(pdsRaw, 0)} pds`,
+                        fIngReal: formatOcSearchFIngRealLabel(getRawFIngRealFromRow(row)),
+                        planta: String(getVal(row, 'PLANTA') || '').trim() || 'XASIG',
+                        linea: String(getVal(row, 'LINEA') || '').trim() || 'XASIG'
+                    });
+                }
+                return rows;
+            }
+
+            let searchState = canReuseState ? prevSearchState : null;
+            if (!searchState) {
+                try { if (typeof window.cerrarModalOcSearchHabilitadoOk === 'function') window.cerrarModalOcSearchHabilitadoOk(); } catch (e) {}
+                const matches = [];
+                const seen = new Set();
+                for (const entry of order) {
+                    for (let i = 1; i < rawData.length; i++) {
+                        const row = rawData[i];
+                        const ocCandidates = rowOCCandidates(row);
+                        const ocMatched = ocCandidates.some(oc => matchesOC(oc, q));
+                        if (!ocMatched || !entry.check(row)) continue;
+                        const opTela = String(getVal(row, 'OP TELA') || getVal(row, 'OP') || '').trim();
+                        const partida = String(getVal(row, 'PARTIDA') || getVal(row, 'CORTE') || '').trim();
+                        const opPtda = opTela + '-' + partida;
+                        const opPtdaKey = (opPtda && opPtda !== '-') ? opPtda : ('ROW_' + i);
+                        const key = entry.vista + '|' + entry.subtab + '|' + opPtdaKey;
+                        if (seen.has(key)) continue;
+                        seen.add(key);
+                        matches.push({ vista: entry.vista, subtab: entry.subtab, go: entry.go, opPtda: opPtda });
+                    }
+                }
+                if (matches.length === 0) {
+                    const okMatches = collectOcHabilitadoOkMatches();
+                    window._ocSearchState = { query: q, rawDataLen: rawData.length, results: [], index: -1, okModalShown: okMatches.length > 0 };
+                    if (okMatches.length) {
+                        showMsg('\u2714 Encontrada en Habilitado OK (' + okMatches.length + ')', true);
+                        if (typeof window.abrirModalOcSearchHabilitadoOk === 'function') {
+                            try { window.abrirModalOcSearchHabilitadoOk(ocQuery.trim(), okMatches); } catch (e) { console.error('buscarOC modal OK sin resultados error', e); }
+                        }
+                    } else {
+                        showMsg('OC "' + ocQuery.trim() + '" no encontrada', false);
+                    }
+                    return;
+                }
+                searchState = { query: q, rawDataLen: rawData.length, results: matches, index: -1, okModalShown: true };
+                window._ocSearchState = searchState;
+            }
+            try { if (typeof window.cerrarModalOcSearchHabilitadoOk === 'function') window.cerrarModalOcSearchHabilitadoOk(); } catch (e) {}
+            searchState.index = (searchState.index + 1) % searchState.results.length;
+            const currentResult = searchState.results[searchState.index];
+            currentResult.go();
+            applyOpPtdaFilter(currentResult.vista, currentResult.opPtda);
+            showMsg('\u2714 Encontrado en ' + currentResult.vista.replace('-',' ') + ' -> ' + currentResult.subtab + ' (' + (searchState.index + 1) + '/' + searchState.results.length + ')', true);
         };
 
         window.switchView = function(viewName, btn) {
@@ -15226,6 +15425,55 @@
             } catch (e) {}
         };
 
+        window.abrirModalOcSearchHabilitadoOk = function(query, items) {
+            try {
+                const modal = document.getElementById('modal-oc-search-ok');
+                const subtitle = document.getElementById('modal-oc-search-ok-subtitle');
+                const tbody = document.getElementById('modal-oc-search-ok-tbody');
+                if (!modal || !tbody) return;
+                const rows = Array.isArray(items) ? items : [];
+                if (subtitle) subtitle.innerText = `OC buscada: ${query || '-'} | Coincidencias con estado_habilitado = OK: ${rows.length}`;
+                tbody.innerHTML = '';
+                if (!rows.length) {
+                    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:18px; color:var(--gray-500);">No se encontraron cortes con estado_habilitado = OK.</td></tr>';
+                } else {
+                    rows.forEach(item => {
+                        const tr = document.createElement('tr');
+                        ['cliente','oc','color','pds','fIngReal','planta','linea'].forEach(key => {
+                            const td = document.createElement('td');
+                            td.textContent = item && item[key] !== undefined && item[key] !== null && String(item[key]).trim() !== '' ? String(item[key]) : '-';
+                            tr.appendChild(td);
+                        });
+                        const tdEstado = document.createElement('td');
+                        const pill = document.createElement('span');
+                        pill.textContent = 'OK';
+                        pill.style.display = 'inline-flex';
+                        pill.style.alignItems = 'center';
+                        pill.style.padding = '4px 10px';
+                        pill.style.borderRadius = '999px';
+                        pill.style.border = '1px solid rgba(16,185,129,0.32)';
+                        pill.style.background = 'var(--success-light)';
+                        pill.style.color = '#047857';
+                        pill.style.fontSize = '11px';
+                        pill.style.fontWeight = '700';
+                        tdEstado.appendChild(pill);
+                        tr.appendChild(tdEstado);
+                        tbody.appendChild(tr);
+                    });
+                }
+                modal.classList.add('active');
+            } catch (e) { console.error('abrirModalOcSearchHabilitadoOk error', e); }
+        };
+
+        window.cerrarModalOcSearchHabilitadoOk = function() {
+            try {
+                const modal = document.getElementById('modal-oc-search-ok');
+                if (modal) modal.classList.remove('active');
+                const tbody = document.getElementById('modal-oc-search-ok-tbody');
+                if (tbody) tbody.innerHTML = '';
+            } catch (e) {}
+        };
+
         // ===============================
         // FUNCIONES DEL MODAL DE LAVADORA (desde Corte PROG)
         // ===============================
@@ -15374,6 +15622,36 @@
             if (modal) modal.classList.remove('active');
             const resolver = window._resolveEnumeradoConfirm;
             window._resolveEnumeradoConfirm = null;
+            if (typeof resolver === 'function') resolver(!!confirmed);
+        };
+
+        function askDepuradoConfirmModal() {
+            return new Promise(function(resolve) {
+                try {
+                    window._resolveDepuradoConfirm = resolve;
+                    const modal = document.getElementById('modal-confirm-depurado');
+                    if (modal) modal.classList.add('active');
+                    else resolve(false);
+                } catch (e) {
+                    console.error('Error abriendo modal confirm depurado', e);
+                    resolve(false);
+                }
+            });
+        }
+
+        window.cerrarModalConfirmDepurado = function() {
+            const modal = document.getElementById('modal-confirm-depurado');
+            if (modal) modal.classList.remove('active');
+            const resolver = window._resolveDepuradoConfirm;
+            window._resolveDepuradoConfirm = null;
+            if (typeof resolver === 'function') resolver(false);
+        };
+
+        window.handleConfirmDepurado = function(confirmed) {
+            const modal = document.getElementById('modal-confirm-depurado');
+            if (modal) modal.classList.remove('active');
+            const resolver = window._resolveDepuradoConfirm;
+            window._resolveDepuradoConfirm = null;
             if (typeof resolver === 'function') resolver(!!confirmed);
         };
 
@@ -16069,6 +16347,21 @@
             return out;
         }
 
+        window.updateModalEquipoCorteOCInfo = function() {
+            const info = document.getElementById('modal-corte-oc-equipo-info');
+            const scopeSelect = document.getElementById('modal-corte-oc-equipo-scope');
+            if (!info) return;
+
+            const scope = String(scopeSelect && scopeSelect.value ? scopeSelect.value : (modalCorteOcEquipoData.scope || 'group')).trim().toLowerCase();
+            modalCorteOcEquipoData.scope = (scope === 'single') ? 'single' : 'group';
+
+            if (modalCorteOcEquipoData.scope === 'single') {
+                info.innerText = 'El cambio se aplicara a esta unica fila visible en este subtab.';
+            } else {
+                info.innerText = 'El cambio se aplicara a todas las filas visibles del mismo OP-PTDA en este subtab.';
+            }
+        };
+
         window.abrirModalEquipoCorteOC = function(rowIndex) {
             try {
                 const viewCorte = document.getElementById('view-corte');
@@ -16101,17 +16394,17 @@
 
                 modalCorteOcEquipoData = {
                     rowIndices: rowIndices,
-                    opPtda: opPtda
+                    opPtda: opPtda,
+                    targetRowIndex: rowIndex,
+                    scope: 'group'
                 };
 
                 const subtitle = document.getElementById('modal-corte-oc-equipo-subtitle');
                 if (subtitle) subtitle.innerText = `OP-PTDA: ${opPtda || '-'} | Filas visibles: ${rowIndices.length}`;
 
-                const info = document.getElementById('modal-corte-oc-equipo-info');
-                if (info) {
-                    info.innerText = (equipoValues.size > 1)
-                        ? 'El grupo tiene equipos distintos. Seleccione uno para unificar.'
-                        : 'El cambio se aplicará a todas las filas visibles del mismo OP-PTDA en este subtab.';
+                const scopeSel = document.getElementById('modal-corte-oc-equipo-scope');
+                if (scopeSel) {
+                    scopeSel.value = 'group';
                 }
 
                 const sel = document.getElementById('modal-corte-oc-equipo-select');
@@ -16133,6 +16426,8 @@
                     sel.value = singleEquipo || '';
                 }
 
+                updateModalEquipoCorteOCInfo();
+
                 const modal = document.getElementById('modal-corte-oc-equipo');
                 if (modal) modal.classList.add('active');
             } catch (e) {
@@ -16143,7 +16438,7 @@
         window.cerrarModalEquipoCorteOC = function() {
             const modal = document.getElementById('modal-corte-oc-equipo');
             if (modal) modal.classList.remove('active');
-            modalCorteOcEquipoData = { rowIndices: [], opPtda: '' };
+            modalCorteOcEquipoData = { rowIndices: [], opPtda: '', targetRowIndex: null, scope: 'group' };
         };
 
         window.guardarModalEquipoCorteOC = function() {
@@ -16155,9 +16450,15 @@
                     return;
                 }
 
-                const rows = (modalCorteOcEquipoData && Array.isArray(modalCorteOcEquipoData.rowIndices))
-                    ? modalCorteOcEquipoData.rowIndices.slice()
-                    : [];
+                const scopeSel = document.getElementById('modal-corte-oc-equipo-scope');
+                const scope = String(scopeSel && scopeSel.value ? scopeSel.value : (modalCorteOcEquipoData.scope || 'group')).trim().toLowerCase();
+                modalCorteOcEquipoData.scope = (scope === 'single') ? 'single' : 'group';
+
+                const rows = (modalCorteOcEquipoData.scope === 'single')
+                    ? [modalCorteOcEquipoData.targetRowIndex]
+                    : ((modalCorteOcEquipoData && Array.isArray(modalCorteOcEquipoData.rowIndices))
+                        ? modalCorteOcEquipoData.rowIndices.slice()
+                        : []);
                 if (!rows.length) {
                     cerrarModalEquipoCorteOC();
                     return;
