@@ -347,7 +347,6 @@
 
         .report-table thead th {
             position: sticky;
-            top: 0;
             background: #1d4ed8;
             color: #ffffff;
             font-size: 11px;
@@ -359,6 +358,21 @@
             text-align: center;
             white-space: nowrap;
             z-index: 10;
+        }
+
+        .report-table thead tr.grand-total-row th {
+            background: rgba(37, 99, 235, 0.15) !important;
+            color: #000000 !important;
+            font-weight: 800 !important;
+            top: 0;
+            z-index: 12;
+            border-bottom: 1px solid var(--gray-300);
+            height: 30px;
+        }
+
+        .report-table thead tr.main-header-row th {
+            top: 30px;
+            z-index: 11;
         }
 
         .report-table tbody th,
@@ -828,7 +842,34 @@
             table.className = "report-table";
 
             const thead = document.createElement("thead");
+
+            // --- FILA DE TOTALES GENERALES ---
+            const grandTotals = new Map();
+            records.forEach(r => {
+                grandTotals.set(r.dayKey, (grandTotals.get(r.dayKey) || 0) + r.pdsValue);
+            });
+
+            const totalRow = document.createElement("tr");
+            totalRow.className = "grand-total-row";
+
+            const labelCell = document.createElement("th");
+            labelCell.colSpan = FIXED_COLUMNS.length;
+            labelCell.textContent = "TOTALES DE LA SEMANA";
+            labelCell.style.textAlign = "right";
+            labelCell.style.paddingRight = "15px";
+            totalRow.appendChild(labelCell);
+
+            weekDays.forEach(day => {
+                const th = document.createElement("th");
+                const val = grandTotals.get(day.key) || 0;
+                th.textContent = val ? formatThousands(val, 0) : "-";
+                totalRow.appendChild(th);
+            });
+            thead.appendChild(totalRow);
+
+            // --- FILA DE ENCABEZADOS PRINCIPALES ---
             const headRow = document.createElement("tr");
+            headRow.className = "main-header-row";
 
             FIXED_COLUMNS.forEach((column) => {
                 const th = document.createElement("th");
