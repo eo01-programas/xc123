@@ -361,7 +361,7 @@
         }
 
         .report-table thead tr.grand-total-row th {
-            background: rgba(37, 99, 235, 0.15) !important;
+            background: #dee8fc !important;
             color: #000000 !important;
             font-weight: 800 !important;
             top: 0;
@@ -1016,7 +1016,7 @@
 
             records.forEach((record) => {
                 if (record.equipo) {
-                    equipos.add(record.equipo.toUpperCase());
+                    equipos.add(`${record.turno}_${record.equipo.toUpperCase()}`);
                 }
                 totalPds += record.pdsValue;
             });
