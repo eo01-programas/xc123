@@ -2916,6 +2916,7 @@
                     style="width:100%; padding:8px; border:1px solid var(--gray-300); border-radius:4px; font-size:12px;">
                     <option value="">-- Seleccione --</option>
                     <option value="COFACO">COFACO</option>
+                    <option value="COFACO 2">COFACO 2</option>
                     <option value="CITI1">CITI1</option>
                     <option value="CITI2">CITI2</option>
                     <option value="CITI3">CITI3</option>
@@ -5150,13 +5151,14 @@
         });
     }
 
-    const HABILITADO_OK_ALLOWED_PLANTAS = ['COFACO', 'CITI1', 'CITI2', 'CITI3', 'CITI4'];
+    const HABILITADO_OK_ALLOWED_PLANTAS = ['COFACO', 'COFACO 2', 'CITI1', 'CITI2', 'CITI3', 'CITI4'];
 
     function normalizeHabilitadoPlantaValue(value) {
         const plantaRaw = String(value || '').trim();
         const plantaNorm = plantaRaw.toUpperCase().replace(/\s+/g, '').replace(/-/g, '');
         if (!plantaNorm) return '';
         if (plantaNorm === 'COFACO') return 'COFACO';
+        if (plantaNorm === 'COFACO2') return 'COFACO 2';
         if (plantaNorm === 'S/DESTINO') return 'S/DESTINO';
         const citiMatch = plantaNorm.match(/^CITI([1-4])$/);
         if (citiMatch) return `CITI${citiMatch[1]}`;
@@ -5180,7 +5182,7 @@
             return {
                 valid: false,
                 normalizedPlanta,
-                message: 'Si HAB = OK, PLANTA solo puede ser COFACO, CITI1, CITI2, CITI3 o CITI4.'
+                message: 'Si HAB = OK, PLANTA solo puede ser COFACO, COFACO 2, CITI1, CITI2, CITI3 o CITI4.'
             };
         }
         return { valid: true, normalizedPlanta };
@@ -8093,7 +8095,7 @@
             const habNorm = String(item.nuevoHab || '').toUpperCase().trim();
             const plantaVal = String(item.plantaValue || '').trim();
             const lineaVal = String(item.lineaValue || '').trim();
-            const knownPlantas = ['', 'COFACO', 'CITI1', 'CITI2', 'CITI3', 'CITI4', 'S/DESTINO'];
+            const knownPlantas = ['', 'COFACO', 'COFACO 2', 'CITI1', 'CITI2', 'CITI3', 'CITI4', 'S/DESTINO'];
             const extraPlantaOpt = (plantaVal && knownPlantas.indexOf(plantaVal) === -1)
                 ? `<option value="${escapeHtmlDevolucionHabilitado(plantaVal)}" selected>${escapeHtmlDevolucionHabilitado(plantaVal)}</option>`
                 : '';
@@ -8107,6 +8109,7 @@
                                 ${extraPlantaOpt}
                                 <option value="" ${plantaVal === '' ? 'selected' : ''}>XASIG</option>
                                 <option value="COFACO" ${plantaVal === 'COFACO' ? 'selected' : ''}>COFACO</option>
+                                <option value="COFACO 2" ${plantaVal === 'COFACO 2' ? 'selected' : ''}>COFACO 2</option>
                                 <option value="CITI1" ${plantaVal === 'CITI1' ? 'selected' : ''}>CITI1</option>
                                 <option value="CITI2" ${plantaVal === 'CITI2' ? 'selected' : ''}>CITI2</option>
                                 <option value="CITI3" ${plantaVal === 'CITI3' ? 'selected' : ''}>CITI3</option>
