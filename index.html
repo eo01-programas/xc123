@@ -8266,7 +8266,7 @@
 
         // Recopilar índices válidos según el sub-tab seleccionado
         // Para "Por Programar" (X PROG): todas las filas con estado_habilitado vacío o X PROG
-        // Para PROG 1T/2T/3T: filas con estado_enumerado = OK ENM o OK S/ENM
+        // Para PROG 1T/2T/3T: filas programadas en ese turno, incluso con estado_enumerado vacio
         const validIndices = [];
         const idxEv = findHeaderIndexCaseInsensitive('estado_enumerado');
         const idxHabil = findHeaderIndexCaseInsensitive('estado_habilitado');
@@ -8339,8 +8339,8 @@
                     validIndices.push(i);
                 }
             } else {
-                // Para PROG 1T/2T/3T: estado_enumerado = OK ENM, OK S/ENM o OK PAQUETEO
-                if (evNorm === 'OK ENM' || evNorm === 'OK S/ENM' || evNorm === 'OK PAQUETEO') {
+                // Para PROG 1T/2T/3T: filtrar solo por estado_habilitado
+                if (habilNorm === currentHabilitadoFilter) {
                     validIndices.push(i);
                 }
             }
@@ -8498,11 +8498,7 @@
             const habilValFilter = getVal(row, 'estado_habilitado') || getVal(row, 'ESTADO_HABILITADO') || '';
             const habilValNormFilter = (habilValFilter || '').toString().toUpperCase().trim();
 
-            // Para X PROG and S/DESTINO: ya se filtró en validIndices, no necesita verificar estado_enumerado
-            // Para PROG 1T/2T/3T: verificar que estado_enumerado sea OK ENM, OK S/ENM o OK PAQUETEO
-            if (currentHabilitadoFilter !== 'X PROG' && currentHabilitadoFilter !== 'S/DESTINO') {
-                if (evNorm !== 'OK ENM' && evNorm !== 'OK S/ENM' && evNorm !== 'OK PAQUETEO') return;
-            }
+            // Ya se filtró en validIndices para todos los subtabs de Habilitado.
 
             // Filtrar según el sub-tab seleccionado
             if (currentHabilitadoFilter === 'X PROG') {
@@ -8553,25 +8549,18 @@
                         pdsTrsf = validIndices.reduce((acc, idx2) => {
                             try {
                                 const r = rawData[idx2];
-                                let ev2 = '';
-                                if (idxEv !== -1 && r && r[idxEv] !== undefined) ev2 = r[idxEv];
-                                else ev2 = getVal(r, 'estado_enumerado') || '';
-                                const evNorm2 = (ev2 || '').toString().toUpperCase().trim();
+                                const habilVal2 = getVal(r, 'estado_habilitado') || '';
+                                const habilNorm2 = (habilVal2 || '').toString().toUpperCase().trim();
 
-                                if ((evNorm2 === 'OK ENM' || evNorm2 === 'OK S/ENM' || evNorm2 === 'OK PAQUETEO')) {
-                                    const habilVal2 = getVal(r, 'estado_habilitado') || '';
-                                    const habilNorm2 = (habilVal2 || '').toString().toUpperCase().trim();
+                                // Filtrar segun el sub-tab actual
+                                let matchesFilter = false;
+                                if (currentHabilitadoFilter === 'PROG 1T' && habilNorm2 === 'PROG 1T') matchesFilter = true;
+                                else if (currentHabilitadoFilter === 'PROG 2T' && habilNorm2 === 'PROG 2T') matchesFilter = true;
+                                else if (currentHabilitadoFilter === 'PROG 3T' && habilNorm2 === 'PROG 3T') matchesFilter = true;
 
-                                    // Filtrar según el sub-tab actual
-                                    let matchesFilter = false;
-                                    if (currentHabilitadoFilter === 'PROG 1T' && habilNorm2 === 'PROG 1T') matchesFilter = true;
-                                    else if (currentHabilitadoFilter === 'PROG 2T' && habilNorm2 === 'PROG 2T') matchesFilter = true;
-                                    else if (currentHabilitadoFilter === 'PROG 3T' && habilNorm2 === 'PROG 3T') matchesFilter = true;
-
-                                    if (matchesFilter && getTrsfGroupValue(r) === currentTrsfGroup) {
-                                        const pv = parseFloat(getVal(r, 'PDS GIRADAS') || 0) || 0;
-                                        return acc + pv;
-                                    }
+                                if (matchesFilter && getTrsfGroupValue(r) === currentTrsfGroup) {
+                                    const pv = parseFloat(getVal(r, 'PDS GIRADAS') || 0) || 0;
+                                    return acc + pv;
                                 }
                             } catch (e) { }
                             return acc;
@@ -11355,21 +11344,21 @@
             try {
                 // 1. bloqueoHeaderFilters: quitar filtro OP-PTDA
                 if (typeof bloqueoHeaderFilters !== 'undefined' && Array.isArray(bloqueoHeaderFilters)) {
-                    const bi = bloqueoHeaderFilters.findIndex(f => f.field === 'OP-PTDA');
-                    if (bi !== -1) { bloqueoHeaderFilters.splice(bi, 1); try { renderBloqueoActiveFilters(); } catch (e) { } }
+                    bloqueoHeaderFilters = bloqueoHeaderFilters.filter(f => f.field !== 'OP-PTDA' && f.field !== 'OC');
+                    try { renderBloqueoActiveFilters(); } catch (e) { }
                 }
                 // 2. corteHeaderFilter
-                if (typeof corteHeaderFilter !== 'undefined' && corteHeaderFilter && corteHeaderFilter.field === 'OP-PTDA') {
+                if (typeof corteHeaderFilter !== 'undefined' && corteHeaderFilter && (corteHeaderFilter.field === 'OP-PTDA' || corteHeaderFilter.field === 'OC')) {
                     corteHeaderFilter = null;
                 }
                 // 3. enumeradoHeaderFilter
-                if (typeof enumeradoHeaderFilter !== 'undefined' && enumeradoHeaderFilter && enumeradoHeaderFilter.field === 'OP-PTDA') {
+                if (typeof enumeradoHeaderFilter !== 'undefined' && enumeradoHeaderFilter && (enumeradoHeaderFilter.field === 'OP-PTDA' || enumeradoHeaderFilter.field === 'OC')) {
                     enumeradoHeaderFilter = null;
                 }
                 // 4. habilitadoHeaderFilters: quitar filtro OP-PTDA
                 if (typeof habilitadoHeaderFilters !== 'undefined' && Array.isArray(habilitadoHeaderFilters)) {
-                    const hi = habilitadoHeaderFilters.findIndex(f => f.field === 'OP-PTDA');
-                    if (hi !== -1) { habilitadoHeaderFilters.splice(hi, 1); try { renderHabilitadoActiveFilters(); } catch (e) { } }
+                    habilitadoHeaderFilters = habilitadoHeaderFilters.filter(f => f.field !== 'OP-PTDA' && f.field !== 'OC');
+                    try { renderHabilitadoActiveFilters(); } catch (e) { }
                 }
                 // 5. filtro genérico temporal (_searchOpPtdaFilter)
                 window._searchOpPtdaFilter = null;
@@ -11871,6 +11860,7 @@
         isHabilitadoIngresosMode = false;
         habilitadoIngresosDateFilter = '';
         habilitadoIngresosPlantFilter = '';
+        const shouldAutoOpenNotas = (filterState === 'PROG 1T' || filterState === 'PROG 2T' || filterState === 'PROG 3T');
         try { if (typeof window.cerrarModalHabilitadoHoja3 === 'function') window.cerrarModalHabilitadoHoja3(); } catch (e) { }
         document.querySelectorAll('#view-habilitado .sub-tab').forEach(el => el.classList.remove('active'));
         if (btn) btn.classList.add('active');
@@ -11881,11 +11871,13 @@
         try {
             const btnPrint = document.getElementById('btn-print-habilitado-prog');
             if (btnPrint) {
-                const isProgSubtab = (filterState === 'PROG 1T' || filterState === 'PROG 2T' || filterState === 'PROG 3T');
-                btnPrint.style.display = isProgSubtab ? 'inline-flex' : 'none';
+                btnPrint.style.display = shouldAutoOpenNotas ? 'inline-flex' : 'none';
             }
         } catch (e) { }
         renderHabilitado();
+        if (shouldAutoOpenNotas) {
+            try { if (typeof window.abrirModalHabilitadoHoja3 === 'function') window.abrirModalHabilitadoHoja3(); } catch (e) { }
+        }
     };
 
     function isHabilitadoProgTurnSubtab() {
@@ -18496,12 +18488,6 @@ NOTA: Por favor adjunte los archivos descargados (${fileName}.xlsx y ${fileName}
                 let validIndices = [];
                 for (let i = 1; i < rawData.length; i++) {
                     const row = rawData[i];
-                    let ev = '';
-                    if (idxEv !== -1 && row[idxEv] !== undefined) ev = row[idxEv];
-                    else ev = getVal(row, 'estado_enumerado') || '';
-                    const evNorm = (ev || '').toString().toUpperCase().trim();
-                    if (evNorm !== 'OK ENM' && evNorm !== 'OK S/ENM' && evNorm !== 'OK PAQUETEO') continue;
-
                     let habilVal = '';
                     if (idxHabil !== -1 && row[idxHabil] !== undefined) habilVal = row[idxHabil];
                     else habilVal = getVal(row, 'estado_habilitado') || '';
