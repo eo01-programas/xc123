@@ -465,6 +465,33 @@
             grid-template-columns: 2.6fr 0.8fr;
         }
 
+        #modal-habilitado-hoja3.solo-lectura .habilitado-hoja3-actions {
+            display: none;
+        }
+
+        .habilitado-hoja3-readonly-cell {
+            width: 100%;
+            min-height: 28px;
+            padding: 6px 8px;
+            box-sizing: border-box;
+            font-size: 12px;
+            color: var(--gray-800);
+            background: #fff;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .habilitado-hoja3-readonly-cell.empty {
+            color: var(--gray-400);
+        }
+
+        .modal-habilitado-hoja3-readonly-note {
+            margin-top: 6px;
+            font-size: 12px;
+            color: var(--gray-500);
+        }
+
         .habilitado-ingresos-filters {
             display: none;
             align-items: center;
@@ -1033,6 +1060,11 @@
             accent-color: var(--primary);
         }
 
+        .validacion-checkbox:disabled {
+            cursor: not-allowed;
+            opacity: 0.55;
+        }
+
         .linea-display {
             display: inline-block;
             padding: 2px 6px;
@@ -1073,6 +1105,25 @@
             color: #047857;
             font-weight: 600;
             background-color: var(--success-light);
+        }
+
+        .cell-hab-readonly {
+            display: block;
+            width: 100%;
+            height: 24px;
+            line-height: 18px;
+            padding: 3px 6px;
+            box-sizing: border-box;
+            border-radius: 4px;
+            border: 1px solid var(--gray-300);
+            background: var(--gray-50);
+            color: var(--gray-800);
+            font-size: 11px;
+            font-weight: 500;
+            text-align: center;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         .sel-ENLAV {
@@ -2994,6 +3045,7 @@
             <div>
                 <div class="modal-title">Transfer en prendas y/o Comentarios generales</div>
                 <div class="modal-subtitle" id="modal-habilitado-hoja3-subtitle">Turno: -</div>
+                <div class="modal-habilitado-hoja3-readonly-note">Modo solo lectura</div>
             </div>
             <button class="modal-close" onclick="cerrarModalHabilitadoHoja3()">&times;</button>
         </div>
@@ -3029,11 +3081,11 @@
                                 <th>Comentarios generales</th>
                             </tr>
                         </thead>
-                        <tbody id="tbody-habilitado-hoja3-right"></tbody>
-                    </table>
-                </div>
-            </div>
+                <tbody id="tbody-habilitado-hoja3-right"></tbody>
+            </table>
         </div>
+    </div>
+</div>
     </div>
 </div>
 
@@ -5098,7 +5150,11 @@
             // Para otras vistas, solo actualizar la fila actual
             updateRow(rowIndex, priorityColName, value, selectElement);
             try {
-                if (isHabilitadoView) setTimeout(() => { renderHabilitado(); }, 120);
+                const isHabilitadoProgSubtab = isHabilitadoView
+                    && (currentHabilitadoFilter === 'PROG 1T'
+                        || currentHabilitadoFilter === 'PROG 2T'
+                        || currentHabilitadoFilter === 'PROG 3T');
+                if (isHabilitadoView && !isHabilitadoProgSubtab) setTimeout(() => { renderHabilitado(); }, 120);
             } catch (e) { }
             return;
         }
@@ -8447,23 +8503,7 @@
                     return orderA - orderB;
                 }
 
-                // 2. Ordenar por OC
-                const ocA = getOcSortKey(rowA);
-                const ocB = getOcSortKey(rowB);
-                const cmpOc = ocA.localeCompare(ocB, undefined, { numeric: true, sensitivity: 'base' });
-                if (cmpOc !== 0) return cmpOc;
-
-                // 3. Agrupar por OP TELA + PARTIDA
-                const opTelaA = String(rowA[colMap["OP TELA"]] || "").trim();
-                const partidaA = String(rowA[colMap["PARTIDA"]] || "").trim();
-                const opPtdaA = (opTelaA + "-" + partidaA).toLowerCase();
-                const opTelaB = String(rowB[colMap["OP TELA"]] || "").trim();
-                const partidaB = String(rowB[colMap["PARTIDA"]] || "").trim();
-                const opPtdaB = (opTelaB + "-" + partidaB).toLowerCase();
-                const cmpOpPtda = opPtdaA.localeCompare(opPtdaB, undefined, { numeric: true, sensitivity: 'base' });
-                if (cmpOpPtda !== 0) return cmpOpPtda;
-
-                // 4. Dentro del mismo grupo, ordenar por P
+                // 2. Dentro del mismo grupo, ordenar por P
                 const idxP = findPriorityHeaderIndex('habilitado');
                 let pA = '';
                 let pB = '';
@@ -8473,6 +8513,22 @@
                 }
                 const cmpP = comparePrioridadHabilitado(pA, pB);
                 if (cmpP !== 0) return cmpP;
+
+                // 3. Luego por OC
+                const ocA = getOcSortKey(rowA);
+                const ocB = getOcSortKey(rowB);
+                const cmpOc = ocA.localeCompare(ocB, undefined, { numeric: true, sensitivity: 'base' });
+                if (cmpOc !== 0) return cmpOc;
+
+                // 4. Agrupar por OP TELA + PARTIDA
+                const opTelaA = String(rowA[colMap["OP TELA"]] || "").trim();
+                const partidaA = String(rowA[colMap["PARTIDA"]] || "").trim();
+                const opPtdaA = (opTelaA + "-" + partidaA).toLowerCase();
+                const opTelaB = String(rowB[colMap["OP TELA"]] || "").trim();
+                const partidaB = String(rowB[colMap["PARTIDA"]] || "").trim();
+                const opPtdaB = (opTelaB + "-" + partidaB).toLowerCase();
+                const cmpOpPtda = opPtdaA.localeCompare(opPtdaB, undefined, { numeric: true, sensitivity: 'base' });
+                if (cmpOpPtda !== 0) return cmpOpPtda;
 
                 // 5. Luego por fecha
                 const dateA = rowA[colMap["HOD"]] || 0;
@@ -8606,11 +8662,12 @@
             // HOD
             const fDesp = formatValue(getVal(row, 'HOD'), 'date') || '';
 
-            // F.ING.COST -> mostrar como texto si estamos en X PROG o S/DESTINO, si no usar date picker
+            // F.ING.COST -> mostrar como texto si estamos en X PROG, S/DESTINO o PROG 1T/2T/3T; si no usar date picker
             const rawFIng = getVal(row, 'F.ING.COST');
             const dateValue = convertToDateInputFormat(rawFIng);
             let fIngHtml = '';
-            if (currentHabilitadoFilter === 'X PROG' || currentHabilitadoFilter === 'S/DESTINO') {
+            const isHabilitadoProgSubtab = (currentHabilitadoFilter === 'PROG 1T' || currentHabilitadoFilter === 'PROG 2T' || currentHabilitadoFilter === 'PROG 3T');
+            if (currentHabilitadoFilter === 'X PROG' || currentHabilitadoFilter === 'S/DESTINO' || isHabilitadoProgSubtab) {
                 // Mostrar F.ING.COST como texto (no editable)
                 fIngHtml = `<td class="date-cell">${formatDateShortFromInput(dateValue) || 'mm/dd/aaaa'}</td>`;
             } else {
@@ -8852,7 +8909,15 @@
             }
             const validacionNorm = String(validacionRaw).trim().toUpperCase();
             const validacionChecked = validacionRaw === true || validacionRaw === 1 || validacionNorm === 'TRUE' || validacionNorm === 'VERDADERO' || validacionNorm === '1' || validacionNorm === 'SI' || validacionNorm === 'X';
-            const validacionHtml = `<td class="cell-validacion col-validacion"><input type="checkbox" class="validacion-checkbox" aria-label="Validacion" ${validacionChecked ? 'checked' : ''} disabled tabindex="-1" /></td>`;
+            const validacionEditable = isHabilitadoProgTurnSubtab();
+            const validacionHtml = `<td class="cell-validacion col-validacion">
+                    <input type="checkbox"
+                        class="validacion-checkbox"
+                        aria-label="Validacion"
+                        ${validacionChecked ? 'checked' : ''}
+                        ${validacionEditable ? '' : 'disabled tabindex="-1"'}
+                        onchange="updateRow(${i}, 'VALIDACION', this.checked, this)">
+                </td>`;
 
             // estado_habilitado -> select editable con DEPURADO con confirmacion
             const habilValNorm = (habilVal || '').toString().toUpperCase().trim();
@@ -8861,7 +8926,15 @@
             if (habilValNorm === 'OK' || habilValNorm === 'OK S/DESTINO') habilClass = 'sel-OK';
             const showOkOption = (currentHabilitadoFilter === 'PROG 1T' || currentHabilitadoFilter === 'PROG 2T' || currentHabilitadoFilter === 'PROG 3T');
             let habilHtml = '';
-            if (currentHabilitadoFilter === 'X PROG' || currentHabilitadoFilter === 'S/DESTINO') {
+            if (currentHabilitadoFilter === 'X PROG'
+                || currentHabilitadoFilter === 'PROG 1T'
+                || currentHabilitadoFilter === 'PROG 2T'
+                || currentHabilitadoFilter === 'PROG 3T') {
+                const habDisplay = habilValNorm || 'X PROG';
+                habilHtml = `<td class="cell-hab" title="${escapeHtml(habDisplay)}">
+                            <span class="cell-hab-readonly ${habilClass}">${escapeHtml(habDisplay)}</span>
+                        </td>`;
+            } else if (currentHabilitadoFilter === 'S/DESTINO') {
                 habilHtml = `<td class="cell-hab">
                             <select class="table-select ${habilClass}" data-rowindex="${i}" onchange="handleHabilitadoSelectChange(${i}, this.value, this, '${habilValNorm || 'X PROG'}')">
                                 <option value="X PROG" ${habilValNorm === 'X PROG' || habilValNorm === '' ? 'selected' : ''}>X PROG</option>
@@ -11888,6 +11961,8 @@
         return { cliente: '', ops: '', color: '', pds: '', comentario: '', comentario_general: '' };
     }
 
+    const HABILITADO_HOJA3_SOLO_LECTURA = true;
+
     function normalizeHabilitadoHoja3Turno(turno) {
         const val = String(turno || '').toUpperCase().trim();
         if (val === 'PROG 1T' || val === 'PROG 2T' || val === 'PROG 3T') return val;
@@ -12110,91 +12185,123 @@
         leftBody.innerHTML = '';
         rightBody.innerHTML = '';
 
+        const createReadonlyCell = function (value) {
+            const div = document.createElement('div');
+            const text = String(value || '').trim();
+            div.className = `habilitado-hoja3-readonly-cell${text ? '' : ' empty'}`;
+            div.textContent = text || 'Sin dato';
+            return div;
+        };
+
         habilitadoHoja3Rows.forEach((rowData, idx) => {
             const trLeft = document.createElement('tr');
 
             const tdCliente = document.createElement('td');
-            const selCliente = document.createElement('select');
-            selCliente.className = 'habilitado-hoja3-select';
-            const optEmpty = document.createElement('option');
-            optEmpty.value = '';
-            optEmpty.textContent = 'Seleccionar';
-            selCliente.appendChild(optEmpty);
-            clientes.forEach(c => {
-                const o = document.createElement('option');
-                o.value = c;
-                o.textContent = c;
-                selCliente.appendChild(o);
-            });
-            selCliente.value = rowData.cliente || '';
-            selCliente.onchange = function () {
-                habilitadoHoja3Rows[idx].cliente = this.value || '';
-                persistHabilitadoHoja3Draft();
-            };
-            tdCliente.appendChild(selCliente);
+            if (HABILITADO_HOJA3_SOLO_LECTURA) {
+                tdCliente.appendChild(createReadonlyCell(rowData.cliente));
+            } else {
+                const selCliente = document.createElement('select');
+                selCliente.className = 'habilitado-hoja3-select';
+                const optEmpty = document.createElement('option');
+                optEmpty.value = '';
+                optEmpty.textContent = 'Seleccionar';
+                selCliente.appendChild(optEmpty);
+                clientes.forEach(c => {
+                    const o = document.createElement('option');
+                    o.value = c;
+                    o.textContent = c;
+                    selCliente.appendChild(o);
+                });
+                selCliente.value = rowData.cliente || '';
+                selCliente.onchange = function () {
+                    habilitadoHoja3Rows[idx].cliente = this.value || '';
+                    persistHabilitadoHoja3Draft();
+                };
+                tdCliente.appendChild(selCliente);
+            }
             trLeft.appendChild(tdCliente);
 
             const tdOps = document.createElement('td');
-            const inpOps = document.createElement('input');
-            inpOps.type = 'text';
-            inpOps.className = 'habilitado-hoja3-input';
-            inpOps.value = rowData.ops || '';
-            inpOps.oninput = function () {
-                habilitadoHoja3Rows[idx].ops = this.value || '';
-                persistHabilitadoHoja3Draft();
-            };
-            tdOps.appendChild(inpOps);
+            if (HABILITADO_HOJA3_SOLO_LECTURA) {
+                tdOps.appendChild(createReadonlyCell(rowData.ops));
+            } else {
+                const inpOps = document.createElement('input');
+                inpOps.type = 'text';
+                inpOps.className = 'habilitado-hoja3-input';
+                inpOps.value = rowData.ops || '';
+                inpOps.oninput = function () {
+                    habilitadoHoja3Rows[idx].ops = this.value || '';
+                    persistHabilitadoHoja3Draft();
+                };
+                tdOps.appendChild(inpOps);
+            }
             trLeft.appendChild(tdOps);
 
             const tdColor = document.createElement('td');
-            const inpColor = document.createElement('input');
-            inpColor.type = 'text';
-            inpColor.className = 'habilitado-hoja3-input';
-            inpColor.value = rowData.color || '';
-            inpColor.oninput = function () {
-                habilitadoHoja3Rows[idx].color = this.value || '';
-                persistHabilitadoHoja3Draft();
-            };
-            tdColor.appendChild(inpColor);
+            if (HABILITADO_HOJA3_SOLO_LECTURA) {
+                tdColor.appendChild(createReadonlyCell(rowData.color));
+            } else {
+                const inpColor = document.createElement('input');
+                inpColor.type = 'text';
+                inpColor.className = 'habilitado-hoja3-input';
+                inpColor.value = rowData.color || '';
+                inpColor.oninput = function () {
+                    habilitadoHoja3Rows[idx].color = this.value || '';
+                    persistHabilitadoHoja3Draft();
+                };
+                tdColor.appendChild(inpColor);
+            }
             trLeft.appendChild(tdColor);
 
             const tdPds = document.createElement('td');
-            const inpPds = document.createElement('input');
-            inpPds.type = 'text';
-            inpPds.className = 'habilitado-hoja3-input';
-            inpPds.value = rowData.pds || '';
-            inpPds.oninput = function () {
-                habilitadoHoja3Rows[idx].pds = this.value || '';
-                persistHabilitadoHoja3Draft();
-            };
-            tdPds.appendChild(inpPds);
+            if (HABILITADO_HOJA3_SOLO_LECTURA) {
+                tdPds.appendChild(createReadonlyCell(rowData.pds));
+            } else {
+                const inpPds = document.createElement('input');
+                inpPds.type = 'text';
+                inpPds.className = 'habilitado-hoja3-input';
+                inpPds.value = rowData.pds || '';
+                inpPds.oninput = function () {
+                    habilitadoHoja3Rows[idx].pds = this.value || '';
+                    persistHabilitadoHoja3Draft();
+                };
+                tdPds.appendChild(inpPds);
+            }
             trLeft.appendChild(tdPds);
 
             const tdComentario = document.createElement('td');
-            const inpComentario = document.createElement('input');
-            inpComentario.type = 'text';
-            inpComentario.className = 'habilitado-hoja3-input';
-            inpComentario.value = rowData.comentario || '';
-            inpComentario.oninput = function () {
-                habilitadoHoja3Rows[idx].comentario = this.value || '';
-                persistHabilitadoHoja3Draft();
-            };
-            tdComentario.appendChild(inpComentario);
+            if (HABILITADO_HOJA3_SOLO_LECTURA) {
+                tdComentario.appendChild(createReadonlyCell(rowData.comentario));
+            } else {
+                const inpComentario = document.createElement('input');
+                inpComentario.type = 'text';
+                inpComentario.className = 'habilitado-hoja3-input';
+                inpComentario.value = rowData.comentario || '';
+                inpComentario.oninput = function () {
+                    habilitadoHoja3Rows[idx].comentario = this.value || '';
+                    persistHabilitadoHoja3Draft();
+                };
+                tdComentario.appendChild(inpComentario);
+            }
             trLeft.appendChild(tdComentario);
 
             leftBody.appendChild(trLeft);
 
             const trRight = document.createElement('tr');
             const tdGeneral = document.createElement('td');
-            const inpGeneral = document.createElement('input');
-            inpGeneral.type = 'text';
-            inpGeneral.className = 'habilitado-hoja3-input';
-            inpGeneral.value = rowData.comentario_general || '';
-            inpGeneral.oninput = function () {
-                habilitadoHoja3Rows[idx].comentario_general = this.value || '';
-                persistHabilitadoHoja3Draft();
-            };
-            tdGeneral.appendChild(inpGeneral);
+            if (HABILITADO_HOJA3_SOLO_LECTURA) {
+                tdGeneral.appendChild(createReadonlyCell(rowData.comentario_general));
+            } else {
+                const inpGeneral = document.createElement('input');
+                inpGeneral.type = 'text';
+                inpGeneral.className = 'habilitado-hoja3-input';
+                inpGeneral.value = rowData.comentario_general || '';
+                inpGeneral.oninput = function () {
+                    habilitadoHoja3Rows[idx].comentario_general = this.value || '';
+                    persistHabilitadoHoja3Draft();
+                };
+                tdGeneral.appendChild(inpGeneral);
+            }
             trRight.appendChild(tdGeneral);
             rightBody.appendChild(trRight);
         });
@@ -12212,7 +12319,10 @@
     function closeHabilitadoHoja3Modal() {
         persistHabilitadoHoja3Draft();
         const modal = document.getElementById('modal-habilitado-hoja3');
-        if (modal) modal.classList.remove('active');
+        if (modal) {
+            modal.classList.remove('active');
+            modal.classList.remove('solo-lectura');
+        }
     }
 
     function openHabilitadoHoja3Modal() {
@@ -12224,7 +12334,10 @@
         setHabilitadoHoja3ModalSubtitle(turno);
         renderHabilitadoHoja3Rows();
         const modal = document.getElementById('modal-habilitado-hoja3');
-        if (modal) modal.classList.add('active');
+        if (modal) {
+            modal.classList.add('active');
+            modal.classList.toggle('solo-lectura', HABILITADO_HOJA3_SOLO_LECTURA);
+        }
         const requestId = ++habilitadoHoja3LoadRequestId;
         loadHabilitadoHoja3FromSheet(turno, requestId);
     }
@@ -12244,6 +12357,7 @@
     window.cerrarModalHabilitadoHoja3 = closeHabilitadoHoja3Modal;
 
     window.addHabilitadoHoja3Row = function () {
+        if (HABILITADO_HOJA3_SOLO_LECTURA) return;
         ensureHabilitadoHoja3Rows();
         habilitadoHoja3Rows.push(createEmptyHabilitadoHoja3Row());
         persistHabilitadoHoja3Draft();
@@ -12251,6 +12365,7 @@
     };
 
     window.limpiarHabilitadoHoja3 = function () {
+        if (HABILITADO_HOJA3_SOLO_LECTURA) return;
         habilitadoHoja3Rows = [];
         ensureHabilitadoHoja3Rows();
         persistHabilitadoHoja3Draft();
@@ -12258,6 +12373,7 @@
     };
 
     window.guardarHabilitadoHoja3 = function () {
+        if (HABILITADO_HOJA3_SOLO_LECTURA) return;
         const turnoGuardar = getHabilitadoHoja3TurnoActual();
         if (!turnoGuardar) {
             alert('Seleccione PROG 1T, PROG 2T o PROG 3T para guardar notas.');
