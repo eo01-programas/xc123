@@ -642,7 +642,9 @@
 
         #table-habilitado th.col-observaciones,
         #table-habilitado td.col-observaciones {
-            width: 28% !important;
+            width: 185px !important;
+            min-width: 185px !important;
+            max-width: 185px !important;
         }
 
         #table-habilitado th.col-validacion,
@@ -707,9 +709,9 @@
         #table-habilitado td.cell-planta,
         #table-habilitado td.linea-cell,
         #table-habilitado td.cell-hab {
-            width: 62px !important;
-            min-width: 62px !important;
-            max-width: 62px !important;
+            width: 69px !important;
+            min-width: 69px !important;
+            max-width: 69px !important;
         }
 
         /* Columna P centrada en Habilitado */
@@ -3531,11 +3533,11 @@
                         <th style="width: 55px;" class="col-pda">PDA</th>
                         <th style="width: 55px;" class="col-cert">CERT</th>
                         <th class="col-comp-otros" style="width: 70px; text-align:left;">COMP/OTROS</th>
-                        <th class="col-observaciones" style="width: 150px; text-align:left;">OBSERVACIONES</th>
+                        <th class="col-observaciones" style="width: 185px; text-align:left;">OBSERVACIONES</th>
                         <th class="col-validacion" style="width: 56px; text-align:center;">VALIDA</th>
-                        <th class="col-planta" style="width: 62px; text-align:center;">PLANTA</th>
-                        <th class="col-linea" style="width: 62px; text-align:center;">LINEA</th>
-                        <th class="col-hab" style="width: 62px; text-align:center;">HAB</th>
+                        <th class="col-planta" style="width: 77px; text-align:center;">PLANTA</th>
+                        <th class="col-linea" style="width: 69px; text-align:center;">LINEA</th>
+                        <th class="col-hab" style="width: 69px; text-align:center;">HAB</th>
                     </tr>
                 </thead>
                 <tbody id="tbody-habilitado"></tbody>
@@ -7736,8 +7738,8 @@
                 thead.innerHTML = `<tr>
                         <th style="width: 68px; text-align: center;">F.ING.REAL</th>
                         <th style="width: 62px; text-align: center;">HOD</th>
-                        <th class="col-planta" style="width: 62px; text-align:center;">PLANTA</th>
-                        <th class="col-linea" style="width: 62px; text-align:center;">LINEA</th>
+                        <th class="col-planta" style="width: 77px; text-align:center;">PLANTA</th>
+                        <th class="col-linea" style="width: 69px; text-align:center;">LINEA</th>
                         <th style="width: 45px; text-align:center;">CLI</th>
                         <th style="width: 65px;">OC</th>
                         <th class="col-color" style="width: 120px;">COLOR</th>
@@ -7745,7 +7747,7 @@
                         <th style="width: 55px;" class="col-pda">PDA</th>
                         <th style="width: 90px;" class="col-cert">CERT</th>
                         <th class="col-comp-otros" style="width: 100px; text-align:left;">COMP/OTROS</th>
-                        <th class="col-observaciones" style="width: 150px; text-align:left;">OBSERVACIONES</th>
+                        <th class="col-observaciones" style="width: 185px; text-align:left;">OBSERVACIONES</th>
                     </tr>`;
             }
             thead.setAttribute('data-mode', 'ingresos');
