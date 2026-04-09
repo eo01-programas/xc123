@@ -2053,6 +2053,30 @@
             font-size: 14px;
         }
 
+        /* Botón circular de exportación Excel */
+        .btn-excel-circle {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            border: 1px solid #10b981;
+            background: #ecfdf5;
+            color: #059669;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn-excel-circle:hover {
+            background: #10b981;
+            color: var(--white);
+        }
+
+        .btn-excel-circle i {
+            font-size: 14px;
+        }
+
         /* Boton circular para "Nuevo corte" en Corte Por Programar */
         .btn-new-corte-circle {
             width: 28px;
@@ -3487,6 +3511,10 @@
             <button id="habilitado-btn-sdestino" class="sub-tab" onclick="filterHabilitado('S/DESTINO', this)"
                 style="border-color:#f59e0b; color:#92400e;">
                 PREP. PERO S/DESTINO <span class="kg-badge" id="habilitado-pds-sdestino">[-]</span>
+            </button>
+            <button id="btn-habilitado-excel" class="btn-excel-circle" onclick="downloadHabilitadoProgExcel()"
+                title="Descargar Excel" aria-label="Descargar Excel">
+                <i class="ph ph-file-xls"></i>
             </button>
             <button id="btn-print-habilitado-prog" class="btn-print-circle" onclick="printHabilitadoProg()"
                 style="display:none;" title="Imprimir Programado (3 turnos)" aria-label="Imprimir Programado">
@@ -18895,6 +18923,7 @@ NOTA: Por favor adjunte los archivos descargados (${fileName}.xlsx y ${fileName}
     <span id="ar-seconds">30</span>s
     <span id="ar-paused-icon" style="display:none;color:#fbbf24;font-size:9px;">&#9646;&#9646;</span>
 </div>
+<script src="habilitado_excel_export.js"></script>
 <script>
     (function () {
         var INTERVAL = 30;
