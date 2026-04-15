@@ -643,6 +643,10 @@
         ];
         const DAY_NAMES_SHORT = ["domingo", "lunes", "martes", "miercoles", "jueves", "viernes", "sabado"];
         const MONTH_NAMES_SHORT = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
+        const REPORT_DAY_RULES = new Map([
+            ["PROG 1T", { sameDayFromSeconds: 7 * 3600 }],
+            ["PROG 2T", { sameDayFromSeconds: 19 * 3600 }]
+        ]);
 
         const state = {
             headers: [],
@@ -1347,12 +1351,15 @@
                 fecha.getSeconds()
             );
 
-            if (String(turno || "").toUpperCase().trim() === "PROG 2T") {
-                const totalSeconds = (reportDate.getHours() * 3600) + (reportDate.getMinutes() * 60) + reportDate.getSeconds();
-                const secondShiftCutoff = (6 * 3600) + (50 * 60) + 59;
-                if (totalSeconds <= secondShiftCutoff) {
-                    reportDate.setDate(reportDate.getDate() - 1);
-                }
+            const normalizedTurno = String(turno || "").toUpperCase().trim();
+            const rule = REPORT_DAY_RULES.get(normalizedTurno);
+            if (!rule) {
+                return reportDate;
+            }
+
+            const totalSeconds = (reportDate.getHours() * 3600) + (reportDate.getMinutes() * 60) + reportDate.getSeconds();
+            if (totalSeconds < rule.sameDayFromSeconds) {
+                reportDate.setDate(reportDate.getDate() - 1);
             }
 
             return reportDate;
