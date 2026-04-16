@@ -542,6 +542,13 @@
             max-width: 56px !important;
         }
 
+        #table-habilitado th.col-h,
+        #table-habilitado td.cell-h {
+            width: 56px !important;
+            min-width: 56px !important;
+            max-width: 56px !important;
+        }
+
         #table-habilitado th.col-validacion {
             font-size: 12px;
             letter-spacing: 0;
@@ -921,6 +928,10 @@
             text-align: center;
         }
 
+        .cell-h {
+            text-align: center;
+        }
+
         .validacion-checkbox {
             width: 16px;
             height: 16px;
@@ -931,6 +942,11 @@
         .validacion-checkbox:disabled {
             cursor: not-allowed;
             opacity: 0.55;
+        }
+
+        .cell-h .validacion-checkbox {
+            display: block;
+            margin: 0 auto;
         }
 
         .linea-display {
@@ -1850,6 +1866,20 @@
         .floating-menu-item:hover {
             transform: translateY(-2px);
             box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+        }
+
+        .floating-menu-item.stock-shortcut {
+            width: auto;
+            min-width: 62px;
+            padding: 0 10px;
+            border-radius: 999px;
+            gap: 6px;
+            font-size: 11px;
+            font-weight: 700;
+        }
+
+        .floating-menu-item.stock-shortcut span {
+            line-height: 1;
         }
 
         /* --- MODAL CARGA ASIGNAR ARTES --- */
@@ -2806,6 +2836,16 @@
                     fill="currentColor" />
             </svg>
         </button>
+        <button class="floating-menu-item stock-shortcut" title="Stock"
+            onclick="window.location.href='../pcp_confecciones/stock.html'" aria-label="Stock">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M4 7.5L12 3l8 4.5v9L12 21l-8-4.5v-9Z" stroke="currentColor" stroke-width="2"
+                    stroke-linejoin="round" fill="none" />
+                <path d="M12 3v18M4 7.5l8 4.5 8-4.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                    stroke-linejoin="round" />
+            </svg>
+            <span>Stock</span>
+        </button>
     </div>
 </div>
 
@@ -3117,6 +3157,7 @@
                         <th class="col-comp-otros" style="width: 70px; text-align:left;">COMP/OTROS</th>
                         <th class="col-observaciones" style="width: 185px; text-align:left;">OBSERVACIONES</th>
                         <th class="col-validacion" style="width: 56px; text-align:center;">VALIDA</th>
+                        <th class="col-h" style="width: 56px; text-align:center;">H</th>
                         <th class="col-planta" style="width: 77px; text-align:center;">PLANTA</th>
                         <th class="col-linea" style="width: 69px; text-align:center;">LINEA</th>
                         <th class="col-hab" style="width: 69px; text-align:center;">HAB</th>
@@ -7468,8 +7509,8 @@
                     headerRow.style.fontWeight = '700';
                     headerRow.style.fontSize = '13px';
 
-                    // Calcular colspan: 16 columnas en Habilitado (incluye OBSERVACIONES, VALIDACION, PLANTA y LINEA)
-                    const colspan = '16';
+                    // Calcular colspan: 17 columnas en Habilitado (incluye OBSERVACIONES, VALIDACION, H, PLANTA y LINEA)
+                    const colspan = '17';
 
                     // Calcular suma de PDS y transferencias para este grupo de TRSF
                     let pdsTrsf = 0;
@@ -7793,6 +7834,24 @@
                         onchange="updateRow(${i}, 'VALIDACION', this.checked, this)">
                 </td>`;
 
+            let hRaw = '';
+            let idxH = findHeaderIndexCaseInsensitive('H');
+            if (idxH !== -1 && row[idxH] !== undefined && row[idxH] !== null) {
+                hRaw = row[idxH];
+            } else {
+                const hByName = getVal(row, 'H');
+                if (hByName !== undefined && hByName !== null) hRaw = hByName;
+            }
+            const hNorm = String(hRaw).trim().toUpperCase();
+            const hChecked = hRaw === true || hRaw === 1 || hNorm === 'TRUE' || hNorm === 'VERDADERO' || hNorm === '1' || hNorm === 'SI' || hNorm === 'X';
+            const hHtml = `<td class="cell-h col-h">
+                    <input type="checkbox"
+                        class="validacion-checkbox"
+                        aria-label="H"
+                        ${hChecked ? 'checked' : ''}
+                        onchange="updateRow(${i}, 'H', this.checked, this)">
+                </td>`;
+
             // estado_habilitado -> select editable con DEPURADO con confirmacion
             const habilValNorm = (habilVal || '').toString().toUpperCase().trim();
             let habilClass = '';
@@ -7937,6 +7996,7 @@
                         ${compOtrosHtml}
                         ${observacionesHtml}
                         ${validacionHtml}
+                        ${hHtml}
                         ${plantaHtml}
                         ${lineaHtml}
                         ${habilHtml}
@@ -8228,6 +8288,19 @@
         } else {
             const validacionByName = getVal(row, 'VALIDACION') || getVal(row, 'VALIDA');
             if (validacionByName !== undefined && validacionByName !== null) raw = validacionByName;
+        }
+        const norm = String(raw).trim().toUpperCase();
+        return raw === true || raw === 1 || norm === 'TRUE' || norm === 'VERDADERO' || norm === '1' || norm === 'SI' || norm === 'X';
+    }
+
+    function isHabilitadoHMarcada(row) {
+        let idxH = findHeaderIndexCaseInsensitive('H');
+        let raw = '';
+        if (idxH !== -1 && row && row[idxH] !== undefined && row[idxH] !== null) {
+            raw = row[idxH];
+        } else {
+            const hByName = getVal(row, 'H');
+            if (hByName !== undefined && hByName !== null) raw = hByName;
         }
         const norm = String(raw).trim().toUpperCase();
         return raw === true || raw === 1 || norm === 'TRUE' || norm === 'VERDADERO' || norm === '1' || norm === 'SI' || norm === 'X';
@@ -11529,14 +11602,17 @@
                                         fieldValue = 'x enm';
                                     }
                                 }
-                            }
                         }
                     }
-                    break;
-                case 'CLIENTE':
-                    // Usar normalizeClientName para obtener el nombre corto del cliente
-                    fieldValue = normalizeClientName(getVal(row, 'CLIENTE')) || '';
-                    break;
+                }
+                break;
+            case 'H':
+                fieldValue = isHabilitadoHMarcada(row) ? 'TRUE' : 'FALSE';
+                break;
+            case 'CLIENTE':
+                // Usar normalizeClientName para obtener el nombre corto del cliente
+                fieldValue = normalizeClientName(getVal(row, 'CLIENTE')) || '';
+                break;
                 case 'PLANTA':
                     fieldValue = (getVal(row, 'PLANTA') || '').toString().trim();
                     if (fieldValue === '') fieldValue = 'XASIG';
