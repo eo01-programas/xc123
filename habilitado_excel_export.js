@@ -1,8 +1,8 @@
 (function () {
     if (window.downloadHabilitadoProgExcel) return;
 
-    const H = ['P', 'HOD', 'F.ING', 'STATUS', 'CLI', 'OC', 'COLOR', 'PDS', 'PDA', 'CERT', 'COMP/OTROS', 'OBSERVACIONES', 'VALIDA', 'PLANTA', 'LINEA', 'HAB'];
-    const W = [5, 9, 9, 11, 7, 16, 13, 8, 10, 9, 32, 30, 8, 11, 10, 11];
+    const H = ['P', 'HOD', 'F.ING.Prog', 'F.HAB', 'STATUS', 'CLI', 'OC', 'COLOR', 'PDS', 'PDA', 'CERT', 'COMP/OTROS', 'OBSERVACIONES', 'VALIDA', 'H', 'PLANTA', 'LINEA', 'HAB'];
+    const W = [5, 9, 9, 9, 11, 7, 16, 13, 8, 10, 9, 32, 30, 8, 5, 11, 10, 11];
     const S = [
         { f: 'PROG 1T', n: 'PROG_1T' },
         { f: 'PROG 2T', n: 'PROG_2T' },
@@ -113,6 +113,25 @@
         });
         return { richText: rt };
     };
+
+    function formatFHabExport(row) {
+        try {
+            const raw = typeof getRawFIngRealFromRow === 'function' ? getRawFIngRealFromRow(row) : '';
+            if (!raw) return '';
+            if (typeof formatDayMonthFromSheetDateLiteral === 'function') {
+                return formatDayMonthFromSheetDateLiteral(raw) || '';
+            }
+            const text = String(raw).trim();
+            const match = text.match(/Date\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
+            if (!match) return '';
+            const mesesEs = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+            const monthNum = parseInt(match[2], 10);
+            const day = String(parseInt(match[3], 10)).padStart(2, '0');
+            return mesesEs[monthNum - 1] ? `${day}/${mesesEs[monthNum - 1]}` : '';
+        } catch (e) {
+            return '';
+        }
+    }
 
     const valida = (row) => {
         let idx = findHeaderIndexCaseInsensitive('VALIDACION');
@@ -393,6 +412,7 @@
         p: String(getPriorityValueFromRow(row, 'habilitado') || '').trim(),
         hod: formatValue(getVal(row, 'HOD'), 'date') || '',
         fing: formatValue(getVal(row, 'F.ING.COST'), 'date') || '',
+        fhab: formatFHabExport(row) || '',
         status: status(row),
         cli: normalizeClientName(getVal(row, 'CLIENTE')) || '',
         oc: String(getVal(row, 'OC') || ((getVal(row, 'OP') || '') + '-' + (getVal(row, 'CORTE') || ''))).trim(),
@@ -403,6 +423,7 @@
         comp: compRich(row),
         obs: String(getVal(row, 'OBSERVACIONES') || getVal(row, 'OBSERVACION') || getVal(row, 'OBS') || '').replace(/\s+/g, ' ').trim(),
         valida: valida(row),
+        h: isHabilitadoHMarcada(row) ? '\u2611' : '\u2610',
         planta: normalizeHabilitadoPlantaValue(getVal(row, 'PLANTA') || '') || 'XASIG',
         linea: String(getVal(row, 'LINEA') || '').trim() || 'XASIG',
         hab: String(getVal(row, 'estado_habilitado') || getVal(row, 'ESTADO_HABILITADO') || '').toString().toUpperCase().trim() || 'X PROG',
@@ -417,20 +438,20 @@
             cell.font = { name: 'Calibri', size: 11, color: { argb: 'FF1E293B' } };
             cell.alignment = { vertical: 'middle' };
             b(cell);
-            if (h === 'P' || h === 'PDS' || h === 'PLANTA' || h === 'LINEA' || h === 'HAB' || h === 'HOD' || h === 'F.ING') {
+            if (h === 'P' || h === 'PDS' || h === 'PLANTA' || h === 'LINEA' || h === 'HAB' || h === 'HOD' || h === 'F.ING.PROG' || h === 'F.HAB') {
                 cell.alignment = { horizontal: 'center', vertical: 'middle' };
             } else if (h === 'OC' || h === 'CLI' || h === 'COLOR' || h === 'PDA' || h === 'CERT') {
                 cell.alignment = { horizontal: 'left', vertical: 'middle' };
             } else if (h === 'COMP/OTROS' || h === 'OBSERVACIONES') {
                 cell.alignment = { horizontal: 'left', vertical: 'middle' };
-            } else if (h === 'VALIDA') {
+            } else if (h === 'VALIDA' || h === 'H') {
                 cell.alignment = { horizontal: 'center', vertical: 'middle' };
                 cell.font = { name: 'Segoe UI Symbol', size: 12, color: { argb: 'FF2563EB' } };
             }
         });
 
         const s = String(data.status || '').toUpperCase().trim();
-        const st = row.getCell(4);
+        const st = row.getCell(5);
         if (s.includes('X CORTAR') || s.includes('X ENM') || s.includes('X BLOQ') || s.includes('X LAVAR')) {
             st.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE5F8F1' } };
             st.font = { name: 'Calibri', size: 11, color: { argb: 'FF065F46' }, bold: true };
@@ -446,7 +467,7 @@
         }
 
         const hb = String(data.hab || '').toUpperCase().trim();
-        const hc = row.getCell(16);
+        const hc = row.getCell(18);
         if (hb === 'PROG 1T' || hb === 'PROG 2T' || hb === 'PROG 3T') {
             hc.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFDE68A' } };
             hc.font = { name: 'Calibri', size: 11, color: { argb: 'FF92400E' }, bold: true };
@@ -463,7 +484,7 @@
 
         if (data.priority1) {
             row.eachCell((cell, i) => {
-                if (![4, 13, 16].includes(i)) cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: WARN } };
+                if (![5, 14, 15, 18].includes(i)) cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: WARN } };
             });
         }
     }
@@ -509,9 +530,18 @@
             const src = rawData[ri];
             const g = p(src);
             if (prog && g !== lastG) {
-                const sum = idx.filter(i => p(rawData[i]) === g).reduce((acc, i) => acc + (parseFloat(getVal(rawData[i], 'PDS GIRADAS')) || 0), 0);
-                const label = g === 'Pza' ? 'LLEVA TRANSFER EN PIEZA' : 'TRANSFER EN PRENDA / SIN TRANSFER';
-                const gr = ws.addRow([`${label} [${formatThousands(sum, 0)}pds]`]);
+                let pdsTrsf = 0;
+                let transferTrsf = 0;
+                idx.forEach(i => {
+                    const r = rawData[i];
+                    if (p(r) !== g || isHabilitadoValidacionMarcada(r)) return;
+                    const pdsRow = getHabilitadoPdsValue(r);
+                    const transfersRow = getHabilitadoTransferMultiplierValue(r) * pdsRow;
+                    pdsTrsf += pdsRow;
+                    transferTrsf += transfersRow;
+                });
+                const label = g === 'Pza' ? 'LLEVA TRANSFER EN PIEZA' : 'No lleva transfer en pieza';
+                const gr = ws.addRow([`${label} [${formatThousands(pdsTrsf, 0)}pds - ${formatThousands(transferTrsf, 0)}transfers]`]);
                 ws.mergeCells(gr.number, 1, gr.number, H.length);
                 gr.height = 20;
                 for (let c = 1; c <= H.length; c++) {
@@ -528,21 +558,22 @@
 
             const d = rowData(src);
             totalPds += parseFloat(getVal(src, 'PDS GIRADAS')) || 0;
-            const r = ws.addRow([d.p, d.hod, d.fing, d.status, d.cli, d.oc, d.color, d.pds, d.pda, d.cert, d.comp || '', d.obs, d.valida, d.planta, d.linea, d.hab]);
+            const r = ws.addRow([d.p, d.hod, d.fing, d.fhab, d.status, d.cli, d.oc, d.color, d.pds, d.pda, d.cert, d.comp || '', d.obs, d.valida, d.h, d.planta, d.linea, d.hab]);
             const op = `${String(getVal(src, 'OP TELA') || '').trim()}-${String(getVal(src, 'PARTIDA') || '').trim()}`;
             if (lastOP !== null && op !== lastOP) band = (band === 'a') ? 'b' : 'a';
             lastOP = op;
             styleRow(r, d, band === 'a' ? A : B);
-            if (d.comp && d.comp.richText) r.getCell(11).value = d.comp;
-            r.getCell(11).alignment = { horizontal: 'left', vertical: 'middle' };
+            if (d.comp && d.comp.richText) r.getCell(12).value = d.comp;
             r.getCell(12).alignment = { horizontal: 'left', vertical: 'middle' };
-            r.getCell(13).alignment = { horizontal: 'center', vertical: 'middle' };
+            r.getCell(13).alignment = { horizontal: 'left', vertical: 'middle' };
+            r.getCell(14).alignment = { horizontal: 'center', vertical: 'middle' };
+            r.getCell(15).alignment = { horizontal: 'center', vertical: 'middle' };
 
             r.height = 20;
         });
 
         if (f === 'S/DESTINO') {
-            const totalRow = ws.addRow(['TOTAL', '', '', '', '', '', '', Math.round(totalPds), '', '', '', '', '', '', '', '']);
+            const totalRow = ws.addRow(['TOTAL', '', '', '', '', '', '', Math.round(totalPds), '', '', '', '', '', '', '', '', '']);
             totalRow.height = 20;
             for (let c = 1; c <= H.length; c++) {
                 const cell = totalRow.getCell(c);
