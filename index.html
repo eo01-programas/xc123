@@ -579,9 +579,11 @@
         #table-habilitado th.col-planta,
         #table-habilitado th.col-linea,
         #table-habilitado th.col-hab,
+        #table-habilitado th.col-fhab,
         #table-habilitado td.cell-planta,
         #table-habilitado td.linea-cell,
-        #table-habilitado td.cell-hab {
+        #table-habilitado td.cell-hab,
+        #table-habilitado td.cell-fhab {
             width: 69px !important;
             min-width: 69px !important;
             max-width: 69px !important;
@@ -814,7 +816,7 @@
         }
 
         /* Habilitado: OC siempre en una sola lÃ­nea y visible completo */
-        #view-habilitado #table-habilitado th:nth-child(6),
+        #view-habilitado #table-habilitado th.col-oc,
         #view-habilitado #table-habilitado td.oc-cell {
             width: auto !important;
             min-width: 110px !important;
@@ -2696,11 +2698,11 @@
                     style="width:100%; padding:8px; border:1px solid var(--gray-300); border-radius:4px; font-size:12px;">
                     <option value="">-- Seleccione --</option>
                     <option value="COFACO">COFACO</option>
-                    <option value="COFACO 2">COFACO 2</option>
                     <option value="CITI1">CITI1</option>
                     <option value="CITI2">CITI2</option>
                     <option value="CITI3">CITI3</option>
                     <option value="CITI4">CITI4</option>
+                    <option value="CITI5">CITI5</option>
                     <option value="S/DESTINO">S/DESTINO</option>
                 </select>
             </div>
@@ -3146,10 +3148,11 @@
                     <tr>
                         <th id="th-habilitado-p" style="width: 25px; text-align:center;">P</th>
                         <th style="width: 62px; text-align: center;">HOD</th>
-                        <th style="width: 62px; text-align: center;">F.ING</th>
+                        <th style="width: 62px; text-align: center;">F.ING.Prog</th>
+                        <th class="col-fhab" style="width: 68px; text-align: center;">F.HAB</th>
                         <th style="width: 55px; text-align:center;">STATUS</th>
                         <th style="width: 45px; text-align:center;">CLI</th>
-                        <th style="width: 65px;">OC</th>
+                        <th class="col-oc" style="width: 65px;">OC</th>
                         <th class="col-color" style="width: 70px;">COLOR</th>
                         <th style="width: 45px; text-align:center;">PDS</th>
                         <th style="width: 55px;" class="col-pda">PDA</th>
@@ -3311,7 +3314,7 @@
 
 <script>
     // --- CONFIGURACIÃ“N ---
-    const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbx8D_H0TDKMaMQJ1ETE0AfcKp-J3ykiE5ODMqkONm_xUWISKl0ZD6VnZx8U_SWslIKT8g/exec";
+    const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyvLG9IxHRddHMWN12opa0mRq6Zbv7pTyJiWTPEHvtG4j-dCG2hbKbA4TXIDAGPXTqEOQ/exec";
     const SHEET_ID = "18cQuwqerdMggAeJ8TCUKA7-gujXsA91-CRMUTNpr8aQ";
 
     let rawData = [];
@@ -4494,6 +4497,50 @@
         } catch (e) { return ''; }
     }
 
+    // Formatea valor YYYY-MM-DD a 'DD/Mon' para mostrar en Habilitado
+    function formatDayMonthFromInput(val) {
+        if (!val) return '';
+        try {
+            const mesesEs = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+            const parts = String(val).split('-');
+            if (parts.length !== 3) return '';
+            const month = parseInt(parts[1], 10) - 1;
+            const day = parts[2];
+            const mon = mesesEs[month] || '';
+            return mon ? `${day}/${mon}` : '';
+        } catch (e) { return ''; }
+    }
+
+    // F.HAB usa el literal Date(y,m,d) del sheet pero con mes 1-based
+    function formatDayMonthFromSheetDateLiteral(val) {
+        if (!val) return '';
+        try {
+            const text = String(val).trim();
+            const match = text.match(/Date\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
+            if (!match) return '';
+            const year = match[1];
+            const monthNum = parseInt(match[2], 10);
+            const day = String(parseInt(match[3], 10)).padStart(2, '0');
+            if (!monthNum || monthNum < 1 || monthNum > 12) return '';
+            return formatDayMonthFromInput(`${year}-${String(monthNum).padStart(2, '0')}-${day}`) || '';
+        } catch (e) { return ''; }
+    }
+
+    function parseSheetDateLiteralTimestamp(val) {
+        if (val === undefined || val === null || val === '') return null;
+        if (typeof val !== 'string') return null;
+        try {
+            const text = val.trim();
+            const match = text.match(/Date\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
+            if (!match) return null;
+            const year = parseInt(match[1], 10);
+            const monthNum = parseInt(match[2], 10);
+            const day = parseInt(match[3], 10);
+            if (!monthNum || monthNum < 1 || monthNum > 12) return null;
+            return new Date(year, monthNum - 1, day).getTime();
+        } catch (e) { return null; }
+    }
+
     function updateShortYearDisplay(inputEl) {
         if (!inputEl) return;
         // buscar span junto al input
@@ -4669,7 +4716,7 @@
         });
     }
 
-    const HABILITADO_OK_ALLOWED_PLANTAS = ['COFACO', 'COFACO 2', 'CITI1', 'CITI2', 'CITI3', 'CITI4'];
+    const HABILITADO_OK_ALLOWED_PLANTAS = ['COFACO', 'CITI1', 'CITI2', 'CITI3', 'CITI4', 'CITI5'];
 
     function normalizeHabilitadoPlantaValue(value) {
         const plantaRaw = String(value || '').trim();
@@ -4678,7 +4725,7 @@
         if (plantaNorm === 'COFACO') return 'COFACO';
         if (plantaNorm === 'COFACO2') return 'COFACO 2';
         if (plantaNorm === 'S/DESTINO') return 'S/DESTINO';
-        const citiMatch = plantaNorm.match(/^CITI([1-4])$/);
+        const citiMatch = plantaNorm.match(/^CITI([1-5])$/);
         if (citiMatch) return `CITI${citiMatch[1]}`;
         return plantaRaw.toUpperCase();
     }
@@ -4700,7 +4747,7 @@
             return {
                 valid: false,
                 normalizedPlanta,
-                message: 'Si HAB = OK, PLANTA solo puede ser COFACO, COFACO 2, CITI1, CITI2, CITI3 o CITI4.'
+                message: 'Si HAB = OK, PLANTA solo puede ser COFACO, CITI1, CITI2, CITI3, CITI4 o CITI5.'
             };
         }
         return { valid: true, normalizedPlanta };
@@ -7030,6 +7077,7 @@
             else if (plantaNorm === 'CITI2') plantaValue = 'CITI2';
             else if (plantaNorm === 'CITI3') plantaValue = 'CITI3';
             else if (plantaNorm === 'CITI4') plantaValue = 'CITI4';
+            else if (plantaNorm === 'CITI5') plantaValue = 'CITI5';
             else if (plantaNorm === 'COFACO') plantaValue = 'COFACO';
             else if (plantaNorm === 'S/DESTINO') plantaValue = 'S/DESTINO';
             else if (plantaNorm === '') plantaValue = '';
@@ -7071,7 +7119,7 @@
             const habNorm = String(item.nuevoHab || '').toUpperCase().trim();
             const plantaVal = String(item.plantaValue || '').trim();
             const lineaVal = String(item.lineaValue || '').trim();
-            const knownPlantas = ['', 'COFACO', 'COFACO 2', 'CITI1', 'CITI2', 'CITI3', 'CITI4', 'S/DESTINO'];
+            const knownPlantas = ['', 'COFACO', 'CITI1', 'CITI2', 'CITI3', 'CITI4', 'CITI5', 'S/DESTINO'];
             const extraPlantaOpt = (plantaVal && knownPlantas.indexOf(plantaVal) === -1)
                 ? `<option value="${escapeHtmlDevolucionHabilitado(plantaVal)}" selected>${escapeHtmlDevolucionHabilitado(plantaVal)}</option>`
                 : '';
@@ -7085,11 +7133,11 @@
                                 ${extraPlantaOpt}
                                 <option value="" ${plantaVal === '' ? 'selected' : ''}>XASIG</option>
                                 <option value="COFACO" ${plantaVal === 'COFACO' ? 'selected' : ''}>COFACO</option>
-                                <option value="COFACO 2" ${plantaVal === 'COFACO 2' ? 'selected' : ''}>COFACO 2</option>
                                 <option value="CITI1" ${plantaVal === 'CITI1' ? 'selected' : ''}>CITI1</option>
                                 <option value="CITI2" ${plantaVal === 'CITI2' ? 'selected' : ''}>CITI2</option>
                                 <option value="CITI3" ${plantaVal === 'CITI3' ? 'selected' : ''}>CITI3</option>
                                 <option value="CITI4" ${plantaVal === 'CITI4' ? 'selected' : ''}>CITI4</option>
+                                <option value="CITI5" ${plantaVal === 'CITI5' ? 'selected' : ''}>CITI5</option>
                                 <option value="S/DESTINO" ${plantaVal === 'S/DESTINO' ? 'selected' : ''}>S/DESTINO</option>
                             </select>
                         </td>
@@ -7509,8 +7557,8 @@
                     headerRow.style.fontWeight = '700';
                     headerRow.style.fontSize = '13px';
 
-                    // Calcular colspan: 17 columnas en Habilitado (incluye OBSERVACIONES, VALIDACION, H, PLANTA y LINEA)
-                    const colspan = '17';
+                    // Calcular colspan: 18 columnas en Habilitado (incluye OBSERVACIONES, VALIDACION, H, F.HAB, PLANTA y LINEA)
+                    const colspan = '18';
 
                     // Calcular suma de PDS y transferencias para este grupo de TRSF
                     let pdsTrsf = 0;
@@ -7580,14 +7628,15 @@
             // F.ING.COST -> mostrar como texto si estamos en X PROG, S/DESTINO o PROG 1T/2T/3T; si no usar date picker
             const rawFIng = getVal(row, 'F.ING.COST');
             const dateValue = convertToDateInputFormat(rawFIng);
+            const rawFHab = getRawFIngRealFromRow(row);
             let fIngHtml = '';
             const isHabilitadoProgSubtab = (currentHabilitadoFilter === 'PROG 1T' || currentHabilitadoFilter === 'PROG 2T' || currentHabilitadoFilter === 'PROG 3T');
             if (currentHabilitadoFilter === 'X PROG' || currentHabilitadoFilter === 'S/DESTINO' || isHabilitadoProgSubtab) {
                 // Mostrar F.ING.COST como texto (no editable)
-                fIngHtml = `<td class="date-cell">${formatDateShortFromInput(dateValue) || 'mm/dd/aaaa'}</td>`;
+                fIngHtml = `<td class="date-cell">${formatDayMonthFromInput(dateValue) || '-'}</td>`;
             } else {
                 // Usar date picker (editable)
-                fIngHtml = `<td class="date-cell"><input type="date" class="short-year" value="${dateValue}" onchange="handleDateChange(this, ${i}, 'F.ING.COST')"><span class="date-yy">${formatDateShortFromInput(dateValue) || 'mm/dd/aaaa'}</span></td>`;
+                fIngHtml = `<td class="date-cell"><input type="date" class="short-year" value="${dateValue}" onchange="handleDateChange(this, ${i}, 'F.ING.COST')"><span class="date-yy">${formatDayMonthFromInput(dateValue) || '-'}</span></td>`;
             }
 
             // CLIENTE
@@ -7775,6 +7824,8 @@
                 .replace(/</g, '&lt;')
                 .replace(/>/g, '&gt;')
                 .replace(/"/g, '&quot;');
+            const fHabDisplay = formatDayMonthFromSheetDateLiteral(rawFHab) || formatValue(rawFHab, 'date') || '';
+            const fHabHtml = `<td class="date-cell cell-fhab" title="${escapeHtml(fHabDisplay)}">${escapeHtml(fHabDisplay)}</td>`;
             const extractCompText = (cellHtml) => {
                 const plain = String(cellHtml || '')
                     .replace(/<[^>]*>/g, ' ')
@@ -7986,6 +8037,7 @@
                         <td class="p-cell">${pCell.innerHTML}</td>
                         ${hodHtml}
                         ${fIngHtml}
+                        ${fHabHtml}
                         <td style="text-align:center;" title="${statusValue}">${statusHtml.replace(/<td[^>]*>|<\/td>/g, '')}</td>
                         <td style="text-align:center;" title="${cliente}">${cliente}</td>
                         ${ocHtml}
@@ -8068,7 +8120,9 @@
             'CLIENTE': ['CLIENTE', 'CLI'],
             'HOD': ['HOD'],
             'F.ING.COST': ['F.ING.COST', 'FING.COST', 'F. ING. COST', 'F.ING'],
-            'F.ING': ['F.ING', 'F.ING.COST'],
+            'F.ING': ['F.ING', 'F.ING.PROG', 'F.ING.COST'],
+            'F.HAB': ['F.HAB', 'F.ING.REAL'],
+            'F.ING.REAL': ['F.ING.REAL', 'F.HAB'],
             'OP-PTDA': ['OP-PTDA', 'OP PTDA'],
             'OC': ['OC'],
             'COLOR': ['COLOR'],
@@ -8105,7 +8159,7 @@
     }
 
     function initializeHabilitadoHeaderContextMenus() {
-        const allowedFields = ['PLANTA', 'LINEA', 'HOD', 'F.ING.COST', 'F.ING', 'STATUS', 'CLIENTE', 'CLI', 'OP-PTDA', 'OC', 'COLOR', 'P'];
+        const allowedFields = ['PLANTA', 'LINEA', 'HOD', 'F.ING.COST', 'F.ING', 'F.HAB', 'STATUS', 'CLIENTE', 'CLI', 'OP-PTDA', 'OC', 'COLOR', 'P'];
 
         const thead = document.querySelector('#view-habilitado table thead');
         if (!thead) return;
@@ -8153,12 +8207,12 @@
 
         // Caso 1: Si es un string tipo "Date(2026,1,13)" extraer los nÃºmeros
         if (typeof val === 'string' && val.includes('Date(')) {
-            const match = val.match(/Date\((\d+),(\d+),(\d+)\)/);
+            const match = val.match(/Date\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
             if (match) {
                 const month = parseInt(match[2]); // JavaScript usa 0-11 para meses
                 const day = String(match[3]).padStart(2, '0');
 
-                return `${day}/${mesesEs[month]}`;
+                return mesesEs[month] ? `${day}/${mesesEs[month]}` : val;
             }
         }
 
@@ -10820,7 +10874,7 @@
             case 'F.ING.COST':
                 const rawFIng = getVal(row, 'F.ING.COST');
                 const dateValue = convertToDateInputFormat(rawFIng);
-                fieldValue = (formatDateShortFromInput(dateValue) || '').toString().trim().toUpperCase();
+                fieldValue = (formatDayMonthFromInput(dateValue) || '').toString().trim().toUpperCase();
                 break;
             case 'STATUS':
                 const rutaTela = (getVal(row, 'RUTA TELA') || getVal(row, 'RUTA_TELA') || getVal(row, 'RUTA') || '').toString().toUpperCase().trim();
@@ -10895,7 +10949,11 @@
             case 'F.ING':
                 const rawFIngH = getVal(row, 'F.ING.COST');
                 const dateValH = convertToDateInputFormat(rawFIngH);
-                fieldValue = (formatDateShortFromInput(dateValH) || '').toString().trim().toUpperCase();
+                fieldValue = (formatDayMonthFromInput(dateValH) || '').toString().trim().toUpperCase();
+                break;
+            case 'F.HAB':
+                const rawFHabField = getRawFIngRealFromRow(row);
+                fieldValue = (formatDayMonthFromSheetDateLiteral(rawFHabField) || formatValue(rawFHabField, 'date') || '').toString().trim().toUpperCase();
                 break;
         }
         return fieldValue;
@@ -11412,9 +11470,9 @@
         const input = document.getElementById('habilitado-filter-input');
         const select = document.getElementById('habilitado-filter-select');
 
-        document.getElementById('habilitado-filter-field').textContent = fieldName;
+        document.getElementById('habilitado-filter-field').textContent = (fieldName === 'F.ING' ? 'F.ING.Prog' : fieldName);
 
-        const dropdownFields = ['HOD', 'F.ING.COST', 'F.ING', 'STATUS', 'CLIENTE', 'CLI', 'PLANTA', 'LINEA'];
+        const dropdownFields = ['HOD', 'F.ING.COST', 'F.ING', 'F.HAB', 'STATUS', 'CLIENTE', 'CLI', 'PLANTA', 'LINEA'];
 
         if (dropdownFields.includes(fieldName)) {
             input.style.display = 'none';
@@ -11472,7 +11530,7 @@
             }
             if (typeof raw === 'string') {
                 const s = raw.trim();
-                const m = s.match(/Date\((\d+),(\d+),(\d+)\)/);
+                const m = s.match(/Date\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
                 if (m) return new Date(parseInt(m[1], 10), parseInt(m[2], 10), parseInt(m[3], 10)).getTime();
                 const m2 = s.match(/(\d{1,2})\/([A-Za-z]{3})\/(\d{2,4})/);
                 if (m2) {
@@ -11546,10 +11604,23 @@
                 case 'F.ING.COST':
                     const rawFIng = getVal(row, 'F.ING.COST');
                     const dateValue = convertToDateInputFormat(rawFIng);
-                    fieldValue = formatDateShortFromInput(dateValue) || '';
+                    fieldValue = formatDayMonthFromInput(dateValue) || '';
                     if (fieldValue && !dateTimestamps.has(fieldValue)) {
                         const ts = parseRawToTimestamp(rawFIng);
                         if (ts !== null) dateTimestamps.set(fieldValue, ts);
+                    }
+                    break;
+                case 'F.HAB':
+                    const rawFHab = getRawFIngRealFromRow(row);
+                    fieldValue = formatDayMonthFromSheetDateLiteral(rawFHab) || formatValue(rawFHab, 'date') || '';
+                    if (fieldValue && !dateTimestamps.has(fieldValue)) {
+                        const ts = parseSheetDateLiteralTimestamp(rawFHab);
+                        if (ts !== null) {
+                            dateTimestamps.set(fieldValue, ts);
+                        } else {
+                            const tsFallback = parseRawToTimestamp(rawFHab);
+                            if (tsFallback !== null) dateTimestamps.set(fieldValue, tsFallback);
+                        }
                     }
                     break;
                 case 'STATUS':
@@ -11624,7 +11695,7 @@
                 case 'F.ING':
                     const rawFIngPop = getVal(row, 'F.ING.COST');
                     const dateValPop = convertToDateInputFormat(rawFIngPop);
-                    fieldValue = formatDateShortFromInput(dateValPop) || '';
+                    fieldValue = formatDayMonthFromInput(dateValPop) || '';
                     break;
                 case 'CLI':
                     fieldValue = normalizeClientName(getVal(row, 'CLIENTE')) || '';
@@ -11655,7 +11726,7 @@
         // Agregar opciones al select, ordenadas
         // Si es fecha (HOD, F.ING.COST o F.ING), ordenar por timestamp real; P numÃ©rico; resto alfabÃ©tico
         const sortedValues = Array.from(values).sort((a, b) => {
-            if (fieldName === 'HOD' || fieldName === 'F.ING.COST' || fieldName === 'F.ING') {
+            if (fieldName === 'HOD' || fieldName === 'F.ING.COST' || fieldName === 'F.ING' || fieldName === 'F.HAB') {
                 const tsA = dateTimestamps.get(a);
                 const tsB = dateTimestamps.get(b);
                 if (tsA != null && tsB != null) return tsA - tsB;
@@ -11951,7 +12022,7 @@
             }
             if (typeof raw === 'string') {
                 const s = raw.trim();
-                const m = s.match(/Date\((\d+),(\d+),(\d+)\)/);
+                const m = s.match(/Date\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
                 if (m) return new Date(parseInt(m[1], 10), parseInt(m[2], 10), parseInt(m[3], 10)).getTime();
                 const m2 = s.match(/(\d{1,2})\/([A-Za-z]{3})\/(\d{2,4})/);
                 if (m2) {
@@ -16302,13 +16373,13 @@
 
         // Si es string con formato Date(yyyy,mm,dd)
         if (typeof valor === 'string') {
-            const m = valor.match(/Date\((\d+),(\d+),(\d+)\)/);
+            const m = valor.match(/Date\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
             if (m) {
                 const year = m[1];
                 const month = parseInt(m[2], 10);
                 const day = String(m[3]).padStart(2, '0');
                 const monthName = mesesEs[month] || '';
-                return `${day}/${monthName}`;
+                return monthName ? `${day}/${monthName}` : valor;
             }
         }
         return valor;
@@ -17033,7 +17104,7 @@ NOTA: Por favor adjunte los archivos descargados (${fileName}.xlsx y ${fileName}
                 const headerRow = document.createElement('tr');
                 columnsToShow.forEach(col => {
                     const th = document.createElement('th');
-                    th.textContent = col;
+                    th.textContent = (col === 'F.ING' ? 'F.ING.Prog' : col);
                     headerRow.appendChild(th);
                 });
                 thead.appendChild(headerRow);
